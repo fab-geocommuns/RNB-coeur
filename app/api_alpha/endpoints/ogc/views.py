@@ -116,7 +116,8 @@ class OGCIndexView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Racine de l'API du RNB au standard OGC",
-                "description": "Ce endpoint est le point d'entrée pour exploiter les données RNB au standard OGC.",
+                "operationId": "ogcRoot",
+                "description": "Cet endpoint est le point d'entrée pour exploiter les données RNB au standard OGC.",
                 "responses": {
                     "200": {
                         "description": "Principaux liens disponibles dans l'API",
@@ -159,6 +160,7 @@ class OGCConformanceView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Déclaration de conformité de l'API du RNB au standard OGC",
+                "operationId": "ogcConformance",
                 "description": "Liste les classes de conformité OGC auxquelles cette API adhère.",
                 "responses": {
                     "200": {
@@ -198,7 +200,8 @@ class OGCCollectionsView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Liste des collections de données",
-                "description": "Ce endpoint liste les collections de données disponibles au standard OGC. Pour le moment, seuls les bâtiments sont disponibles.",
+                "operationId": "ogcCollections",
+                "description": "Cet endpoint liste les collections de données disponibles au standard OGC. Pour le moment, seuls les bâtiments sont disponibles.",
                 "responses": {
                     "200": {
                         "description": "Liste des collections",
@@ -231,6 +234,7 @@ class OGCBuildingsCollectionView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Métadonnées de la collection de bâtiments",
+                "operationId": "ogcBuildingsCollection",
                 "description": "Fournit des informations détaillées sur la collection de bâtiments.",
                 "responses": {
                     "200": {
@@ -256,21 +260,30 @@ class OGCBuildingItemsView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Liste des bâtiments",
-                "description": "Récupère une liste de bâtiments sous forme de FeatureCollection GeoJSON.",
+                "operationId": "ogcBuildingItems",
+                "description": "Récupère une liste paginée de bâtiments sous forme de FeatureCollection GeoJSON. Par défaut, seuls les bâtiments réels sont renvoyés : actifs, de statut `constructed` ou `notUsable`. Les filtres géographiques portent sur le point du bâtiment, pas sur son emprise au sol. La pagination passe par les liens `next` et `prev` de l'attribut `links`.",
                 "parameters": [
                     {
                         "name": "bbox",
                         "in": "query",
-                        "description": "Filtre géographique par Bounding Box.",
-                        "schema": {"type": "array"},
+                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box. Quatre nombres séparés par des virgules, dans l'ordre `min_lon,min_lat,max_lon,max_lat` (WGS84). La taille est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4, soit environ deux départements français.",
+                        "required": False,
+                        "schema": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 4,
+                            "maxItems": 4,
+                        },
                         "style": "form",
+                        "explode": False,
+                        "example": [2.424525, 48.839201, 2.434158, 48.845782],
                     },
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont la géométrie est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans les limites géographiques de la commune ayant ce code INSEE. Un code qui n'a pas 5 caractères renvoie une erreur 400, un code INSEE inconnu une erreur 404.",
                         "required": False,
-                        "schema": {"type": "string"},
+                        "schema": {"type": "string", "minLength": 5, "maxLength": 5},
                         "example": "75101",
                     },
                     {
@@ -286,6 +299,14 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                             "minimum": 1,
                         },
                         "example": 50,
+                    },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Avec la valeur `1`, ajoute aux propriétés de chaque bâtiment les parcelles cadastrales qui l'intersectent, avec la part de la surface du bâtiment située sur chacune.",
+                        "required": False,
+                        "schema": {"type": "string", "enum": ["0", "1"]},
+                        "example": "1",
                     },
                 ],
                 "responses": {
@@ -326,7 +347,10 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "404": {
+                        "description": "Le code INSEE ne correspond à aucune commune."
+                    },
                 },
             }
         },
@@ -365,7 +389,8 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Récupérer un bâtiment par son ID-RNB",
-                "description": "Récupère un seul bâtiment en tant que Feature GeoJSON.",
+                "operationId": "ogcBuildingItem",
+                "description": "Récupère un seul bâtiment en tant que Feature GeoJSON. Les bâtiments désactivés et démolis sont aussi renvoyés.",
                 "parameters": [
                     {
                         "name": "featureId",
@@ -373,7 +398,16 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
                         "required": True,
                         "description": "ID-RNB du bâtiment (rnb_id).",
                         "schema": {"type": "string"},
-                    }
+                        "example": "PG46YY6YWCX8",
+                    },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Avec la valeur `1`, ajoute aux propriétés de chaque bâtiment les parcelles cadastrales qui l'intersectent, avec la part de la surface du bâtiment située sur chacune.",
+                        "required": False,
+                        "schema": {"type": "string", "enum": ["0", "1"]},
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
