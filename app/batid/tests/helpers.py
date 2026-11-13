@@ -1,5 +1,7 @@
 import json
 import os
+import runpy
+from unittest import mock
 
 from batid.models import Address, Building, City
 from django.contrib.gis.geos import GEOSGeometry
@@ -8,6 +10,8 @@ from django_otp.oath import totp
 from django_otp.plugins.otp_static.models import StaticDevice
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from requests import Response
+
+from app import settings as settings_module
 
 
 def create_paris():
@@ -1230,3 +1234,19 @@ def current_code(device: TOTPDevice) -> str:
 def wrong_code(device: TOTPDevice) -> str:
     """A 6-digit code the device refuses."""
     return f"{(totp(device.bin_key) + 500_000) % 1_000_000:06d}"
+
+
+def load_settings(env: dict[str, str | None]) -> dict:
+    """Evaluate app/settings.py apart, with the environment variables of `env`
+    set (None removes the variable), and return its globals. The settings
+    Django already loaded stay untouched."""
+    # patch.dict restores the whole environment on exit
+    with mock.patch.dict(os.environ):
+        for name, value in env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        # Sentry must not be initialised in the test process.
+        os.environ.pop("SENTRY_DSN", None)
+        return runpy.run_path(settings_module.__file__)

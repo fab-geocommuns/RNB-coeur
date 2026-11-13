@@ -1,9 +1,11 @@
 from unittest import mock
 
+from batid.models import ADS, Contribution
 from batid.tests.helpers import current_code, login_with_otp
-from batid.views import MetabaseProxyView
+from batid.views import FlowerProxyView, MetabaseProxyView
 from django.contrib.admin.models import CHANGE, LogEntry
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
+from django.contrib.messages import get_messages
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -84,6 +86,77 @@ class AdminOTPTest(TestCase):
         self.assertEqual(self.client.get("/flower/").status_code, 403)
         self.assertEqual(self.client.get("/metabase/dashboard/1").status_code, 403)
 
+    def test_metabase_non_public_reaches_verified_superuser(self):
+        """Superuser logged in with a verified device opens a non-public Metabase
+        URL: proxied to the upstream server with X-Remote-User set to its email
+        (Flower is covered by test_csp)."""
+        login_with_otp(client=self.client, user=self.superuser)
+
+        headers = self.proxied_headers("/metabase/dashboard/1")
+
+        self.assertEqual(headers["X-Remote-User"], "admin@rnb.fr")
+
+    def test_proxies_refuse_verified_staff_not_superuser(self):
+        """Staff user, not superuser, logged in with a verified device: /flower/ and a
+        non-public Metabase URL answer 403, the upstream is never called."""
+        staff = User.objects.create_user(
+            username="staff", email="staff@rnb.fr", is_staff=True
+        )
+        login_with_otp(client=self.client, user=staff)
+
+        for view, url in (
+            (FlowerProxyView, "/flower/"),
+            (MetabaseProxyView, "/metabase/dashboard/1"),
+        ):
+            with self.subTest(url=url):
+                with mock.patch.object(
+                    view, "_created_proxy_response", side_effect=ProxyCalled
+                ) as upstream:
+                    response = self.client.get(url)
+
+                upstream.assert_not_called()
+                self.assertEqual(response.status_code, 403)
+
+    def test_exports_with_otp(self):
+        """Superuser logged in with a verified device, one ADS and one contribution in
+        base: /admin/export_ads/ and /admin/export_contributions/ answer 200 with a
+        CSV attachment."""
+        ADS.objects.create(file_number="ADS-1", creator=self.superuser)
+        Contribution.objects.create(rnb_id="BDG000000001", text="hello")
+        login_with_otp(client=self.client, user=self.superuser)
+
+        for url, filename in (
+            ("/admin/export_ads/", "export_ads.csv"),
+            ("/admin/export_contributions/", "export_contributions.csv"),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["Content-Type"], "text/csv")
+                self.assertEqual(
+                    response["Content-Disposition"],
+                    f'attachment; filename="{filename}"',
+                )
+
+    def test_totp_device_secret_hidden(self):
+        """Superuser logged in with a verified device opens the admin change page of
+        a TOTP device: neither its hex key nor a QR code link is shown, and the config
+        and QR code pages answer 403."""
+        device = TOTPDevice.objects.create(
+            user=self.superuser, name="app", confirmed=True
+        )
+        login_with_otp(client=self.client, user=self.superuser)
+        base = f"/admin/otp_totp/totpdevice/{device.pk}"
+
+        response = self.client.get(f"{base}/change/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, device.key)
+        self.assertNotContains(response, "qrcode")
+        self.assertEqual(self.client.get(f"{base}/config/").status_code, 403)
+        self.assertEqual(self.client.get(f"{base}/qrcode/").status_code, 403)
+
     def proxied_headers(self, url, **headers) -> dict:
         captured = {}
 
@@ -123,6 +196,12 @@ class AdminOTPTest(TestCase):
                 upstream.assert_not_called()
                 self.assertEqual(response.status_code, 302)
 
+    def test_metabase_public_url_with_percent_encoding(self):
+        """Anonymous GET on a public Metabase URL whose path, once decoded by
+        Django, still holds a percent-encoded character ("a%2520b" read as
+        "a%20b"), with no dot segment: proxied, not refused."""
+        self.proxied_headers("/metabase/public/dashboard/a%2520b")
+
     def test_metabase_never_forwards_client_remote_user(self):
         """Public Metabase URL with a forged X-Remote-User header, sent anonymously,
         then by an unverified superuser: proxied without X-Remote-User. Sent by a
@@ -151,6 +230,18 @@ class AdminOTPTest(TestCase):
         login_with_otp(client=self.client, user=self.superuser)
         self.assertEqual(self.proxied_headers(url)["X-Remote-User"], "admin@rnb.fr")
 
+    def test_metabase_public_url_for_verified_staff_not_superuser(self):
+        """Staff user, not superuser, logged in with a verified device opens a public
+        Metabase URL: proxied without X-Remote-User."""
+        staff = User.objects.create_user(
+            username="staff", email="staff@rnb.fr", is_staff=True
+        )
+        login_with_otp(client=self.client, user=staff)
+
+        headers = self.proxied_headers("/metabase/public/dashboard/abc")
+
+        self.assertNotIn("X-Remote-User", headers)
+
 
 class ResetMFAActionTest(TestCase):
     def setUp(self):
@@ -161,7 +252,8 @@ class ResetMFAActionTest(TestCase):
 
     def test_reset_selected_users_only(self):
         """Admin action "reset_mfa" on two users: their TOTP and static devices
-        (with tokens) are deleted; a third user's devices are untouched."""
+        (with tokens) are deleted, a third user's devices are untouched, and the
+        admin gets the success message for 2 users."""
         selected = [
             User.objects.create_user(username=f"user{i}", email=f"user{i}@exemple.fr")
             for i in range(2)
@@ -178,6 +270,10 @@ class ResetMFAActionTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            [str(m) for m in get_messages(response.wsgi_request)],
+            ["Double authentification réinitialisée pour 2 utilisateur(s)."],
+        )
         self.assertFalse(TOTPDevice.objects.filter(user__in=selected).exists())
         self.assertFalse(StaticDevice.objects.filter(user__in=selected).exists())
         self.assertTrue(TOTPDevice.objects.filter(user=other).exists())
@@ -229,3 +325,28 @@ class ResetMFAActionTest(TestCase):
         self.assertTrue(device_deletes)
         self.assertLess(user_locks[0], device_deletes[0])
         self.assertFalse(TOTPDevice.objects.filter(user=selected).exists())
+
+    def test_reset_refused_without_change_permission(self):
+        """Staff user logged in with a verified device and only the view_user
+        permission posts "reset_mfa" on a user with an app: the action is ignored
+        and the user list is shown again (200), the app remains and nothing is
+        logged."""
+        staff = User.objects.create_user(
+            username="staff", email="staff@rnb.fr", is_staff=True
+        )
+        staff.user_permissions.add(Permission.objects.get(codename="view_user"))
+        target = User.objects.create_user(username="user", email="user@exemple.fr")
+        TOTPDevice.objects.create(user=target, name="app", confirmed=True)
+        login_with_otp(client=self.client, user=staff)
+
+        response = self.client.post(
+            "/admin/auth/user/",
+            {"action": "reset_mfa", "_selected_action": [target.pk]},
+        )
+
+        # Without the change permission the action is not offered: Django ignores
+        # it and renders the user list again.
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "admin/change_list.html")
+        self.assertTrue(TOTPDevice.objects.filter(user=target).exists())
+        self.assertFalse(LogEntry.objects.filter(object_id=str(target.pk)).exists())
