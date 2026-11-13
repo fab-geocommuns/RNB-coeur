@@ -24,6 +24,7 @@ from batid.exceptions import (
 )
 from batid.list_bdg import list_bdgs
 from batid.models import Building, Contribution, EventAnnotation, Trophy
+from batid.services.bdg_about_id import get_about_id
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -73,6 +74,112 @@ class SingleBuildingHistory(RNBLoggingMixin, APIView):
             annotations_by_event_id[str(annotation.event_id)].append(annotation)
 
         return annotations_by_event_id
+
+
+class SingleBuildingAboutId(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Devenir d'un identifiant RNB",
+                "description": LiteralStr("""\
+Cet endpoint permet de savoir ce qu'est devenu un identifiant RNB que vous connaissez déjà, par exemple après un rapprochement de votre base de données avec le RNB.
+
+* Si l'identifiant est toujours actif, `last_active_children` est vide.
+* Si l'identifiant a été fusionné ou scindé, `last_active_children` contient les identifiants actifs qui en sont issus. La filiation est suivie jusqu'au bout : si un bâtiment issu de la fusion ou de la scission a lui-même été fusionné, scindé ou désactivé, ce sont ses descendants actifs qui sont indiqués.
+* Si une fusion ou une scission a été annulée, les identifiants d'origine, réactivés, sont indiqués à la place de ceux qui avaient été créés.
+* Si l'identifiant a été désactivé, ou si aucun descendant actif n'a été retrouvé, `last_active_children` est vide.
+
+`event_type`, `updated_at`, `event_origin` et `author` décrivent le dernier événement subi par l'identifiant interrogé.
+
+NB : l'URL se termine nécessairement par un slash (/).
+"""),
+                "operationId": "getBuildingAboutId",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Devenir de l'identifiant RNB",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "rnb_id": {
+                                            "$ref": "#/components/schemas/RNBID"
+                                        },
+                                        "is_active": {
+                                            "$ref": "#/components/schemas/BuildingIsActive"
+                                        },
+                                        "status": {
+                                            "$ref": "#/components/schemas/BuildingStatus"
+                                        },
+                                        "event_type": {
+                                            "type": ["string", "null"],
+                                            "description": "Type du dernier événement subi par l'identifiant.",
+                                            "example": "merge",
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Date du dernier événement subi par l'identifiant.",
+                                            "example": "2026-12-31T00:00:00Z",
+                                        },
+                                        "event_origin": {
+                                            "type": "object",
+                                            "description": "Origine du dernier événement : contribution, import, correction de données (data_fix), etc.",
+                                            "properties": {
+                                                "type": {
+                                                    "type": ["string", "null"],
+                                                    "example": "contribution",
+                                                },
+                                                "id": {
+                                                    "type": ["integer", "null"],
+                                                    "example": 1234,
+                                                },
+                                            },
+                                        },
+                                        "author": {
+                                            "anyOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/PublicUser"
+                                                },
+                                                {"type": "null"},
+                                            ],
+                                            "description": "Auteur du dernier événement, s'il est connu.",
+                                        },
+                                        "last_active_children": {
+                                            "type": "array",
+                                            "description": "Identifiants RNB actifs au bout de la filiation de l'identifiant interrogé. Vide si l'identifiant est actif ou si aucun descendant actif n'a été retrouvé.",
+                                            "items": {
+                                                "$ref": "#/components/schemas/RNBID"
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "404": {"description": "Identifiant RNB inconnu"},
+                },
+            }
+        }
+    )
+    def get(self, request, rnb_id):
+
+        about = get_about_id(clean_rnb_id(rnb_id))
+
+        if about is None:
+            raise NotFound()
+
+        return Response(about)
 
 
 class SingleBuilding(RNBLoggingMixin, APIView):
