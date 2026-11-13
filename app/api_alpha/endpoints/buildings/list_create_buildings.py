@@ -26,6 +26,7 @@ from batid.exceptions import (
 )
 from batid.list_bdg import list_bdgs
 from batid.models import Building, Contribution, Trophy
+from batid.services.bdg_status import BuildingStatus
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -36,6 +37,80 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+# Statuses listed by default, as markdown: `constructed` ou `notUsable`
+REAL_STATUS_MD = " ou ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STATUS)
+
+# Response of the listing with format=json (default).
+# The two formats share the application/json content type (the API never sends
+# application/geo+json), hence "required" on both schemas to tell them apart in
+# the oneOf of the response.
+BUILDINGS_PAGE_SCHEMA = {
+    "type": "object",
+    "title": "format=json",
+    "description": "Réponse par défaut, ou avec le paramètre `format=json`",
+    "required": ["next", "previous", "results"],
+    "properties": {
+        "next": {
+            "type": ["string", "null"],
+            "description": "<br />URL de la page de résultats suivante<br />",
+            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
+        },
+        "previous": {
+            "type": ["string", "null"],
+            "description": "<br />URL de la page de résultats précédente<br />",
+            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
+        },
+        "results": {
+            "type": "array",
+            "items": {
+                "allOf": [
+                    {"$ref": "#/components/schemas/Building"},
+                    {"$ref": "#/components/schemas/BuildingWPlots"},
+                ]
+            },
+        },
+    },
+}
+
+# Response of the listing with format=geojson: the FeatureCollection is at the root
+BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
+    "type": "object",
+    "title": "format=geojson",
+    "description": "Réponse avec le paramètre `format=geojson`",
+    "required": ["type", "features", "links"],
+    "properties": {
+        "type": {"type": "string", "example": "FeatureCollection"},
+        "features": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/BuildingGeoJSON"},
+        },
+        "links": {
+            "type": "array",
+            "description": "Liens vers la page courante (`self`), la page suivante (`next`) et la page précédente (`prev`), quand elles existent.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "rel": {"type": "string", "enum": ["self", "next", "prev"]},
+                    "title": {"type": "string"},
+                    "type": {"type": "string", "example": "application/geo+json"},
+                    "href": {"type": "string"},
+                },
+            },
+        },
+        "numberReturned": {
+            "type": "integer",
+            "description": "Nombre de bâtiments dans cette page.",
+            "example": 20,
+        },
+        "timeStamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Horodatage de la génération de la réponse.",
+            "example": "2025-12-25T13:37:00Z",
+        },
+    },
+}
+
 
 class ListCreateBuildings(RNBLoggingMixin, APIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
@@ -44,18 +119,25 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Liste des batiments",
-                "description": (
-                    "Cet endpoint permet de récupérer une liste paginée de bâtiments. "
-                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
-                    "Au moins un filtre est requis."
-                    "NB : l'URL se termine nécessairement par un slash (/)."
-                ),
+                "description": LiteralStr(f"""\
+Cet endpoint permet de récupérer une liste paginée de bâtiments.
+
+Au moins un de ces filtres est requis : `bbox`, `bb`, `insee_code` ou `cle_interop_ban`. Les autres paramètres ne suffisent pas.
+
+Bâtiments renvoyés :
+* seuls les bâtiments actifs sont listés. Un bâtiment désactivé reste accessible par la consultation d'un bâtiment ;
+* sans paramètre `status`, seuls les bâtiments réels sont listés, c'est-à-dire de statut {REAL_STATUS_MD}.
+
+Les filtres géographiques (`bbox`, `bb`, `insee_code`) portent sur le point du bâtiment, pas sur son emprise au sol.
+
+NB : l'URL se termine nécessairement par un slash (/).
+"""),
                 "operationId": "listBuildings",
                 "parameters": [
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE.",
+                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Un code INSEE inconnu renvoie une erreur 404.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
@@ -63,7 +145,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "status",
                         "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
@@ -87,7 +169,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "format",
                         "in": "query",
-                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, l'attribut `results` de la réponse est un objet de type FeatureCollection tel que défini dans le standard GeoJSON.",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, la réponse est directement un objet de type FeatureCollection tel que défini dans le standard GeoJSON. La pagination se fait alors par l'attribut `links` (liens `next` et `prev`), et non par les attributs `next` et `previous`.",
                         "required": False,
                         "schema": {
                             "type": "string",
@@ -113,8 +195,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "name": "bbox",
                         "in": "query",
                         "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box. "
-                            "Le format est `min_lon,min_lat,max_lon,max_lat`"
+                            "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box. "
+                            "Le format est `min_lon,min_lat,max_lon,max_lat`. "
                             "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
@@ -126,9 +208,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "OBSOLÈTE - préférez le paramètre `bbox` "
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
+                            "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est `nw_lat,nw_lon,se_lat,se_lon`"
+                            "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
                             "La taille de la bbox est limitée par la contrainte (se_lon - nw_lon) * (nw_lat - se_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
@@ -142,36 +224,17 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "next": {
-                                            "type": ["string", "null"],
-                                            "description": "<br />URL de la page de résultats suivante<br />",
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
-                                        },
-                                        "previous": {
-                                            "type": ["string", "null"],
-                                            "description": "<br />URL de la page de résultats précédente<br />",
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
-                                        },
-                                        "results": {
-                                            "type": "array",
-                                            "items": {
-                                                "allOf": [
-                                                    {
-                                                        "$ref": "#/components/schemas/Building"
-                                                    },
-                                                    {
-                                                        "$ref": "#/components/schemas/BuildingWPlots"
-                                                    },
-                                                ]
-                                            },
-                                        },
-                                    },
+                                    "oneOf": [
+                                        BUILDINGS_PAGE_SCHEMA,
+                                        BUILDINGS_FEATURE_COLLECTION_SCHEMA,
+                                    ]
                                 }
-                            }
+                            },
                         },
-                    }
+                    },
+                    "404": {
+                        "description": "Le code INSEE ne correspond à aucune commune."
+                    },
                 },
             },
         },

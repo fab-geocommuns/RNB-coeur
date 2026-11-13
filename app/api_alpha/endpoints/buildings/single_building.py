@@ -82,7 +82,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Contrairement à la liste des bâtiments, il renvoie aussi les bâtiments désactivés (`is_active` à `false`) et tous les statuts, démolis compris. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -114,16 +114,38 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                     "200": {
                         "description": "Détails du bâtiment",
                         "content": {
+                            # Both formats are sent as application/json: "required"
+                            # tells them apart in the oneOf
                             "application/json": {
                                 "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    "oneOf": [
+                                        {
+                                            "title": "format=json",
+                                            "description": "Réponse par défaut, ou avec le paramètre `format=json`",
+                                            "required": ["rnb_id"],
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/Building"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/BuildingWPlots"
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            "title": "format=geojson",
+                                            "description": "Réponse avec le paramètre `format=geojson`",
+                                            "required": ["type", "geometry"],
+                                            "$ref": "#/components/schemas/BuildingGeoJSON",
+                                        },
                                     ]
                                 }
-                            }
+                            },
                         },
-                    }
+                    },
+                    "404": {
+                        "description": "Aucun bâtiment ne correspond à cet identifiant RNB."
+                    },
                 },
             }
         },

@@ -990,3 +990,75 @@ class BuildingsWithPlots(APITestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertDictEqual(data, expected_wo_plots)
+
+
+class ListingStatusAndActivityTest(APITestCase):
+    BBOX = "1.06,46.63,1.07,46.64"
+
+    def setUp(self):
+        point = GEOSGeometry("POINT(1.0655 46.6341)", srid=4326)
+        for rnb_id, status, is_active in (
+            ("CONSTRUCTED1", "constructed", True),
+            ("NOTUSABLE001", "notUsable", True),
+            ("DEMOLISHED01", "demolished", True),
+            ("INACTIVE0001", "constructed", False),
+        ):
+            Building.objects.create(
+                rnb_id=rnb_id,
+                shape=point,
+                point=point,
+                status=status,
+                is_active=is_active,
+            )
+
+    def _rnb_ids(self, query: str) -> set[str]:
+        r = self.client.get(f"/api/alpha/buildings/?bbox={self.BBOX}{query}")
+        self.assertEqual(r.status_code, 200, r.content)
+        return {b["rnb_id"] for b in r.json()["results"]}
+
+    def test_default_status_and_all(self):
+        """
+        Input: listing without status, then with status=all.
+        Expected: real buildings (constructed, notUsable) by default, every status
+        with "all".
+        """
+        self.assertEqual(self._rnb_ids(""), {"CONSTRUCTED1", "NOTUSABLE001"})
+        self.assertEqual(
+            self._rnb_ids("&status=all"),
+            {"CONSTRUCTED1", "NOTUSABLE001", "DEMOLISHED01"},
+        )
+
+    def test_inactive_excluded_from_list_but_returned_by_lookup(self):
+        """
+        Input: an inactive building, listed then looked up by its RNB ID.
+        Expected: absent from the listing, even with status=all; returned by the
+        lookup with is_active false.
+        """
+        self.assertNotIn("INACTIVE0001", self._rnb_ids("&status=all"))
+
+        r = self.client.get("/api/alpha/buildings/INACTIVE0001/")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()["is_active"])
+
+    def test_geojson_format_has_feature_collection_at_root(self):
+        """
+        Input: listing with format=geojson.
+        Expected: a FeatureCollection at the root of the response, paginated through
+        "links", without "results", "next" or "previous".
+        """
+        r = self.client.get(f"/api/alpha/buildings/?bbox={self.BBOX}&format=geojson")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["type"], "FeatureCollection")
+        self.assertEqual(len(data["features"]), 2)
+        self.assertIn("links", data)
+        for key in ("results", "next", "previous"):
+            self.assertNotIn(key, data)
+
+    def test_unknown_insee_code_is_404(self):
+        """
+        Input: listing filtered on an INSEE code matching no city.
+        Expected: 404.
+        """
+        r = self.client.get("/api/alpha/buildings/?insee_code=99999")
+        self.assertEqual(r.status_code, 404)
