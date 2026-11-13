@@ -1766,3 +1766,65 @@ class TestInspectorMatchingStatus(TestCase):
         self.assertEqual(inspector.candidate.shape.geom_type, "MultiPolygon")
         inspector.get_matching_bdgs()
         self.assertEqual([b.rnb_id for b in inspector.matching_bdgs], ["CONSTRUCTED1"])
+
+    def test_building_near_but_outside_candidate_bbox_matches(self):
+        """
+        Input: rectangular candidate, and a building ~2 m east of it, outside its
+        bounding box (2.73e-5 degrees of longitude at 48.86 N).
+        Expected: the building is among the matching buildings (within 3 m).
+        """
+        create_bdg(
+            "NEIGHBOUR001",
+            [
+                [2.3498273, 48.8577],
+                [2.35, 48.8577],
+                [2.35, 48.8578],
+                [2.3498273, 48.8578],
+                [2.3498273, 48.8577],
+            ],
+        )
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(
+                [
+                    [2.3496, 48.8577],
+                    [2.3498, 48.8577],
+                    [2.3498, 48.8578],
+                    [2.3496, 48.8578],
+                    [2.3496, 48.8577],
+                ]
+            ),
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_near",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+        inspector = Inspector()
+        inspector.get_candidate()
+        inspector.get_matching_bdgs()
+        self.assertEqual([b.rnb_id for b in inspector.matching_bdgs], ["NEIGHBOUR001"])
+
+
+class TestEmptyShapeCandidate(TestCase):
+    def test_no_matching_buildings(self):
+        """
+        Input: candidate with an empty shape (POLYGON EMPTY).
+        Expected: get_matching_bdgs raises nothing and finds no matching building.
+        """
+        Candidate.objects.create(
+            shape=GEOSGeometry("SRID=4326;POLYGON EMPTY"),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="empty_shape",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+        inspector = Inspector()
+        inspector.get_candidate()
+        inspector.get_matching_bdgs()
+
+        self.assertEqual(inspector.matching_bdgs, [])

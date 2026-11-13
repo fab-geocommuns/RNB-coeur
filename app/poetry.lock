@@ -1624,18 +1624,6 @@ files = [
 python-dateutil = ">=2.7"
 
 [[package]]
-name = "geographiclib"
-version = "2.1"
-description = "The geodesic routines from GeographicLib"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "geographiclib-2.1-py3-none-any.whl", hash = "sha256:e2a873b9b9e7fc38721ad73d5f4e6c9ed140d428a339970f505c07056997d40b"},
-    {file = "geographiclib-2.1.tar.gz", hash = "sha256:6a6545e6262d0ed3522e13c515713718797e37ed8c672c31ad7b249f372ef108"},
-]
-
-[[package]]
 name = "geopandas"
 version = "1.2.0"
 description = "Geographic pandas extensions"
@@ -1657,30 +1645,6 @@ shapely = ">=2.1.0"
 
 [package.extras]
 all = ["contextily", "folium", "geoalchemy2", "geopy", "mapclassify (>=2.7)", "matplotlib (>=3.9)", "pointpats (>=2.5.3)", "psycopg[binary] (>=3.2.0)", "pyarrow (>=15.0.0)", "scipy", "sqlalchemy (>=2.0)", "xyzservices"]
-
-[[package]]
-name = "geopy"
-version = "2.5.0"
-description = "Python Geocoding Toolbox"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "geopy-2.5.0-py3-none-any.whl", hash = "sha256:8ad8cc226b505ca4d272ae9a2eeba08b8a2c565fc9a04eaefc33ad49c32b51aa"},
-    {file = "geopy-2.5.0.tar.gz", hash = "sha256:7b6c849f18108dcce4faa3d614e2801107b465f7b05fd3c1db9db12e225ae950"},
-]
-
-[package.dependencies]
-geographiclib = ">=1.52,<3"
-
-[package.extras]
-aiohttp = ["aiohttp"]
-dev = ["coverage", "flake8 (>=7.1.2,<7.4)", "isort (>=5.13.2,<8.1)", "pytest (>=3.10)", "pytest-asyncio (>=0.17)", "readme_renderer", "sphinx (<=9.1.0)", "sphinx (<=9.1.0)", "sphinx-issues", "sphinx_rtd_theme (>=3.1.0)"]
-dev-docs = ["readme_renderer", "sphinx (<=9.1.0)", "sphinx-issues", "sphinx_rtd_theme (>=3.1.0)"]
-dev-lint = ["flake8 (>=7.1.2,<7.4)", "isort (>=5.13.2,<8.1)"]
-dev-test = ["coverage", "pytest (>=3.10)", "pytest-asyncio (>=0.17)", "sphinx (<=9.1.0)"]
-requests = ["requests (>=2.16.2)", "urllib3 (>=1.24.2)"]
-timezone = ["pytz"]
 
 [[package]]
 name = "gunicorn"
@@ -5824,4 +5788,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "3.14.5"
-content-hash = "f0051ed29630912c785eb619e8d4b97ca49da110d838373561018a5e4ae35f7a"
+content-hash = "9ea37bb23cce710eb8c3685e5957c93f6b0b5be87609e31413fe7265efc28bca"

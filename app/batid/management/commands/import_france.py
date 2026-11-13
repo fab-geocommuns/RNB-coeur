@@ -1,5 +1,6 @@
 # empty django command
 import uuid
+from functools import partial
 
 from batid.management.commands.import_bdnb_dpt import (
     create_tasks_list as create_tasks_list_bdnb_dpt,
@@ -12,6 +13,7 @@ from batid.management.commands.import_plots_dpt import (
 )
 from batid.services.administrative_areas import dpt_list_metropole, dpts_list
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
+from batid.services.imports.import_plots import etalab_recent_release_date
 from celery import chain
 from django.core.management.base import BaseCommand
 
@@ -61,6 +63,11 @@ def create_tasks_list_france(start_dpt, end_dpt, task_name):
     start_dpt_index = dpts.index(start_dpt) if start_dpt in dpts else 0
     end_dpt_index = dpts.index(end_dpt) + 1 if start_dpt in dpts else len(dpts)
     create_task_method = task_method(task_name)
+    if task_name == "plots":
+        # Read the Etalab index once so every departement gets the same release
+        create_task_method = partial(
+            create_task_method, release_date=etalab_recent_release_date()
+        )
     bulk_launch_uuid = uuid.uuid4()
 
     for dpt in dpts[start_dpt_index:end_dpt_index]:

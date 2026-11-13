@@ -1,10 +1,12 @@
 import csv
 import json
+import re
 from datetime import date, datetime, timezone
 from io import StringIO
 from typing import Optional
 
 import ijson  # type: ignore[import-untyped]
+import requests
 from batid.models import Plot
 from batid.services.administrative_areas import dpt_list_metropole, drom_list
 from batid.services.source import Source, remove_after_task_success
@@ -12,6 +14,9 @@ from batid.utils.db import copy_from_file
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.db import connection, transaction
+
+ETALAB_CADASTRE_URL = "https://cadastre.data.gouv.fr/data/etalab-cadastre/"
+ETALAB_RELEASE_LINK = re.compile(r'href="/data/etalab-cadastre/(\d{4}-\d{2}-\d{2})/"')
 
 
 def import_etalab_plots(dpt: str, release_date: str, batch_size: int = 100_000):
@@ -100,7 +105,7 @@ def etalab_dpt_list() -> list:
     return dpt_list_metropole() + drom_list()
 
 
-def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
+def create_plots_full_import_tasks(*, dpt_list: list, release_date: str) -> list:
 
     tasks = []
 
@@ -125,59 +130,21 @@ def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
     return tasks
 
 
-def etalab_recent_release_date(before: Optional[date] = None) -> str:  # type: ignore[return]
-    # If no date is provided, we use the current date
-    if before is None:
-        before = datetime.now().date()
-
-    # First we get an ordred list of all release dates
-    release_dates = sorted(
-        [
-            datetime.strptime(date, "%Y-%m-%d").date()
-            for date in _etalab_releases_dates()
-        ]
-    )
-
-    for idx, date in enumerate(release_dates):
-        if date >= before:
-            # Return the previous release date
-            return release_dates[idx - 1].strftime("%Y-%m-%d")
+def etalab_recent_release_date(before: Optional[date] = None) -> str:
+    """Most recent Etalab release strictly before `before`, or the latest one if None."""
+    return pick_release_date(release_dates=fetch_etalab_release_dates(), before=before)
 
 
-def _etalab_releases_dates() -> list:
+def fetch_etalab_release_dates() -> list[date]:
+    response = requests.get(ETALAB_CADASTRE_URL, timeout=30)
+    response.raise_for_status()
+    return [date.fromisoformat(d) for d in ETALAB_RELEASE_LINK.findall(response.text)]
 
-    # It seems Etalab has change its release dates since september 2025
 
-    return [
-        #
-        "2024-10-01",
-        # In 2025, there were no release in July and October. Instead, there was a release in September.
-        "2025-01-01",
-        "2025-04-01",
-        "2025-09-01",
-        #
-        "2026-01-01",
-        "2026-04-01",
-        "2026-07-01",
-        "2026-10-01",
-        #
-        "2027-01-01",
-        "2027-04-01",
-        "2027-07-01",
-        "2027-10-01",
-        #
-        "2028-01-01",
-        "2028-04-01",
-        "2028-07-01",
-        "2028-10-01",
-        #
-        "2029-01-01",
-        "2029-04-01",
-        "2029-07-01",
-        "2029-10-01",
-        #
-        "2030-01-01",
-        "2030-04-01",
-        "2030-07-01",
-        "2030-10-01",
-    ]
+def pick_release_date(*, release_dates: list[date], before: Optional[date]) -> str:
+    candidates = [d for d in release_dates if before is None or d < before]
+    if not candidates:
+        raise ValueError(
+            f"No Etalab cadastre release before {before} in {release_dates}"
+        )
+    return max(candidates).isoformat()

@@ -1,4 +1,10 @@
-from celery import Signature, chain
+from typing import Optional
+
+from batid.services.imports.import_plots import (
+    create_plots_full_import_tasks,
+    etalab_recent_release_date,
+)
+from celery import chain
 from django.core.management.base import BaseCommand
 
 
@@ -13,10 +19,7 @@ class Command(BaseCommand):
         chain(*tasks)()
 
 
-def create_tasks_list(dpt):
-    tasks = []
-    tasks.append(
-        Signature("batid.tasks.dl_source", args=["plot", {"dpt": dpt}], immutable=True)
+def create_tasks_list(dpt, *, release_date: Optional[str] = None):
+    return create_plots_full_import_tasks(
+        dpt_list=[dpt], release_date=release_date or etalab_recent_release_date()
     )
-    tasks.append(Signature("batid.tasks.import_plots", args=[dpt], immutable=True))
-    return tasks

@@ -52,9 +52,10 @@ production_schedule = {
     },
     "import_plots": {
         "task": "batid.tasks.queue_full_plots_import",
-        # january 31, april 30, july 31, november 30,
+        # Etalab puts each quarterly release online 4 to 6 weeks after the date
+        # in its folder name: the 20th of the following month catches it
         "schedule": crontab(
-            minute=0, hour=0, day_of_month=30, month_of_year="1,4,7,11"
+            minute=0, hour=0, day_of_month=20, month_of_year="1,4,7,10"
         ),
     },
     "publish_data_gouv": {

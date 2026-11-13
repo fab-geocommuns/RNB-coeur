@@ -1,3 +1,4 @@
+import math
 from typing import List
 
 from batid.exceptions import (
@@ -17,6 +18,35 @@ from django.contrib.gis.geos import (
 from pyproj import Geod
 from shapely import wkt
 from shapely.ops import nearest_points
+
+# Metres in one degree of latitude (and of longitude at the equator)
+METERS_PER_DEGREE = 111_320
+
+
+def radius_in_degrees(*, radius_m: float, geom: GEOSGeometry) -> float:
+    """
+    Upper bound, in degrees, of a distance of radius_m metres around geom (WGS84).
+
+    Used as `shape && ST_Expand(geom, <this value>)` in front of an exact
+    ST_DWithin(...::geography) check, so that the geometry spatial index is used.
+    A degree of longitude shrinks with the latitude, hence the cosine, taken at the
+    latitude of geom farthest from the equator (smallest cosine). The 10 % margin
+    covers the ellipsoid (a degree of latitude is only 110,574 m at the equator) and
+    the latitude drift within the radius.
+
+    In geography an edge is a great-circle arc, which bulges towards the pole beyond
+    the extent of geom. No edge of geom bulges more than one spanning its whole
+    longitude range at its farthest latitude, whose vertex is at
+    atan(tan(lat) / cos(width / 2)). That bulge is added to the radius.
+    """
+    min_lng, min_lat, max_lng, max_lat = geom.extent
+    lat = max(abs(min_lat), abs(max_lat))
+    half_width = math.radians(max_lng - min_lng) / 2
+    bulged_lat = math.degrees(
+        math.atan(math.tan(math.radians(lat)) / math.cos(half_width))
+    )
+    radius_deg = radius_m / (METERS_PER_DEGREE * math.cos(math.radians(bulged_lat)))
+    return radius_deg * 1.1 + bulged_lat - lat
 
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:

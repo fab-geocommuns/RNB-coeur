@@ -229,28 +229,6 @@ class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
         id_field = "rnb_id"
 
 
-class GuessBuildingSerializer(serializers.ModelSerializer):
-    score = serializers.FloatField(read_only=True)
-    sub_scores = serializers.JSONField(read_only=True)
-    point = serializers.DictField(source="point_geojson", read_only=True)
-    addresses = AddressSerializer(
-        many=True, read_only=True, source="addresses_internal_read_only"
-    )
-    ext_ids = serializers.JSONField(read_only=True)
-
-    class Meta:
-        model = Building
-        fields = [
-            "rnb_id",
-            "score",
-            "sub_scores",
-            "status",
-            "point",
-            "addresses",
-            "ext_ids",
-        ]
-
-
 class BuildingClosestSerializer(serializers.ModelSerializer):
     distance = serializers.SerializerMethodField()
     point = serializers.DictField(source="point_geojson", read_only=True)

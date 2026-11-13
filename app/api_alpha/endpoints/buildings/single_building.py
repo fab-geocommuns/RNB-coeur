@@ -10,7 +10,12 @@ from api_alpha.serializers.serializers import (
     BuildingUpdateSerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import get_status_list, rnb_doc
+from api_alpha.utils.rnb_doc import (
+    EDITION_AUTH_RESPONSES,
+    get_shape_rules,
+    get_status_list,
+    rnb_doc,
+)
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
@@ -143,7 +148,8 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                     },
                 },
             }
-        }
+        },
+        with_400=False,
     )
     def get(self, request, rnb_id):
 
@@ -183,14 +189,23 @@ Cet endpoint permet de :
 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
 Il n'est pas possible de simultanément valider un bâtiment et de le désactiver/réactiver.
 
-Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
 
 Exemples valides:
-* ```{"comment": "faux bâtiment", "is_active": False}```
-* ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
+* ```{"comment": "faux bâtiment", "is_active": false}```
+* ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": true}```
 * ```{"comment": "bâtiment démoli", "status": "demolished"}```
 * ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
-* ```{"comment": "je valide ce bâtiment", "validate": True}```
+* ```{"comment": "je valide ce bâtiment", "is_valid": true}```
+
+La requête est refusée (400) si :
+* le corps est vide ou ne contient que `comment`, ou combine `is_active` avec `status`, `addresses_cle_interop`, `shape` ou `is_valid` ;
+* le bâtiment est inactif et la requête ne demande pas sa réactivation (une requête qui ne change rien peut répondre 204) ;
+* `is_active` vaut `false` alors que le bâtiment est déjà inactif ;
+* `is_active` vaut `true` alors que la dernière opération sur le bâtiment n'est pas une désactivation (par exemple un bâtiment désactivé par une fusion ou une scission) ;
+* une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
+* une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
+* la nouvelle géométrie ne respecte pas les règles décrites pour le champ `shape`.
 """),
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -207,6 +222,10 @@ Exemples valides:
                     "required": True,
                     "content": {
                         "application/json": {
+                            "example": {
+                                "comment": "bâtiment démoli",
+                                "status": "demolished",
+                            },
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -219,8 +238,8 @@ Exemples valides:
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-* `False` : l' ID-RNB est désactivé, car sa présence dans le RNB est une erreur. Ne permet *pas* de signaler une démolition, qui doit se faire par une mise à jour du statut.
-* `True` : l'ID-RNB est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle."""
+* `false` : l'ID-RNB est désactivé, car sa présence dans le RNB est une erreur. Ne permet *pas* de signaler une démolition, qui doit se faire par une mise à jour du statut.
+* `true` : l'ID-RNB est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle : la réactivation est refusée si la dernière opération sur le bâtiment n'est pas une désactivation."""
                                         ),
                                     },
                                     "status": {
@@ -237,7 +256,9 @@ Exemples valides:
                                             """\
 Liste des clés d'interopérabilité BAN liées au bâtiment.
 
-Si ce paramêtre est :
+Chaque clé fait entre 5 et 30 caractères.
+
+Si ce paramètre est :
 * absent, alors les clés ne sont pas modifiées.
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
@@ -248,13 +269,16 @@ Si ce paramêtre est :
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point. La géométrie doit être en 2D : les géométries 3D (avec une coordonnée Z) sont refusées.""",
+                                        "description": LiteralStr(
+                                            "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.\n\nLa géométrie doit :\n"
+                                            + get_shape_rules(max_move_meters=20)
+                                        ),
                                     },
                                     "is_valid": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de retirer cette validation s'il l'avait précédemment posée (`False`).
+Permet à l'utilisateur de valider l'état actuel du bâtiment (`true`) ou de retirer cette validation s'il l'avait précédemment posée (`false`).
 
 * Peut être envoyé seul ou en complément d'une modification (`status`, `addresses_cle_interop`, `shape`).
 * Lorsqu'un bâtiment est modifié, la liste des utilisateurs l'ayant validé est réinitialisée."""
@@ -262,7 +286,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                                     },
                                 },
                                 "required": [],
-                            }
+                            },
                         }
                     },
                 },
@@ -271,14 +295,14 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                         "description": "Pas de contenu attendu dans la réponse en cas de succès"
                     },
                     "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
+                        "description": "Requête invalide ou modification refusée (voir les cas de refus dans la description)."
                     },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour modifier un bâtiment."
-                    },
-                    "503": {"description": "Service temporairement indisponible"},
+                    **EDITION_AUTH_RESPONSES,
                     "404": {
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
+                    "503": {
+                        "description": "Service temporairement indisponible (l'API de la BAN répond en erreur)"
                     },
                 },
             }

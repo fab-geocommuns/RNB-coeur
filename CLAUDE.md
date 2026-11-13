@@ -2,6 +2,10 @@
 
 - write all code comments and docstrings in English
 
+# API documentation
+
+- the API is public: before adding a statement to its doc (refusal case, status code, accepted input), reproduce it with a real request to the endpoint, even when it comes from a subagent or a code review
+
 # Tests
 
 - run tests using the command: docker exec web python manage.py test

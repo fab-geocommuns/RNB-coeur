@@ -1,7 +1,8 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import BinaryIO, Iterable, TextIO
 
-from django.db import connection
+from django.db import connection, transaction
 from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.db.transaction import TransactionManagementError
 from django.utils import timezone
@@ -58,6 +59,27 @@ def list_to_pgarray(alist):
 def from_now_to_infinity():
     now = timezone.now()
     return DateTimeTZRange(now, None)
+
+
+@contextmanager
+def long_query_timeout() -> Iterator[None]:
+    """
+    Give the queries of the block a one-hour timeout, whatever the connection
+    default is. The previous timeout is back after the block, including inside an
+    enclosing transaction (SET LOCAL would otherwise last until it ends).
+    """
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('statement_timeout')")
+            previous_timeout = cursor.fetchone()[0]
+            cursor.execute("SET LOCAL statement_timeout = 3600000")
+        yield
+        # Not reached on an exception: the block is rolled back, which restores
+        # the timeout on its own.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT set_config('statement_timeout', %s, true)", [previous_timeout]
+            )
 
 
 # Session setting read by the building_versioning_trigger WHEN clause
