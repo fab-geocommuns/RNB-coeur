@@ -115,7 +115,7 @@ class BuildingAboutIdTest(APITestCase):
                 "organization_short_name": "Dreux",
             },
         )
-        self.assertEqual(data["active_children"], [])
+        self.assertEqual(data["last_active_children"], [])
 
     def test_merge(self):
         """
@@ -130,7 +130,7 @@ class BuildingAboutIdTest(APITestCase):
 
         self.assertFalse(data["is_active"])
         self.assertEqual(data["event_type"], "merge")
-        self.assertEqual(data["active_children"], [c.rnb_id])
+        self.assertEqual(data["last_active_children"], [c.rnb_id])
 
     def test_split(self):
         """
@@ -145,7 +145,7 @@ class BuildingAboutIdTest(APITestCase):
         self.assertFalse(data["is_active"])
         self.assertEqual(data["event_type"], "split")
         self.assertEqual(
-            data["active_children"], sorted(child.rnb_id for child in children)
+            data["last_active_children"], sorted(child.rnb_id for child in children)
         )
 
     def test_lineage_chain(self):
@@ -166,7 +166,7 @@ class BuildingAboutIdTest(APITestCase):
         self.assertFalse(data["is_active"])
         self.assertEqual(data["event_type"], "merge")
         self.assertEqual(
-            data["active_children"], sorted(child.rnb_id for child in children)
+            data["last_active_children"], sorted(child.rnb_id for child in children)
         )
 
     def test_merge_three_parents(self):
@@ -181,7 +181,7 @@ class BuildingAboutIdTest(APITestCase):
 
         data = self._get(a.rnb_id)
 
-        self.assertEqual(data["active_children"], [c.rnb_id])
+        self.assertEqual(data["last_active_children"], [c.rnb_id])
 
     def test_lineage_two_paths_to_same_descendant(self):
         """
@@ -194,7 +194,7 @@ class BuildingAboutIdTest(APITestCase):
 
         data = self._get(a.rnb_id)
 
-        self.assertEqual(data["active_children"], [d.rnb_id])
+        self.assertEqual(data["last_active_children"], [d.rnb_id])
 
     def test_lineage_with_deactivation(self):
         """
@@ -208,7 +208,7 @@ class BuildingAboutIdTest(APITestCase):
 
         data = self._get(a.rnb_id)
 
-        self.assertEqual(data["active_children"], [c.rnb_id])
+        self.assertEqual(data["last_active_children"], [c.rnb_id])
 
     def test_lineage_without_active_descendant(self):
         """
@@ -224,7 +224,7 @@ class BuildingAboutIdTest(APITestCase):
         data = self._get(a.rnb_id)
 
         self.assertFalse(data["is_active"])
-        self.assertEqual(data["active_children"], [])
+        self.assertEqual(data["last_active_children"], [])
 
     def test_deactivation(self):
         """
@@ -238,7 +238,7 @@ class BuildingAboutIdTest(APITestCase):
 
         self.assertFalse(data["is_active"])
         self.assertEqual(data["event_type"], "deactivation")
-        self.assertEqual(data["active_children"], [])
+        self.assertEqual(data["last_active_children"], [])
 
     def test_reverted_merge(self):
         """
@@ -254,12 +254,12 @@ class BuildingAboutIdTest(APITestCase):
         data_a = self._get(a.rnb_id)
         self.assertTrue(data_a["is_active"])
         self.assertEqual(data_a["event_type"], "revert_merge")
-        self.assertEqual(data_a["active_children"], [])
+        self.assertEqual(data_a["last_active_children"], [])
 
         data_c = self._get(c.rnb_id)
         self.assertFalse(data_c["is_active"])
         self.assertEqual(data_c["event_type"], "revert_merge")
-        self.assertEqual(data_c["active_children"], sorted([a.rnb_id, b.rnb_id]))
+        self.assertEqual(data_c["last_active_children"], sorted([a.rnb_id, b.rnb_id]))
 
     def test_reverted_split(self):
         """
@@ -275,7 +275,7 @@ class BuildingAboutIdTest(APITestCase):
 
         self.assertFalse(data["is_active"])
         self.assertEqual(data["event_type"], "revert_split")
-        self.assertEqual(data["active_children"], [a.rnb_id])
+        self.assertEqual(data["last_active_children"], [a.rnb_id])
 
     def test_reverted_merge_then_split(self):
         """
@@ -293,7 +293,7 @@ class BuildingAboutIdTest(APITestCase):
         data = self._get(c.rnb_id)
 
         self.assertEqual(
-            data["active_children"], sorted([b.rnb_id, d.rnb_id, e.rnb_id])
+            data["last_active_children"], sorted([b.rnb_id, d.rnb_id, e.rnb_id])
         )
 
     def test_import_origin(self):
