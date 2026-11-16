@@ -1,3 +1,8 @@
+# All times are UTC.
+# The weekend is reserved for the data.gouv publication (Saturday 03:00 to
+# Sunday ~14:00). Long imports start on a Monday at 00:00 to end before it:
+# BD Topo ~64 h, cadastre 8 h (measured in prod, November 2026).
+
 from celery.schedules import crontab
 
 common_schedule = {
@@ -45,17 +50,27 @@ production_schedule = {
     },
     "import_bdtopo": {
         "task": "batid.tasks.queue_full_bdtopo_import",
-        # 15 april, 15 july, 15 october, 15 january
+        # third Monday of January, April, July, October: any day from the 15th
+        # to the 21st keeps the vintage chosen by bdtopo_recente_release_date
         "schedule": crontab(
-            minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
+            minute=0,
+            hour=0,
+            day_of_month="15-21",
+            day_of_week=1,
+            month_of_year="1,4,7,10",
         ),
     },
     "import_plots": {
         "task": "batid.tasks.queue_full_plots_import",
         # Etalab puts each quarterly release online 4 to 6 weeks after the date
-        # in its folder name: the 20th of the following month catches it
+        # in its folder name: the fourth Monday of the following month catches it,
+        # one week after the BD Topo import
         "schedule": crontab(
-            minute=0, hour=0, day_of_month=20, month_of_year="1,4,7,10"
+            minute=0,
+            hour=0,
+            day_of_month="22-28",
+            day_of_week=1,
+            month_of_year="1,4,7,10",
         ),
     },
     "publish_data_gouv": {
