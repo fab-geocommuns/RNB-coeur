@@ -4,7 +4,6 @@ from unittest import mock
 from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from batid.models import Building
 from django.contrib.gis.geos import GEOSGeometry
-from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -71,40 +70,6 @@ class LogEndpointsTest(APITestCase):
         count = APIRequestLog.objects.all().count()
 
         self.assertEqual(count, 0)
-
-    @freeze_time("2025-01-01")
-    @mock.patch("batid.services.geocoders.requests.get")
-    def test_guess_log(self, requests_mock):
-        requests_mock.return_value.status_code = 200
-        requests_mock.return_value.json.return_value = {"features": []}
-        r = self.client.get("/api/alpha/buildings/guess/?address=whatever")
-
-        self.assertEqual(r.status_code, 200)
-
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 1)
-
-        # BAN API and OSM API
-        self.assertEqual(requests_mock.call_count, 2)
-
-    @freeze_time("2025-01-01")
-    @mock.patch("batid.services.geocoders.requests.get")
-    def test_guess_no_log(self, requests_mock):
-        requests_mock.return_value.status_code = 200
-        requests_mock.return_value.json.return_value = {"features": []}
-        r = self.client.get(
-            "/api/alpha/buildings/guess/?address=whatever&from=monitoring"
-        )
-
-        self.assertEqual(r.status_code, 200)
-
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 0)
-
-        # BAN API and OSM API
-        self.assertEqual(requests_mock.call_count, 2)
 
     def test_ogc_root(self):
         r = self.client.get("/api/alpha/ogc/")

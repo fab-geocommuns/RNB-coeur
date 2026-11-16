@@ -1,7 +1,6 @@
 import binascii
 import logging
 import urllib.parse
-from datetime import datetime
 from typing import Any
 
 import sentry_sdk
@@ -22,7 +21,6 @@ from api_alpha.serializers.serializers import (
     BuildingSerializer,
     BuildingSplitSerializer,
     DiffusionDatabaseSerializer,
-    GuessBuildingSerializer,
 )
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
@@ -55,7 +53,6 @@ from batid.models import (
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
-from batid.services.guess_bdg import BuildingGuess
 from batid.services.organization import link_user_to_organization
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
@@ -85,35 +82,12 @@ logger = logging.getLogger(__name__)
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
-
-        sunset_date = datetime(2026, 1, 5)
-        if datetime.now() >= sunset_date:
-            return Response(
-                {
-                    "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
-                },
-                status=status.HTTP_410_GONE,
-            )
-
-        search = BuildingGuess()
-        search.set_params_from_url(**request.query_params.dict())
-
-        if not search.is_valid():
-            return Response(
-                {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            qs = search.get_queryset()
-            serializer = GuessBuildingSerializer(qs, many=True)
-
-            # add a deprecation and sunset headers
-            response = Response(serializer.data)
-            response["Deprecation"] = "true"
-            response["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
-
-            return response
-        except BANAPIDown:
-            raise ServiceUnavailable(detail="BAN API is currently down")
+        return Response(
+            {
+                "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+            },
+            status=status.HTTP_410_GONE,
+        )
 
 
 class BuildingClosestView(RNBLoggingMixin, APIView):

@@ -2,10 +2,10 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import requests
-from batid.models import KPI, Building, Contribution
+from batid.models import KPI, Contribution
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
-from batid.utils.db import dictfetchone
+from batid.utils.db import dictfetchone, long_query_timeout
 from django.db import connection
 from rest_framework_tracking.models import APIRequestLog
 
@@ -52,36 +52,34 @@ def compute_daily_kpis(external_calls=True):
 
     today = date.today()
 
+    address_kpis = count_active_buildings_kpis()
+
     # Active buildings
-    active_bdgs_count = count_active_buildings()
     KPI.objects.update_or_create(
         name=KPI_ACTIVE_BUILDINGS_COUNT,
         value_date=today,
-        defaults={"value": active_bdgs_count},
+        defaults={"value": address_kpis["active"]},
     )
 
     # Real buildings
-    real_bdgs_count = count_real_buildings()
     KPI.objects.update_or_create(
         name=KPI_REAL_BUILDINGS_COUNT,
         value_date=today,
-        defaults={"value": real_bdgs_count},
+        defaults={"value": address_kpis["real"]},
     )
 
     # Real buildings without addresses
-    real_bdgs_wo_addresses_count = count_real_buildings_wo_addresses()
     KPI.objects.update_or_create(
         name=KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT,
         value_date=today,
-        defaults={"value": real_bdgs_wo_addresses_count},
+        defaults={"value": address_kpis["real_wo_addresses"]},
     )
 
     # Building - address links
-    building_address_links_count = count_building_address_links()
     KPI.objects.update_or_create(
         name=KPI_BUILDING_ADDRESS_COUNT,
         value_date=today,
-        defaults={"value": building_address_links_count},
+        defaults={"value": address_kpis["links"]},
     )
 
     # Editors
@@ -220,8 +218,7 @@ def count_building_changes_daily(for_date: date) -> dict[str, int]:
         WHERE lower(b.sys_period) >= %(day_start)s
           AND lower(b.sys_period) < %(day_end)s
     """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = '0';")
+    with long_query_timeout(), connection.cursor() as cursor:
         row = dictfetchone(cursor, sql, {"day_start": day_start, "day_end": day_end})
     return {
         "import_bdtopo": int(row.get("import_bdtopo") or 0),
@@ -284,49 +281,29 @@ def get_data_gouv_stats() -> tuple:
         return (None, None)
 
 
-def count_active_buildings():
+def count_active_buildings_kpis() -> dict[str, int]:
     """
-    Count the number of active buildings
+    Count, in a single pass over the active buildings, the active buildings, the
+    real buildings, the building - address links and the real buildings without
+    addresses.
+    Read from addresses_internal_id: building_addresses_trigger rebuilds the link
+    table from this array on every write, so both give the same counts.
     """
-
-    return Building.objects.filter(is_active=True).count()
-
-
-def count_real_buildings():
+    sql = """
+        SELECT
+            COUNT(*) AS active,
+            COUNT(*) FILTER (WHERE status = ANY(%(real_statuses)s)) AS real,
+            COALESCE(SUM(cardinality(addresses_internal_id)), 0) AS links,
+            COUNT(*) FILTER (
+                WHERE status = ANY(%(real_statuses)s)
+                  AND COALESCE(cardinality(addresses_internal_id), 0) = 0
+            ) AS real_wo_addresses
+        FROM batid_building
+        WHERE is_active
     """
-    Count the number of real (active + physical status) buildings
-    """
-
-    return Building.objects.filter(
-        is_active=True, status__in=BuildingStatus.REAL_BUILDINGS_STATUS
-    ).count()
-
-
-def count_real_buildings_wo_addresses():
-    """
-    Count the number of real (active + physical status) buildings without addresses
-    """
-
-    return Building.objects.filter(
-        is_active=True,
-        status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
-        addresses_internal_read_only=None,
-    ).count()
-
-
-def count_building_address_links():
-    """
-    Count the number of building - address links
-    """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 3600000;")
-        cursor.execute(
-            "SELECT COUNT(*) FROM batid_buildingaddressesinternalidreadonly ba"
-            " JOIN batid_building b ON ba.building_id = b.id"
-            " WHERE b.is_active = TRUE"
-        )
-        row = cursor.fetchone()
-        return row[0] if row else 0
+    params = {"real_statuses": BuildingStatus.REAL_BUILDINGS_STATUS}
+    with long_query_timeout(), connection.cursor() as cursor:
+        return dictfetchone(cursor, sql, params)
 
 
 def count_editors():
@@ -337,9 +314,9 @@ def count_edits():
     """Total d'événements contribution (toutes dates)"""
     sql = """
         SELECT COUNT(*) FROM batid_building_with_history
-        WHERE event_origin->>'source' = 'contribution'
+        WHERE event_origin @> '{"source": "contribution"}'
     """
-    with connection.cursor() as cursor:
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute(sql)
         row = cursor.fetchone()
     return row[0] if row else 0
@@ -365,8 +342,7 @@ def count_api_requests():
     """
     Count the total number of API requests logged in rest_framework_tracking_apirequestlog
     """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 3600000;")
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
         row = cursor.fetchone()
         return row[0] if row else 0
@@ -419,6 +395,6 @@ def count_edits_by_department():
             LEFT JOIN batid_department_subdivided d ON ST_Contains(d.shape, b.point)
         GROUP BY d.code
     """
-    with connection.cursor() as cursor:
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute(sql)
         return {row[0]: row[1] for row in cursor.fetchall()}

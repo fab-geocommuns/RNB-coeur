@@ -175,6 +175,45 @@ class TestDataGouvPublication(TestCase):
         self.assertIn("Église".encode("utf-8"), raw)
         raw.decode("utf-8")
 
+    def test_building_on_subdivision_edge_exported_once(self):
+        """
+        Input: department 75 split into two adjacent squares; one active building
+        whose point lies on their shared edge, linked to one address.
+        Expected: RNB_75.csv holds a single row for it, with that address once.
+        """
+        address = Address.objects.create(cle_interop="75105_0001_00001")
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((2 48, 3 48, 3 49, 2 49, 2 48))", srid=4326),
+        )
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((3 48, 4 48, 4 49, 3 49, 3 48))", srid=4326),
+        )
+        Building.objects.create(
+            rnb_id="BDG-ON-EDGE",
+            shape=GEOSGeometry("POINT(3 48.5)", srid=4326),
+            point=GEOSGeometry("POINT(3 48.5)", srid=4326),
+            status="constructed",
+            addresses_internal_id=[address.internal_id],
+        )
+        directory_name = create_directory("75")
+        self.addCleanup(cleanup_directory, directory_name)
+
+        archive_path, _, _ = create_archive(directory_name, "75")
+
+        with ZipFile(archive_path) as archive, io.TextIOWrapper(
+            archive.open("RNB_75.csv"), encoding="utf-8", newline=""
+        ) as f:
+            rows = list(csv.DictReader(f, delimiter=";"))
+        self.assertEqual([row["rnb_id"] for row in rows], ["BDG-ON-EDGE"])
+        self.assertEqual(
+            [a["cle_interop_ban"] for a in json.loads(rows[0]["addresses"])],
+            ["75105_0001_00001"],
+        )
+
     def test_archive_creation_deletion(self):
         """
         Input: several Parisian buildings (active/inactive, 0/1/many addresses,
@@ -812,6 +851,45 @@ class TestDataGouvPublication(TestCase):
     @mock.patch.dict(
         os.environ,
         {
+            "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.time.sleep")
+    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publish_retries_unavailable_data_gouv_then_succeeds(
+        self, get_mock, put_mock, sleep_mock
+    ):
+        """
+        Department 33: the first GET answers 503, the first PUT raises a redirect loop,
+        then data.gouv.fr is back.
+        Expected: the resource is updated after two waits of 60 then 120 s.
+        """
+        get_mock.side_effect = [
+            mock.Mock(status_code=503, text="<html>maintenance</html>"),
+            mock.Mock(status_code=200, json=mock.Mock(return_value=get_resources())),
+            mock.Mock(status_code=200, json=mock.Mock(return_value=get_resources())),
+        ]
+        put_mock.side_effect = [
+            requests.TooManyRedirects("Exceeded 30 redirects."),
+            mock.Mock(status_code=200),
+        ]
+
+        publish_on_data_gouv_with_retries(
+            area="33",
+            public_url="some-url",
+            archive_size=1234,
+            archive_sha1="some-sha1",
+        )
+
+        self.assertEqual(put_mock.call_count, 2)
+        self.assertEqual(sleep_mock.call_args_list, [mock.call(60), mock.call(120)])
+
+    @mock.patch.dict(
+        os.environ,
+        {
             "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
             "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
@@ -851,12 +929,12 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.requests.get")
     def test_publish_does_not_retry_on_http_error_status(self, get_mock, sleep_mock):
         """
-        Department 33: the GET answers with an HTTP 500 status.
+        Department 33: the GET answers with an HTTP 400 status.
         Expected: the error is raised at once, one GET and no wait.
         """
-        get_mock.return_value.status_code = 500
+        get_mock.return_value.status_code = 400
 
-        with self.assertRaisesRegex(Exception, "HTTP 500"):
+        with self.assertRaisesRegex(Exception, "HTTP 400"):
             publish_on_data_gouv_with_retries(
                 area="33",
                 public_url="some-url",
