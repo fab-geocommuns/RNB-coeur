@@ -22,7 +22,7 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.models import Building, Contribution, EventAnnotation, Trophy
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
@@ -136,10 +136,12 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         with_plots = with_plots_param == "1"
 
         qs = list_bdgs(
-            {"user": request.user, "status": "all", "with_plots": with_plots},
+            {"user": request.user, "status": "all"},
             only_active=False,
         )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
+        if with_plots:
+            attach_plots([building])
 
         # get the "format" query parameter
         format_param = request.query_params.get("format", "json").lower()
