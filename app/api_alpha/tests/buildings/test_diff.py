@@ -189,6 +189,8 @@ class DiffTest(TransactionTestCase):
                 "user_organization_name",
                 "user_organization_id",
                 "validated_by",
+                "addresses_cle_interop",
+                "addresses_ban_id",
             ],
         )
 
@@ -919,6 +921,95 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows["1"]["addresses_id"], '["ADDRESS_ID_3","ADDRESS_ID_1"]')
         self.assertEqual(rows["2"]["addresses_id"], "[]")
         self.assertEqual(rows["3"]["addresses_id"], "")
+
+    def test_diff_addresses_cle_interop_and_ban_id(self):
+        """
+        Input: a building linked, in non-alphabetical order, to an address without
+        ban_id then to an address with one; a building with an empty
+        addresses_internal_id; a building with a NULL one.
+        Expected: addresses_cle_interop equals addresses_id, and addresses_ban_id
+        holds the ban_id of each address at the same position, null for the
+        address without one; [] for the empty array and an empty field for NULL,
+        as for addresses_id.
+        """
+        ban_id = "fd9736e8-9970-4127-84eb-f2886043c122"
+        Address.objects.filter(cle_interop="ADDRESS_ID_1").update(ban_id=ban_id)
+        internal_id_by_cle = dict(
+            Address.objects.values_list("cle_interop", "internal_id")
+        )
+
+        Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        Building.objects.create(
+            rnb_id="1",
+            event_type="creation",
+            addresses_internal_id=[
+                internal_id_by_cle["ADDRESS_ID_3"],
+                internal_id_by_cle["ADDRESS_ID_1"],
+            ],
+        )
+        Building.objects.create(
+            rnb_id="2", event_type="creation", addresses_internal_id=[]
+        )
+        Building.objects.create(
+            rnb_id="3", event_type="creation", addresses_internal_id=None
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
+
+        self.assertEqual(
+            rows["1"]["addresses_cle_interop"], '["ADDRESS_ID_3","ADDRESS_ID_1"]'
+        )
+        self.assertEqual(rows["1"]["addresses_ban_id"], f'[null,"{ban_id}"]')
+        self.assertEqual(rows["2"]["addresses_cle_interop"], "[]")
+        self.assertEqual(rows["2"]["addresses_ban_id"], "[]")
+        self.assertEqual(rows["3"]["addresses_cle_interop"], "")
+        self.assertEqual(rows["3"]["addresses_ban_id"], "")
+
+        for row in rows.values():
+            self.assertEqual(row["addresses_cle_interop"], row["addresses_id"])
+
+    def test_diff_address_ban_id_set_after_building_version(self):
+        """
+        Input: a building linked to an address without ban_id, then a ban_id given
+        to that address after the building version was created.
+        Expected: a diff starting after the building version is empty (an address
+        change does not bring the building into the diff), while a diff starting
+        before it shows the building with the address current ban_id.
+        """
+        address = Address.objects.get(cle_interop="ADDRESS_ID_1")
+
+        Building.objects.create(rnb_id="t", event_type="creation")
+        before_building = Building.objects.get(rnb_id="t").sys_period.lower
+
+        Building.objects.create(
+            rnb_id="1",
+            event_type="creation",
+            addresses_internal_id=[address.internal_id],
+        )
+        after_building = Building.objects.get(rnb_id="1").sys_period.lower
+
+        ban_id = "fd9736e8-9970-4127-84eb-f2886043c122"
+        address.ban_id = ban_id
+        address.save(update_fields=["ban_id"])
+
+        params = urlencode({"since": after_building.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(get_content_from_streaming_response(r), "")
+
+        params = urlencode({"since": before_building.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+        diff_text = get_content_from_streaming_response(r)
+        rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
+        self.assertEqual(rows["1"]["addresses_ban_id"], f'["{ban_id}"]')
 
     def test_diff_download_leaves_no_export_thread(self):
         """
