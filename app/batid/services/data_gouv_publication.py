@@ -226,35 +226,46 @@ DATA_GOUV_TIMEOUT_S = 30
 # Waits between the 5 attempts: 1, 2, 4 then 8 minutes (15 minutes covered).
 DATA_GOUV_RETRY_DELAYS_S = (60, 120, 240, 480)
 
-# Transient requests errors only: an invalid URL or header (missing DATA_GOUV_BASE_URL
-# for instance) fails the same way on every attempt and is raised at once.
-DATA_GOUV_RETRYABLE_ERRORS = (
-    requests.ConnectionError,
-    requests.Timeout,
-    requests.exceptions.ChunkedEncodingError,
-    requests.exceptions.ContentDecodingError,
-    requests.exceptions.JSONDecodeError,
-)
-
 
 class DataGouvAccessDenied(Exception):
     """401 or 403 from data.gouv.fr: the key is refused for the whole dataset, every other area would fail the same way."""
+
+
+class DataGouvUnavailable(Exception):
+    """429 or 5xx from data.gouv.fr: the platform is overloaded or down, a later attempt can succeed."""
+
+
+# Transient errors only: an invalid URL or header (missing DATA_GOUV_BASE_URL for
+# instance) or a 4xx answer fails the same way on every attempt and is raised at once.
+# TooManyRedirects: data.gouv.fr answered with a redirect loop during its outage of
+# 2026-11-14.
+DATA_GOUV_RETRYABLE_ERRORS = (
+    requests.ConnectionError,
+    requests.Timeout,
+    requests.TooManyRedirects,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.ContentDecodingError,
+    requests.exceptions.JSONDecodeError,
+    DataGouvUnavailable,
+)
 
 
 def data_gouv_error(*, message: str, response: requests.Response) -> Exception:
     error = f"{message}: HTTP {response.status_code} {response.text[:200]}"
     if response.status_code in (401, 403):
         return DataGouvAccessDenied(error)
+    if response.status_code == 429 or response.status_code >= 500:
+        return DataGouvUnavailable(error)
     return Exception(error)
 
 
 def publish_on_data_gouv_with_retries(*, area, public_url, archive_size, archive_sha1):
     """
-    Publish on data.gouv.fr, retrying on transient requests errors (network errors,
-    timeouts, cut or non-JSON bodies).
+    Publish on data.gouv.fr, retrying on transient errors (network errors, timeouts,
+    redirect loops, cut or non-JSON bodies, 429 and 5xx answers).
     Replayable: each attempt starts with a GET, so a resource created by a previous
-    attempt is updated, not created twice. Other errors (non 2xx answers, invalid
-    URL) are raised at once.
+    attempt is updated, not created twice. Other errors (4xx answers, invalid URL)
+    are raised at once.
     """
     for delay in DATA_GOUV_RETRY_DELAYS_S:
         try:
