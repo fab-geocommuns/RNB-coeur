@@ -53,12 +53,24 @@ def file_path(directory_name, code_area):
 
 def sql_query(code_area):
     if code_area == "nat":
-        dpt_where = ""
-        dpt_join = ""
+        area_from = "batid_building bdg"
     else:
-        dpt_where = f" AND dpt.code = '{code_area}'"
-        dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
+        # Start from the ids of the department's buildings, so that the planner
+        # reaches them through the spatial index. DISTINCT: a point lying on the
+        # edge of two subdivided polygons of the department must give a single row.
+        area_from = f"""(
+            SELECT DISTINCT area_bdg.id
+            FROM batid_department_subdivided dpt
+            JOIN batid_building area_bdg ON ST_Intersects(dpt.shape, area_bdg.point)
+            WHERE dpt.code = '{code_area}'
+        ) AS area_ids
+        JOIN batid_building bdg ON bdg.id = area_ids.id"""
 
+    # Addresses are aggregated per building in a subquery, not with a join and a
+    # GROUP BY: the join let the planner hash the buildings on their address id,
+    # and the buildings without address (NULL key) all fall in one hash batch that
+    # can never be split. Postgres then kept doubling the batches until the
+    # database was killed out of memory (2026-11-14, department 13).
     sql = f"""
     COPY (
         select bdg.rnb_id as rnb_id,
@@ -66,17 +78,21 @@ def sql_query(code_area):
         ST_AsEWKT(bdg.shape) as shape,
         bdg.status as status,
         bdg.ext_ids as ext_ids,
-        coalesce(json_agg(
-             json_build_object(
-                    'cle_interop_ban', addr.cle_interop,
-                    'street_number', addr.street_number,
-                    'street_rep', addr.street_rep,
-                    'street', addr.street,
-                    'city_zipcode', addr.city_zipcode,
-                    'city_name', addr.city_name
-                )
-
-        ) FILTER (WHERE addr.cle_interop IS NOT NULL), '[]'::json) AS addresses,
+        (
+           SELECT coalesce(json_agg(
+               json_build_object(
+                   'cle_interop_ban', addr.cle_interop,
+                   'street_number', addr.street_number,
+                   'street_rep', addr.street_rep,
+                   'street', addr.street,
+                   'city_zipcode', addr.city_zipcode,
+                   'city_name', addr.city_name
+               ) ORDER BY addr.cle_interop
+           ), '[]'::json)
+           FROM batid_buildingaddressesinternalidreadonly bdg_addr
+           JOIN batid_address addr ON addr.internal_id = bdg_addr.address_id
+           WHERE bdg_addr.building_id = bdg.id AND addr.cle_interop IS NOT NULL
+       ) AS addresses,
         (
            SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
                CASE
@@ -108,13 +124,8 @@ def sql_query(code_area):
            LEFT JOIN batid_organization org ON org.id = up.organization_id
            WHERE v.building_id = bdg.id
        ) AS validated_by
-        FROM batid_building bdg
-        LEFT JOIN batid_buildingaddressesinternalidreadonly bdg_addr ON bdg_addr.building_id = bdg.id
-        LEFT JOIN batid_address addr ON addr.internal_id = bdg_addr.address_id
-        {dpt_join}
-        WHERE is_active
-        {dpt_where}
-        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.id
+        FROM {area_from}
+        WHERE bdg.is_active
     )  TO STDOUT WITH CSV HEADER DELIMITER ';'
     """
 

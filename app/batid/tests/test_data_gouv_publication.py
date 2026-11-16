@@ -175,6 +175,40 @@ class TestDataGouvPublication(TestCase):
         self.assertIn("Église".encode("utf-8"), raw)
         raw.decode("utf-8")
 
+    def test_building_on_subdivision_edge_exported_once(self):
+        """
+        Input: department 75 split into two adjacent squares; one active building
+        whose point lies on their shared edge, without address.
+        Expected: RNB_75.csv holds a single row for it, with an empty address list.
+        """
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((2 48, 3 48, 3 49, 2 49, 2 48))", srid=4326),
+        )
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((3 48, 4 48, 4 49, 3 49, 3 48))", srid=4326),
+        )
+        Building.objects.create(
+            rnb_id="BDG-ON-EDGE",
+            shape=GEOSGeometry("POINT(3 48.5)", srid=4326),
+            point=GEOSGeometry("POINT(3 48.5)", srid=4326),
+            status="constructed",
+        )
+        directory_name = create_directory("75")
+        self.addCleanup(cleanup_directory, directory_name)
+
+        archive_path, _, _ = create_archive(directory_name, "75")
+
+        with ZipFile(archive_path) as archive, io.TextIOWrapper(
+            archive.open("RNB_75.csv"), encoding="utf-8", newline=""
+        ) as f:
+            rows = list(csv.DictReader(f, delimiter=";"))
+        self.assertEqual([row["rnb_id"] for row in rows], ["BDG-ON-EDGE"])
+        self.assertEqual(json.loads(rows[0]["addresses"]), [])
+
     def test_archive_creation_deletion(self):
         """
         Input: several Parisian buildings (active/inactive, 0/1/many addresses,
