@@ -175,4 +175,5 @@ def attach_plots(buildings: Iterable[Building]) -> None:
             plots_by_bdg = dict(cursor.fetchall())
 
     for bdg in buildings:
-        bdg.plots = plots_by_bdg.get(bdg.id)
+        # plots is not a model field: it is read by the "plots" field of the serializers
+        bdg.plots = plots_by_bdg.get(bdg.id)  # type: ignore[attr-defined]
