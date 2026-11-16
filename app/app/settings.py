@@ -250,9 +250,6 @@ REST_FRAMEWORK = {
     "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
-# API request logs are evidence: no field can be edited from the Django admin.
-DRF_TRACKING_ADMIN_LOG_READONLY = True
-
 if ENVIRONMENT in ("test", "development"):
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login"] = "1000/min"  # type: ignore[index]
