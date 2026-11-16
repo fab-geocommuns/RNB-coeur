@@ -75,3 +75,27 @@ class DeleteExpiredApiRequestLogs(TestCase):
             APIRequestLog.objects.values_list("id", flat=True),
             [log.id for log in recent],
         )
+
+    def test_time_budget_includes_the_first_queries(self):
+        """
+        One old row, the clock passes the budget while the first queries run.
+        Expected: returns 0, no batch is started, the old row remains.
+        """
+        make_api_log(days_ago(400))
+        clock = [0]
+        real_aggregate = APIRequestLog.objects.aggregate
+
+        def slow_aggregate(*args, **kwargs):
+            clock[0] = TIME_BUDGET_SECONDS + 1
+            return real_aggregate(*args, **kwargs)
+
+        with (
+            mock.patch("batid.services.api_request_log.time") as fake_time,
+            mock.patch.object(
+                APIRequestLog.objects, "aggregate", side_effect=slow_aggregate
+            ),
+        ):
+            fake_time.monotonic.side_effect = lambda: clock[0]
+            self.assertEqual(delete_expired_api_request_logs(), 0)
+
+        self.assertEqual(APIRequestLog.objects.count(), 1)

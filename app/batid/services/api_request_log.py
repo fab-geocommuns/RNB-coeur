@@ -19,6 +19,8 @@ def delete_expired_api_request_logs() -> int:
     Delete the API request logs older than RETENTION, by batches of consecutive ids,
     from the smallest id up to the newest expired row. Returns the number of rows deleted.
     """
+    # Started before the first queries: they count in the budget.
+    deadline = time.monotonic() + TIME_BUDGET_SECONDS
     cutoff = timezone.now() - RETENTION
     # Reads the requested_at index (a few pages). Not aggregate(Max("id")) with
     # this filter: the planner walks the primary key backwards through every kept row.
@@ -33,7 +35,6 @@ def delete_expired_api_request_logs() -> int:
             return 0
         low = APIRequestLog.objects.aggregate(Min("id"))["id__min"]
 
-    deadline = time.monotonic() + TIME_BUDGET_SECONDS
     deleted = 0
     while low <= boundary and time.monotonic() < deadline:
         # Id ranges, not pk__in on rows ordered by date: no per-row primary key
