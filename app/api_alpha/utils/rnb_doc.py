@@ -454,7 +454,13 @@ def _get_components() -> dict:
                     "rnb_id": {"$ref": "#/components/schemas/RNBID"},
                     "status": {"$ref": "#/components/schemas/BuildingStatus"},
                     "point": {"$ref": "#/components/schemas/BuildingPoint"},
-                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
+                    "shape": {
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/BuildingShape"},
+                            {"type": "null"},
+                        ]
+                    },
+
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
