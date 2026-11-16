@@ -71,11 +71,10 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 0)
 
-    def test_patch_body_not_logged(self):
+    def test_patch_body_logged_not_copied_to_query_params(self):
         """
         Unauthenticated PATCH on a building, JSON body with a marker, no URL params.
-        Expected: the refused call is logged, data is None, query_params is "{}"
-        and the marker appears nowhere in the log row.
+        Expected: the refused call is logged, data holds the marker, query_params is "{}".
         """
         r = self.client.patch(
             "/api/alpha/buildings/1234ABCD5678/",
@@ -86,14 +85,13 @@ class LogEndpointsTest(APITestCase):
         self.assertIn(r.status_code, (401, 403))
 
         log = APIRequestLog.objects.get()
-        self.assertIsNone(log.data)
+        self.assertIn("body-marker", log.data)
         self.assertEqual(log.query_params, "{}")
-        self.assertNotIn("body-marker", log.query_params)
 
-    def test_post_body_not_logged_url_params_kept(self):
+    def test_post_body_logged_url_params_kept(self):
         """
         Unauthenticated POST on /buildings/?from_test=1 with a JSON body holding a marker.
-        Expected: query_params holds the URL param from_test, not the body marker; data is None.
+        Expected: data holds the body marker, query_params holds from_test and not the marker.
         """
         self.client.post(
             "/api/alpha/buildings/?from_test=1",
@@ -102,9 +100,25 @@ class LogEndpointsTest(APITestCase):
         )
 
         log = APIRequestLog.objects.get()
-        self.assertIsNone(log.data)
+        self.assertIn("body-marker", log.data)
         self.assertIn("from_test", log.query_params)
         self.assertNotIn("body-marker", log.query_params)
+
+    def test_body_token_masked(self):
+        """
+        POST on /reports/ (open to everyone) with a body holding text and token=secret.
+        Expected: data keeps the text, token is masked and secret is absent.
+        """
+        self.client.post(
+            "/api/alpha/reports/",
+            {"rnb_id": "1234ABCD5678", "text": "body-marker", "token": "secret"},
+            format="json",
+        )
+
+        log = APIRequestLog.objects.get()
+        self.assertIn("body-marker", log.data)
+        self.assertIn("********************", log.data)
+        self.assertNotIn("secret", log.data)
 
     @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_get_url_params_logged_token_masked(self):
