@@ -33,6 +33,11 @@ data_cleanup_schedule = {
         # sunday at 5am UTC
         "schedule": crontab(hour=5, minute=0, day_of_week=0),
     },
+    "purge_old_api_request_logs": {
+        "task": "batid.tasks.purge_old_api_request_logs",
+        # everyday at 4:30am UTC
+        "schedule": crontab(hour=4, minute=30),
+    },
 }
 
 staging_and_sandbox_schedule = {

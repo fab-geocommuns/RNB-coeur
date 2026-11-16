@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 import requests
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
+from batid.services.api_request_log import delete_expired_api_request_logs
 from batid.services.building import export_city as export_city_job
 from batid.services.candidate import Inspector, vacuum_analyze_candidates_if_needed
 from batid.services.data_fix.remove_light_buildings import (
@@ -675,3 +676,9 @@ def delete_old_data_files() -> int:
     # Files older than 7 days are leftovers from failed or abandoned runs.
     cutoff = time.time() - 7 * 24 * 3600
     return delete_files_older_than(root_dir=settings.WRITABLE_DATA_DIR, cutoff=cutoff)
+
+
+@shared_task
+def purge_old_api_request_logs() -> int:
+    # Safe to rerun; a failed night is caught up by the next one.
+    return delete_expired_api_request_logs()
