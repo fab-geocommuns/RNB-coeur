@@ -178,9 +178,10 @@ class TestDataGouvPublication(TestCase):
     def test_building_on_subdivision_edge_exported_once(self):
         """
         Input: department 75 split into two adjacent squares; one active building
-        whose point lies on their shared edge, without address.
-        Expected: RNB_75.csv holds a single row for it, with an empty address list.
+        whose point lies on their shared edge, linked to one address.
+        Expected: RNB_75.csv holds a single row for it, with that address once.
         """
+        address = Address.objects.create(cle_interop="75105_0001_00001")
         Department_subdivided.objects.create(
             code="75",
             name="Paris",
@@ -196,6 +197,7 @@ class TestDataGouvPublication(TestCase):
             shape=GEOSGeometry("POINT(3 48.5)", srid=4326),
             point=GEOSGeometry("POINT(3 48.5)", srid=4326),
             status="constructed",
+            addresses_internal_id=[address.internal_id],
         )
         directory_name = create_directory("75")
         self.addCleanup(cleanup_directory, directory_name)
@@ -207,7 +209,10 @@ class TestDataGouvPublication(TestCase):
         ) as f:
             rows = list(csv.DictReader(f, delimiter=";"))
         self.assertEqual([row["rnb_id"] for row in rows], ["BDG-ON-EDGE"])
-        self.assertEqual(json.loads(rows[0]["addresses"]), [])
+        self.assertEqual(
+            [a["cle_interop_ban"] for a in json.loads(rows[0]["addresses"])],
+            ["75105_0001_00001"],
+        )
 
     def test_archive_creation_deletion(self):
         """
