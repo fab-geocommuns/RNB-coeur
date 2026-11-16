@@ -460,7 +460,6 @@ def _get_components() -> dict:
                             {"type": "null"},
                         ]
                     },
-
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
