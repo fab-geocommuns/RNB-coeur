@@ -1,20 +1,7 @@
-# Celery beat calendar. All times are UTC.
-#
-# Rule: the weekend is reserved for the data.gouv publication. Long imports start
-# on a Monday at 00:00 so they end within the week, before Saturday 03:00.
-#
-# Production, durations measured in prod as of November 2026:
-#   publish_data_gouv                Saturday 03:00                      departments 10-16 h, then national 17-20 h: ends Sunday ~14:00
-#   backup_to_s3                     Saturday 07:00                      ~3 h
-#   import_bdtopo                    3rd Monday of Jan, Apr, Jul, Oct    at least 35 h, ~64 h at average conversion time, on the 3 worker slots
-#   import_plots                     4th Monday of Jan, Apr, Jul, Oct    8 h
-#   import_cities                    April 1st and October 1st, 02:00    >= 4 min (partial trace, 09/04/2026 rerun)
-#   send_monthly_leaderboard_emails  1st of each month, 06:00            13 min
-#   delete_old_data_files            Sunday 05:00                        < 1 s
-#   compute_kpis                     every day 03:00                     6-9 min
-#   close_irrelevant_reports         every day 04:00                     < 1 min
-# Staging and sandbox: compute_kpis, close_irrelevant_reports, delete_old_data_files.
-# Development: compute_kpis, close_irrelevant_reports, heartbeat (every 5 minutes).
+# All times are UTC.
+# The weekend is reserved for the data.gouv publication (Saturday 03:00 to
+# Sunday ~14:00). Long imports start on a Monday at 00:00 to end before it:
+# BD Topo ~64 h, cadastre 8 h (measured in prod, November 2026).
 
 from celery.schedules import crontab
 
