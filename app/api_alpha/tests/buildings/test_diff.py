@@ -924,16 +924,18 @@ class DiffTest(TransactionTestCase):
 
     def test_diff_addresses_cle_interop_and_ban_id(self):
         """
-        Input: a building linked, in non-alphabetical order, to an address without
-        ban_id then to an address with one; a building with an empty
-        addresses_internal_id; a building with a NULL one.
+        Input: a building linked, in non-alphabetical order, to three addresses:
+        one with a ban_id, one without (in the middle), one with a ban_id; a
+        building with an empty addresses_internal_id; a building with a NULL one.
         Expected: addresses_cle_interop equals addresses_id, and addresses_ban_id
-        holds the ban_id of each address at the same position, null for the
-        address without one; [] for the empty array and an empty field for NULL,
-        as for addresses_id.
+        holds three elements, the ban_id of each address at the same position and
+        null for the address without one; [] for the empty array and an empty
+        field for NULL, as for addresses_id.
         """
-        ban_id = "fd9736e8-9970-4127-84eb-f2886043c122"
-        Address.objects.filter(cle_interop="ADDRESS_ID_1").update(ban_id=ban_id)
+        ban_id_2 = "fd9736e8-9970-4127-84eb-f2886043c122"
+        ban_id_3 = "0b1c5e2a-3f7d-4a8e-9c21-6d4e8f0a1b23"
+        Address.objects.filter(cle_interop="ADDRESS_ID_2").update(ban_id=ban_id_2)
+        Address.objects.filter(cle_interop="ADDRESS_ID_3").update(ban_id=ban_id_3)
         internal_id_by_cle = dict(
             Address.objects.values_list("cle_interop", "internal_id")
         )
@@ -947,6 +949,7 @@ class DiffTest(TransactionTestCase):
             addresses_internal_id=[
                 internal_id_by_cle["ADDRESS_ID_3"],
                 internal_id_by_cle["ADDRESS_ID_1"],
+                internal_id_by_cle["ADDRESS_ID_2"],
             ],
         )
         Building.objects.create(
@@ -964,9 +967,12 @@ class DiffTest(TransactionTestCase):
         rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
 
         self.assertEqual(
-            rows["1"]["addresses_cle_interop"], '["ADDRESS_ID_3","ADDRESS_ID_1"]'
+            rows["1"]["addresses_cle_interop"],
+            '["ADDRESS_ID_3","ADDRESS_ID_1","ADDRESS_ID_2"]',
         )
-        self.assertEqual(rows["1"]["addresses_ban_id"], f'[null,"{ban_id}"]')
+        self.assertEqual(
+            rows["1"]["addresses_ban_id"], f'["{ban_id_3}",null,"{ban_id_2}"]'
+        )
         self.assertEqual(rows["2"]["addresses_cle_interop"], "[]")
         self.assertEqual(rows["2"]["addresses_ban_id"], "[]")
         self.assertEqual(rows["3"]["addresses_cle_interop"], "")
