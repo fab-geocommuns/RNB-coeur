@@ -71,6 +71,57 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 0)
 
+    def test_patch_body_not_logged(self):
+        """
+        Unauthenticated PATCH on a building, JSON body with a marker, no URL params.
+        Expected: the refused call is logged, data is None, query_params is "{}"
+        and the marker appears nowhere in the log row.
+        """
+        r = self.client.patch(
+            "/api/alpha/buildings/1234ABCD5678/",
+            {"comment": "body-marker"},
+            format="json",
+        )
+
+        self.assertIn(r.status_code, (401, 403))
+
+        log = APIRequestLog.objects.get()
+        self.assertIsNone(log.data)
+        self.assertEqual(log.query_params, "{}")
+        self.assertNotIn("body-marker", log.query_params)
+
+    def test_post_body_not_logged_url_params_kept(self):
+        """
+        Unauthenticated POST on /buildings/?from_test=1 with a JSON body holding a marker.
+        Expected: query_params holds the URL param from_test, not the body marker; data is None.
+        """
+        self.client.post(
+            "/api/alpha/buildings/?from_test=1",
+            {"comment": "body-marker"},
+            format="json",
+        )
+
+        log = APIRequestLog.objects.get()
+        self.assertIsNone(log.data)
+        self.assertIn("from_test", log.query_params)
+        self.assertNotIn("body-marker", log.query_params)
+
+    @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
+    def test_get_url_params_logged_token_masked(self):
+        """
+        GET /buildings/?status=constructed&token=secret.
+        Expected: query_params holds status=constructed, token is masked and secret is absent.
+        """
+        r = self.client.get("/api/alpha/buildings/?status=constructed&token=secret")
+
+        self.assertEqual(r.status_code, 200)
+
+        log = APIRequestLog.objects.get()
+        self.assertIn("status", log.query_params)
+        self.assertIn("constructed", log.query_params)
+        self.assertIn("********************", log.query_params)
+        self.assertNotIn("secret", log.query_params)
+
     def test_ogc_root(self):
         r = self.client.get("/api/alpha/ogc/")
 
