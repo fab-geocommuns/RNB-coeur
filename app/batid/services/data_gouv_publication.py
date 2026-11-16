@@ -52,19 +52,21 @@ def file_path(directory_name, code_area):
 
 
 def sql_query(code_area):
-    if code_area == "nat":
-        area_from = "batid_building bdg"
-    else:
-        # Start from the ids of the department's buildings, so that the planner
-        # reaches them through the spatial index. DISTINCT: a point lying on the
-        # edge of two subdivided polygons of the department must give a single row.
-        area_from = f"""(
-            SELECT DISTINCT area_bdg.id
+    area_cte = ""
+    area_from = "batid_building bdg"
+    if code_area != "nat":
+        # The department's buildings are read once, through the spatial index.
+        # MATERIALIZED: the planner overestimates this join about 20 times; without
+        # the fence it walks the 45M buildings in id order to deduplicate them, or
+        # reads every building a second time by id. DISTINCT ON: a point lying on
+        # the edge of two subdivided polygons of the department must give one row.
+        area_cte = f"""WITH area_bdg AS MATERIALIZED (
+            SELECT area_bdg.*
             FROM batid_department_subdivided dpt
             JOIN batid_building area_bdg ON ST_Intersects(dpt.shape, area_bdg.point)
-            WHERE dpt.code = '{code_area}'
-        ) AS area_ids
-        JOIN batid_building bdg ON bdg.id = area_ids.id"""
+            WHERE dpt.code = '{code_area}' AND area_bdg.is_active
+        )"""
+        area_from = "(SELECT DISTINCT ON (id) * FROM area_bdg) AS bdg"
 
     # Addresses are aggregated per building in a subquery, not with a join and a
     # GROUP BY: the join let the planner hash the buildings on their address id,
@@ -73,6 +75,7 @@ def sql_query(code_area):
     # database was killed out of memory (2026-11-14, department 13).
     sql = f"""
     COPY (
+        {area_cte}
         select bdg.rnb_id as rnb_id,
         ST_AsEWKT(bdg.point) as point,
         ST_AsEWKT(bdg.shape) as shape,
