@@ -14,7 +14,7 @@ from batid.utils.db import copy_from_file
 from batid.utils.geo import drop_z, fix_nested_shells
 from celery import Signature, chain
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 
 
 def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
@@ -52,7 +52,9 @@ def create_bdtopo_dpt_import_tasks(dpt: str, release_date: str, bulk_launch_id=N
     return chain(dl_task, convert_task)
 
 
-def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
+def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None) -> int:
+    """Create the candidates of one department and return the count of features
+    skipped because of an error."""
 
     src = Source("bdtopo")
     src.set_params(src_params)
@@ -64,7 +66,7 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
         # A replay of a run that already committed: its source folder may be gone
         print("-- candidates already created for this launch, skipped --")
         src.remove_uncompressed_folder()
-        return
+        return 0
 
     path = src.find(src.filename)
 
@@ -73,6 +75,7 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
         srid = int(layer.crs["init"].split(":")[1])
 
         candidates = []
+        skipped_count = 0
 
         iterator = iter(layer)
 
@@ -95,11 +98,16 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
             except StopIteration:
                 break
+            except DatabaseError:
+                # A database failure would skip every following feature: fail the task
+                raise
             except ValueError as e:
                 # This catches the "second must be in 0..59" error
                 print(f"SKIPPING BAD FEATURE due to invalid date: {e}")
+                skipped_count += 1
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
+                skipped_count += 1
 
     if candidates:
         _save_candidates(candidates=candidates, building_import=building_import)
@@ -109,6 +117,8 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
     print(f"- remove {src.uncompress_folder} folder")
     src.remove_uncompressed_folder()
+
+    return skipped_count
 
 
 def _save_candidates(*, candidates: list, building_import: BuildingImport) -> None:

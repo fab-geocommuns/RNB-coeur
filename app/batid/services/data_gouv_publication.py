@@ -16,6 +16,10 @@ from django.db import connection, transaction
 from app.settings import WRITABLE_DATA_DIR
 
 
+def datagouv_publication_enabled() -> bool:
+    return os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true"
+
+
 def publish(area: str):
     print(f"Processing area: {area}")
 
@@ -23,7 +27,7 @@ def publish(area: str):
     try:
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
-        if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
+        if datagouv_publication_enabled():
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv_with_retries(
                 area=area,

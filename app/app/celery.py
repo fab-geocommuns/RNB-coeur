@@ -18,9 +18,15 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Tasks whose arguments hold personal data (name, e-mail, username): never sent to Tchap
+TASKS_WITH_SENSITIVE_ARGS = frozenset(
+    {"batid.tasks.create_sandbox_user", "batid.tasks.remove_light_buildings"}
+)
+ARGS_MAX_LENGTH = 500
+
 
 @task_failure.connect
-def notify_task_failure(*, sender, task_id, exception, **_kwargs) -> None:
+def notify_task_failure(*, sender, task_id, exception, args, kwargs, **_kwargs) -> None:
     """
     Notify the tech team when any task fails for good.
 
@@ -34,6 +40,28 @@ def notify_task_failure(*, sender, task_id, exception, **_kwargs) -> None:
     notify_tech(
         level=TchapLevel.FAILURE,
         title="Échec de la tâche",
-        details=[("Tâche", Code(sender.name)), ("Identifiant", Code(str(task_id)))],
-        error=str(exception),
+        details=[
+            ("Tâche", Code(sender.name)),
+            ("Identifiant", Code(str(task_id))),
+            (
+                "Arguments",
+                Code(_task_arguments(sender=sender, args=args, kwargs=kwargs)),
+            ),
+        ],
+        # Some exceptions carry no message, e.g. BANAPIDown()
+        error=str(exception) or type(exception).__name__,
     )
+
+
+def _task_arguments(*, sender, args, kwargs) -> str:
+    if sender.name in TASKS_WITH_SENSITIVE_ARGS:
+        return "masqués"
+    if not args and not kwargs:
+        return "aucun"
+    text = ", ".join(
+        [repr(a) for a in args or ()]
+        + [f"{k}={v!r}" for k, v in (kwargs or {}).items()]
+    )
+    if len(text) > ARGS_MAX_LENGTH:
+        text = text[: ARGS_MAX_LENGTH - 1] + "…"
+    return text

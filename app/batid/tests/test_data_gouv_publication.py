@@ -32,6 +32,8 @@ from batid.services.data_gouv_publication import (
     update_resource_metadata,
     upload_to_s3,
 )
+from batid.services.tchap import Code, TchapLevel
+from batid.tasks import publish_datagouv_all
 from batid.tests.factories.users import ContributorUserFactory
 from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
@@ -1057,3 +1059,67 @@ class TestDataGouvPublishTasks(TestCase):
 
         self.assertEqual(publish_mock.call_args_list, [mock.call("49")])
         notify_tech_mock.assert_not_called()
+
+
+class TestDataGouvPublicationFlag(TestCase):
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_unset_flag_launches_nothing(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION unset.
+        Expected: no chain queued, one alert "Publication data.gouv non lancée"
+        naming the variable and "non définie" as its value.
+        """
+        with mock.patch.dict(os.environ):
+            os.environ.pop("ENABLE_DATAGOUV_PUBLICATION", None)
+            publish_datagouv_all.run()
+
+        chain_mock.assert_not_called()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv non lancée",
+            details=[
+                ("Variable", "ENABLE_DATAGOUV_PUBLICATION"),
+                ("Valeur", "non définie"),
+            ],
+        )
+        self.assertIsInstance(notify_tech_mock.call_args.kwargs["details"][0][1], Code)
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_false_flag_launches_nothing(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="false".
+        Expected: no chain queued, one alert "Publication data.gouv non lancée"
+        with the value "false" as Code.
+        """
+        publish_datagouv_all.run()
+
+        chain_mock.assert_not_called()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv non lancée",
+            details=[
+                ("Variable", "ENABLE_DATAGOUV_PUBLICATION"),
+                ("Valeur", "false"),
+            ],
+        )
+        self.assertIsInstance(notify_tech_mock.call_args.kwargs["details"][1][1], Code)
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_enabled_flag_launches_the_chain(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="true".
+        Expected: the chain is queued once and the launch message is unchanged.
+        """
+        publish_datagouv_all.run()
+
+        chain_mock.return_value.assert_called_once_with()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.LAUNCH,
+            title="Publication data.gouv lancée",
+            details=[("Zones", "tous les départements et le fichier national")],
+        )

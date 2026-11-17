@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import uuid
 from datetime import datetime
@@ -20,6 +21,7 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import (
     DataGouvAccessDenied,
+    datagouv_publication_enabled,
     get_area_publish_task,
     publish,
 )
@@ -76,7 +78,7 @@ from batid.services.source import (
     delete_files_older_than,
     remove_paths_of_successful_task,
 )
-from batid.services.tchap import TchapLevel, notify_tech
+from batid.services.tchap import Code, TchapLevel, notify_tech
 from batid.utils.auth import make_random_password
 from batid.utils.date import iso_to_french_date
 from celery import Signature, chain, shared_task
@@ -136,10 +138,8 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 @shared_task(
     base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
 )
-def convert_bdtopo(src_params, bulk_launch_uuid=None):
-
-    create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
-    return "done"
+def convert_bdtopo(src_params, bulk_launch_uuid=None) -> int:
+    return create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
@@ -319,6 +319,18 @@ def publish_datagouv_dpt(dept: str):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_all():
+    if not datagouv_publication_enabled():
+        value = os.environ.get("ENABLE_DATAGOUV_PUBLICATION")
+        notify_tech(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv non lancée",
+            details=[
+                ("Variable", Code("ENABLE_DATAGOUV_PUBLICATION")),
+                ("Valeur", Code(value) if value else "non définie"),
+            ],
+        )
+        return "Publication disabled"
+
     notify_tech(
         level=TchapLevel.LAUNCH,
         title="Publication data.gouv lancée",
