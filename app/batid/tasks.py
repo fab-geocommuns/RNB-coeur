@@ -75,8 +75,9 @@ from batid.services.source import (
     delete_files_older_than,
     remove_paths_of_successful_task,
 )
-from batid.services.tchap import notify_tech
+from batid.services.tchap import TchapLevel, notify_tech
 from batid.utils.auth import make_random_password
+from batid.utils.date import iso_to_french_date
 from celery import Signature, chain, shared_task
 from celery.signals import task_postrun
 from django.conf import settings
@@ -150,10 +151,6 @@ def queue_full_bdtopo_import(
     # Get list of dpts
     dpts = bdtopo_dpts_list(dpt_start, dpt_end)  # type: ignore[arg-type] # type: ignore[arg-type]
 
-    notify_tech(
-        f"Queuing full BDTopo import tasks.  Dpt start: {dpts[0]}, dpt end: {dpts[-1]}.  Released before: {released_before}"
-    )
-
     # Default release date to most recent one
     if released_before:
         # date str to date object
@@ -161,6 +158,15 @@ def queue_full_bdtopo_import(
         release_date = bdtopo_recente_release_date(before_date)
     else:
         release_date = bdtopo_recente_release_date()
+
+    notify_tech(
+        level=TchapLevel.LAUNCH,
+        title="Import BD Topo lancé",
+        details=[
+            ("Départements", f"{dpts[0]} à {dpts[-1]}"),
+            ("Millésime", iso_to_french_date(release_date)),
+        ],
+    )
 
     all_chains = create_bdtopo_full_import_tasks(dpts, release_date)
 
@@ -196,8 +202,14 @@ def queue_full_plots_import(
     else:
         release_date = etalab_recent_release_date()
 
-    msg = f"Import du cadastre Etalab. Départements: {dpts[0]} à {dpts[-1]}. Date de sortie: {release_date}"
-    notify_tech(msg)
+    notify_tech(
+        level=TchapLevel.LAUNCH,
+        title="Import du cadastre lancé",
+        details=[
+            ("Départements", f"{dpts[0]} à {dpts[-1]}"),
+            ("Millésime", iso_to_french_date(release_date)),
+        ],
+    )
 
     tasks = create_plots_full_import_tasks(dpt_list=dpts, release_date=release_date)
 
@@ -217,7 +229,11 @@ def import_cities(dpt):
 def queue_full_cities_import():
     dpts = dpts_list()
 
-    notify_tech(f"Import des communes. Départements: {dpts[0]} à {dpts[-1]}")
+    notify_tech(
+        level=TchapLevel.LAUNCH,
+        title="Import des communes lancé",
+        details=[("Départements", f"{dpts[0]} à {dpts[-1]}")],
+    )
 
     tasks = [
         Signature("batid.tasks.import_cities", args=[dpt], immutable=True)
@@ -278,7 +294,10 @@ def publish_area_or_report(area: str) -> str:
         logger.exception(f"data.gouv.fr publication failed for area {area}")
         try:
             notify_tech(
-                f"Échec de la publication data.gouv.fr pour la zone {area} : {e}"
+                level=TchapLevel.FAILURE,
+                title="Échec de la publication data.gouv",
+                details=[("Zone", area)],
+                error=str(e),
             )
         except Exception:
             # Tchap down must not stop the chain either; Sentry already has the publication error.
@@ -300,7 +319,9 @@ def publish_datagouv_dpt(dept: str):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_all():
     notify_tech(
-        f"Starting data.gouv.fr publication for all departments and national data."
+        level=TchapLevel.LAUNCH,
+        title="Publication data.gouv lancée",
+        details=[("Zones", "tous les départements et le fichier national")],
     )
 
     areas = dpts_list() + ["nat"]
@@ -363,7 +384,9 @@ def queue_full_ban_import(
     dpts = dpts_list(dpt_start, dpt_end)
 
     notify_tech(
-        f"Import des adresses BAN. Dpt start. Départements: {dpts[0]} à {dpts[-1]}"
+        level=TchapLevel.LAUNCH,
+        title="Import des adresses BAN lancé",
+        details=[("Départements", f"{dpts[0]} à {dpts[-1]}")],
     )
 
     tasks = create_ban_full_import_tasks(dpts)
@@ -402,7 +425,9 @@ def queue_full_bal_rnb_links(
     dpts = dpts_list(dpt_start, dpt_end)
 
     notify_tech(
-        f"Création de liens bâtiment <> adresse via BAL. Départements: {dpts[0]} à {dpts[-1]}"
+        level=TchapLevel.LAUNCH,
+        title="Liens bâtiment adresse via les BAL lancés",
+        details=[("Départements", f"{dpts[0]} à {dpts[-1]}")],
     )
 
     all_tasks = create_all_bal_links_tasks(dpts)
@@ -489,7 +514,11 @@ def send_monthly_leaderboard_emails():
 
     result = send_emails()
     try:
-        notify_tech(result)
+        notify_tech(
+            level=TchapLevel.SUCCESS,
+            title="Mail mensuel du classement",
+            details=[("Bilan", result)],
+        )
     except Exception:
         # A retry would send all the emails again
         logger.exception("Tchap report of the leaderboard emails failed")

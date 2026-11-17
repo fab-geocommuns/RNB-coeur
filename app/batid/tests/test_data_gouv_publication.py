@@ -1005,7 +1005,8 @@ class TestDataGouvPublishTasks(TestCase):
         """
         Chain of departments 49 then 50, the publication of 49 raises.
         Expected: 50 is still published and the chain ends with "done"; one Tchap
-        message mentions 49 and one ERROR record with the stack trace is logged.
+        failure message for zone 49 carrying the error "boom", and one ERROR record
+        with the stack trace is logged.
         """
         with self.assertLogs("batid.tasks", level="ERROR") as logs:
             result = chain(
@@ -1017,7 +1018,10 @@ class TestDataGouvPublishTasks(TestCase):
         )
         self.assertEqual(result.get(), "done")
         notify_tech_mock.assert_called_once()
-        self.assertIn("49", notify_tech_mock.call_args.args[0])
+        kwargs = notify_tech_mock.call_args.kwargs
+        self.assertEqual(kwargs["title"], "Échec de la publication data.gouv")
+        self.assertEqual(kwargs["details"], [("Zone", "49")])
+        self.assertEqual(kwargs["error"], "boom")
         self.assertEqual(len(logs.records), 1)
         self.assertIsNotNone(logs.records[0].exc_info)
 
