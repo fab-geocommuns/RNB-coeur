@@ -52,31 +52,50 @@ def file_path(directory_name, code_area):
 
 
 def sql_query(code_area):
-    if code_area == "nat":
-        dpt_where = ""
-        dpt_join = ""
-    else:
-        dpt_where = f" AND dpt.code = '{code_area}'"
-        dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
+    area_cte = ""
+    area_from = "batid_building bdg"
+    if code_area != "nat":
+        # The department's buildings are read once, through the spatial index.
+        # MATERIALIZED: the planner overestimates this join about 20 times; without
+        # the fence it walks the 45M buildings in id order to deduplicate them, or
+        # reads every building a second time by id. DISTINCT ON: a point lying on
+        # the edge of two subdivided polygons of the department must give one row.
+        area_cte = f"""WITH area_bdg AS MATERIALIZED (
+            SELECT area_bdg.*
+            FROM batid_department_subdivided dpt
+            JOIN batid_building area_bdg ON ST_Intersects(dpt.shape, area_bdg.point)
+            WHERE dpt.code = '{code_area}' AND area_bdg.is_active
+        )"""
+        area_from = "(SELECT DISTINCT ON (id) * FROM area_bdg) AS bdg"
 
+    # Addresses are aggregated per building in a subquery, not with a join and a
+    # GROUP BY: the join let the planner hash the buildings on their address id,
+    # and the buildings without address (NULL key) all fall in one hash batch that
+    # can never be split. Postgres then kept doubling the batches until the
+    # database was killed out of memory (2026-11-14, department 13).
     sql = f"""
     COPY (
+        {area_cte}
         select bdg.rnb_id as rnb_id,
         ST_AsEWKT(bdg.point) as point,
         ST_AsEWKT(bdg.shape) as shape,
         bdg.status as status,
         bdg.ext_ids as ext_ids,
-        coalesce(json_agg(
-             json_build_object(
-                    'cle_interop_ban', addr.cle_interop,
-                    'street_number', addr.street_number,
-                    'street_rep', addr.street_rep,
-                    'street', addr.street,
-                    'city_zipcode', addr.city_zipcode,
-                    'city_name', addr.city_name
-                )
-
-        ) FILTER (WHERE addr.cle_interop IS NOT NULL), '[]'::json) AS addresses,
+        (
+           SELECT coalesce(json_agg(
+               json_build_object(
+                   'cle_interop_ban', addr.cle_interop,
+                   'street_number', addr.street_number,
+                   'street_rep', addr.street_rep,
+                   'street', addr.street,
+                   'city_zipcode', addr.city_zipcode,
+                   'city_name', addr.city_name
+               ) ORDER BY addr.cle_interop
+           ), '[]'::json)
+           FROM batid_buildingaddressesinternalidreadonly bdg_addr
+           JOIN batid_address addr ON addr.internal_id = bdg_addr.address_id
+           WHERE bdg_addr.building_id = bdg.id AND addr.cle_interop IS NOT NULL
+       ) AS addresses,
         (
            SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
                CASE
@@ -108,13 +127,8 @@ def sql_query(code_area):
            LEFT JOIN batid_organization org ON org.id = up.organization_id
            WHERE v.building_id = bdg.id
        ) AS validated_by
-        FROM batid_building bdg
-        LEFT JOIN batid_buildingaddressesinternalidreadonly bdg_addr ON bdg_addr.building_id = bdg.id
-        LEFT JOIN batid_address addr ON addr.internal_id = bdg_addr.address_id
-        {dpt_join}
-        WHERE is_active
-        {dpt_where}
-        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.id
+        FROM {area_from}
+        WHERE bdg.is_active
     )  TO STDOUT WITH CSV HEADER DELIMITER ';'
     """
 
@@ -215,35 +229,46 @@ DATA_GOUV_TIMEOUT_S = 30
 # Waits between the 5 attempts: 1, 2, 4 then 8 minutes (15 minutes covered).
 DATA_GOUV_RETRY_DELAYS_S = (60, 120, 240, 480)
 
-# Transient requests errors only: an invalid URL or header (missing DATA_GOUV_BASE_URL
-# for instance) fails the same way on every attempt and is raised at once.
-DATA_GOUV_RETRYABLE_ERRORS = (
-    requests.ConnectionError,
-    requests.Timeout,
-    requests.exceptions.ChunkedEncodingError,
-    requests.exceptions.ContentDecodingError,
-    requests.exceptions.JSONDecodeError,
-)
-
 
 class DataGouvAccessDenied(Exception):
     """401 or 403 from data.gouv.fr: the key is refused for the whole dataset, every other area would fail the same way."""
+
+
+class DataGouvUnavailable(Exception):
+    """429 or 5xx from data.gouv.fr: the platform is overloaded or down, a later attempt can succeed."""
+
+
+# Transient errors only: an invalid URL or header (missing DATA_GOUV_BASE_URL for
+# instance) or a 4xx answer fails the same way on every attempt and is raised at once.
+# TooManyRedirects: data.gouv.fr answered with a redirect loop during its outage of
+# 2026-11-14.
+DATA_GOUV_RETRYABLE_ERRORS = (
+    requests.ConnectionError,
+    requests.Timeout,
+    requests.TooManyRedirects,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.ContentDecodingError,
+    requests.exceptions.JSONDecodeError,
+    DataGouvUnavailable,
+)
 
 
 def data_gouv_error(*, message: str, response: requests.Response) -> Exception:
     error = f"{message}: HTTP {response.status_code} {response.text[:200]}"
     if response.status_code in (401, 403):
         return DataGouvAccessDenied(error)
+    if response.status_code == 429 or response.status_code >= 500:
+        return DataGouvUnavailable(error)
     return Exception(error)
 
 
 def publish_on_data_gouv_with_retries(*, area, public_url, archive_size, archive_sha1):
     """
-    Publish on data.gouv.fr, retrying on transient requests errors (network errors,
-    timeouts, cut or non-JSON bodies).
+    Publish on data.gouv.fr, retrying on transient errors (network errors, timeouts,
+    redirect loops, cut or non-JSON bodies, 429 and 5xx answers).
     Replayable: each attempt starts with a GET, so a resource created by a previous
-    attempt is updated, not created twice. Other errors (non 2xx answers, invalid
-    URL) are raised at once.
+    attempt is updated, not created twice. Other errors (4xx answers, invalid URL)
+    are raised at once.
     """
     for delay in DATA_GOUV_RETRY_DELAYS_S:
         try:

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from batid.services.tchap import TchapLevel
 from django.test import TestCase
 
 
@@ -15,7 +16,8 @@ class WebhookTestCase(TestCase):
     def test_webhook_200(self, mock_notify_tech):
         """
         Input: a valid Scaleway budget alert with the right token.
-        Expected: 200 response and the alert message is sent to Tchap.
+        Expected: 200 response and one alert is sent to Tchap, with the threshold
+        and the period start date as detail lines.
         """
         with self.env:
             invoice_start_date = "01-01-2024"
@@ -31,7 +33,9 @@ class WebhookTestCase(TestCase):
             self.assertEqual(response.content, b"ok")
 
             mock_notify_tech.assert_called_once_with(
-                f"Attention : notre consommation Scaleway a dépassé {threshold}% du budget attendu pour la période commençant le {invoice_start_date}."
+                level=TchapLevel.ALERT,
+                title="Alerte budget Scaleway",
+                details=[("Seuil", "75 %"), ("Période", "à partir du 01-01-2024")],
             )
 
     def test_webhook_401(self):

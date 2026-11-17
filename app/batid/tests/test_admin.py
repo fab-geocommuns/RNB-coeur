@@ -1,4 +1,5 @@
 from batid.models import Organization, UserProfile
+from batid.tests.helpers import login_with_otp
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -9,7 +10,7 @@ class UserCreationForm(TestCase):
         self.user = User.objects.create_superuser(
             username="foobar", email="foo@bar.com", password="barbaz"
         )
-        self.client.force_login(user=self.user)
+        login_with_otp(client=self.client, user=self.user)
 
     def test_has_email_field(self):
         response = self.client.get("/admin/auth/user/add/")
@@ -24,7 +25,7 @@ class UserProfileInlineAdminTest(TestCase):
         self.admin = User.objects.create_superuser(
             username="admin", email="admin@rnb.fr", password="pw"
         )
-        self.client.force_login(self.admin)
+        login_with_otp(client=self.client, user=self.admin)
         self.user = User.objects.create(username="jean", email="jean@example.com")
         self.profile = UserProfile.objects.create(
             user=self.user, comment_from_reviewer="quota relevé le 12/03"
@@ -63,7 +64,7 @@ class OrganizationMergeAdminTest(TestCase):
         self.admin = User.objects.create_superuser(
             username="admin", email="admin@rnb.fr", password="pw"
         )
-        self.client.force_login(self.admin)
+        login_with_otp(client=self.client, user=self.admin)
 
     def _merge_url(self, target):
         return reverse("admin:batid_organization_merge", args=[target.pk])

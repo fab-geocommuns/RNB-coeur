@@ -1,5 +1,6 @@
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
+from api_alpha.endpoints.auth.mfa import MFAConfirmView, MFASetupView
 from api_alpha.endpoints.auth.pro_connect import (
     AuthorizeView,
     CallbackView,
@@ -17,7 +18,10 @@ from api_alpha.endpoints.buildings.single_building import (
     SingleBuildingAboutId,
     SingleBuildingHistory,
 )
-from api_alpha.endpoints.contributions.summary import ContributionSummaryView
+from api_alpha.endpoints.contributions.summary import (
+    ContributionSummariesView,
+    ContributionSummaryView,
+)
 from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.editions.annotations import EventAnnotationView
 from api_alpha.endpoints.editions.rollback import RollbackEventView
@@ -153,12 +157,15 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
+    path("auth/mfa/setup/", MFASetupView.as_view()),
+    path("auth/mfa/confirm/", MFAConfirmView.as_view()),
     path("auth/pro_connect/authorize/", AuthorizeView.as_view()),
     path("auth/pro_connect/callback/", CallbackView.as_view()),
     path("auth/pro_connect/exchange/", ExchangeView.as_view()),
     path("auth/pro_connect/logout/callback/", LogoutCallbackView.as_view()),
     path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("contributions/summary/", ContributionSummaryView.as_view()),
+    path("contributions/summaries/", ContributionSummariesView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
     path("validation/ranking/", ValidationRankingView.as_view()),
     path("feves/", FevesView.as_view()),

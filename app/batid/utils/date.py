@@ -18,6 +18,10 @@ def french_month_year_label(year: int, month: int) -> str:
         return f"{MONTHS[month]} {year}"
 
 
+def iso_to_french_date(iso_date: str) -> str:
+    return datetime.date.fromisoformat(iso_date).strftime("%d/%m/%Y")
+
+
 def previous_month() -> tuple[int, int]:
     today = datetime.date.today()
     if today.month == 1:

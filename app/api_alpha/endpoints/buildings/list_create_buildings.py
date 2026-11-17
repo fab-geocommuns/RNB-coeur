@@ -24,7 +24,7 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.models import Building, Contribution, Trophy
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -188,7 +188,6 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
         with_plots = True if with_plots_param == "1" else False
-        query_params["with_plots"] = with_plots
 
         # add user to query params
         query_params["user"] = request.user
@@ -206,12 +205,16 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         if format_param == "geojson":
             paginator = OGCApiPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
+            if with_plots:
+                attach_plots(paginated_buildings)
             serializer = BuildingGeoJSONSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )
         else:
             paginator = BuildingListingCursorPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
+            if with_plots:
+                attach_plots(paginated_buildings)
             serializer = BuildingSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )

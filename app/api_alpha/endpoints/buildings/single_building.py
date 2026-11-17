@@ -22,7 +22,7 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.models import Building, Contribution, EventAnnotation, Trophy
 from batid.services.bdg_about_id import get_about_id
 from batid.services.bdg_history import get_bdg_history
@@ -198,7 +198,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     },
                     {
                         "name": "withPlots",
@@ -243,10 +243,12 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         with_plots = with_plots_param == "1"
 
         qs = list_bdgs(
-            {"user": request.user, "status": "all", "with_plots": with_plots},
+            {"user": request.user, "status": "all"},
             only_active=False,
         )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
+        if with_plots:
+            attach_plots([building])
 
         # get the "format" query parameter
         format_param = request.query_params.get("format", "json").lower()
@@ -300,7 +302,7 @@ La requête est refusée (400) si :
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     }
                 ],
                 "requestBody": {
@@ -317,7 +319,7 @@ La requête est refusée (400) si :
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Le bâtiment est démoli.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -348,8 +350,8 @@ Si ce paramètre est :
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
                                         "example": [
-                                            "75105_8884_00004",
-                                            "75105_8884_00006",
+                                            "49125_0355_00024",
+                                            "49125_0355_00030",
                                         ],
                                     },
                                     "shape": {
@@ -358,6 +360,7 @@ Si ce paramètre est :
                                             "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.\n\nLa géométrie doit :\n"
                                             + get_shape_rules(max_move_meters=20)
                                         ),
+                                        "example": "POLYGON((-0.2805 47.1880, -0.2803 47.1880, -0.2803 47.1878, -0.2805 47.1880))",
                                     },
                                     "is_valid": {
                                         "type": "boolean",

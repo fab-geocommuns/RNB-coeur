@@ -1,12 +1,21 @@
 import binascii
 import logging
 import urllib.parse
-from datetime import datetime
 from typing import Any
 
 import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
+from api_alpha.endpoints.auth.mfa import (
+    BAD_CREDENTIALS_DOC,
+    CREDENTIALS_PROPERTIES,
+    LOGIN_BODY_PROPERTIES,
+    LOGIN_THROTTLE_DOC,
+    PASSWORD_AUTH_DOC,
+    credentials_body_doc,
+    mfa_error_response,
+    password_auth_401_doc,
+)
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import (
     BuildingAddressCursorPagination,
@@ -22,10 +31,10 @@ from api_alpha.serializers.serializers import (
     BuildingSerializer,
     BuildingSplitSerializer,
     DiffusionDatabaseSerializer,
-    GuessBuildingSerializer,
 )
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.login_throttle import LoginRateThrottle
 from api_alpha.utils.rnb_doc import (
     EDITION_AUTH_RESPONSES,
     build_schema_all_endpoints,
@@ -55,11 +64,15 @@ from batid.models import (
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
-from batid.services.guess_bdg import BuildingGuess
+from batid.services.mfa import LoginMFAOutcome, MFAError, login_mfa_outcome
 from batid.services.organization import link_user_to_organization
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.user import get_user_id_b64, get_user_id_from_b64
+from batid.services.user import (
+    get_user_id_b64,
+    get_user_id_from_b64,
+    login_response_body,
+)
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -85,35 +98,12 @@ logger = logging.getLogger(__name__)
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
-
-        sunset_date = datetime(2026, 1, 5)
-        if datetime.now() >= sunset_date:
-            return Response(
-                {
-                    "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
-                },
-                status=status.HTTP_410_GONE,
-            )
-
-        search = BuildingGuess()
-        search.set_params_from_url(**request.query_params.dict())
-
-        if not search.is_valid():
-            return Response(
-                {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            qs = search.get_queryset()
-            serializer = GuessBuildingSerializer(qs, many=True)
-
-            # add a deprecation and sunset headers
-            response = Response(serializer.data)
-            response["Deprecation"] = "true"
-            response["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
-
-            return response
-        except BANAPIDown:
-            raise ServiceUnavailable(detail="BAN API is currently down")
+        return Response(
+            {
+                "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+            },
+            status=status.HTTP_410_GONE,
+        )
 
 
 class BuildingClosestView(RNBLoggingMixin, APIView):
@@ -543,7 +533,7 @@ La scission est refusée (400) si :
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     },
                 ],
                 "requestBody": {
@@ -555,13 +545,13 @@ La scission est refusée (400) si :
                                 "created_buildings": [
                                     {
                                         "status": "constructed",
-                                        "shape": "POLYGON((-0.5706 44.841, -0.5706 44.8411, -0.5705 44.8411, -0.5705 44.841, -0.5706 44.841))",
-                                        "addresses_cle_interop": ["33063_1155_00002"],
+                                        "shape": "POLYGON((-0.280518618884989 47.18802712764387, -0.280312563687183 47.18800773707939, -0.280354544338391 47.18778578845762, -0.280374443008843 47.18780865208074, -0.28033686595634 47.18799443363734, -0.280496410208815 47.18800973584818, -0.280518618884989 47.18802712764387))",
+                                        "addresses_cle_interop": ["49125_0355_00024"],
                                     },
                                     {
                                         "status": "constructed",
-                                        "shape": "POLYGON((-0.5705 44.841, -0.5705 44.8411, -0.5704 44.8411, -0.5704 44.841, -0.5705 44.841))",
-                                        "addresses_cle_interop": ["33063_1155_00008"],
+                                        "shape": "POLYGON((-0.280518618884989 47.18802712764387, -0.280496410208815 47.18800973584818, -0.28053964857276 47.187830101194784, -0.280374443008843 47.18780865208074, -0.280354544338391 47.18778578845762, -0.280580994183435 47.18781451259896, -0.280518618884989 47.18802712764387))",
+                                        "addresses_cle_interop": ["49125_0355_00030"],
                                     },
                                 ],
                             },
@@ -593,7 +583,7 @@ La scission est refusée (400) si :
                                                             max_move_meters=100
                                                         )
                                                     ),
-                                                    "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
+                                                    "example": "POLYGON((-0.280581 47.187815, -0.280519 47.188027, -0.280313 47.188008, -0.280355 47.187786, -0.280581 47.187815))",
                                                 },
                                                 "addresses_cle_interop": {
                                                     "type": "array",
@@ -722,18 +712,71 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
 
 class RNBAuthToken(ObtainAuthToken):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        token = Token.objects.get(key=response.data["token"])
-        user = token.user
-        return Response(
-            {
-                "id": user.id,
-                "token": token.key,
-                "username": user.username,
-                "groups": [group.name for group in user.groups.all()],
+    throttle_classes = [LoginRateThrottle]
+    throttle_scope = "login"
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Connexion",
+                "description": LiteralStr(
+                    """Échange un identifiant et un mot de passe contre un jeton d'API.
+
+Si le compte a configuré une application d'authentification, le champ `otp` est requis : code à 6 chiffres de l'application ou l'un des codes de secours.
+                """
+                ),
+                "operationId": "login",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": credentials_body_doc(
+                    properties={
+                        **CREDENTIALS_PROPERTIES,
+                        "otp": {
+                            "type": "string",
+                            "description": "Code à 6 chiffres de l'application d'authentification, ou code de secours.",
+                            "example": "123456",
+                        },
+                    }
+                ),
+                "responses": {
+                    "200": {
+                        "description": "Connexion réussie.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        **LOGIN_BODY_PROPERTIES,
+                                        "mfa_setup_suggested": {
+                                            "type": "boolean",
+                                            "description": "Présent (`true`) quand la configuration d'une application d'authentification est proposée sans être obligatoire.",
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": BAD_CREDENTIALS_DOC,
+                    "401": password_auth_401_doc(
+                        MFAError.REQUIRED, MFAError.INVALID, MFAError.SETUP_REQUIRED
+                    ),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
             }
-        )
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+
+        outcome = login_mfa_outcome(user=user, otp=request.data.get("otp"))
+        if isinstance(outcome, MFAError):
+            return mfa_error_response(outcome)
+
+        body = login_response_body(user)
+        if outcome == LoginMFAOutcome.SETUP_SUGGESTED:
+            body["mfa_setup_suggested"] = True
+        return Response(body)
 
 
 class SandboxAuthenticationError(AuthenticationFailed):
