@@ -1,9 +1,14 @@
 from unittest.mock import patch
 
+from batid.services.tchap import TchapLevel
 from batid.tasks import backup_to_s3
 from django.test import TestCase
 
-SUCCESS_MSG = "Un nouveau backup de la base de production du RNB a été créé chez OVH : rnb_backup_test."
+SUCCESS_KWARGS = {
+    "level": TchapLevel.SUCCESS,
+    "title": "Sauvegarde de la base de prod créée chez OVH",
+    "details": [("Nom", "rnb_backup_test")],
+}
 
 
 class TestS3Backups(TestCase):
@@ -17,8 +22,8 @@ class TestS3Backups(TestCase):
         Input: the Scaleway backup creation API answers with a 500 error on both
         attempts of the task (max_retries=1), run through Celery with its retries.
         Expected: the task ends in FAILURE with the backup error, the service sends
-        no notification and the generic failure receiver sends one single message
-        naming the task and the error.
+        no notification and the generic failure receiver sends one single message,
+        titled with the task name, carrying the error.
         """
         post_mock.return_value.status_code = 500
 
@@ -29,9 +34,9 @@ class TestS3Backups(TestCase):
         self.assertEqual(post_mock.call_count, 2)
         service_notify_mock.assert_not_called()
         receiver_notify_mock.assert_called_once()
-        msg = receiver_notify_mock.call_args.args[0]
-        self.assertIn("batid.tasks.backup_to_s3", msg)
-        self.assertIn("Error while creating the scaleway backup", msg)
+        kwargs = receiver_notify_mock.call_args.kwargs
+        self.assertIn("batid.tasks.backup_to_s3", kwargs["title"])
+        self.assertEqual(kwargs["error"], "Error while creating the scaleway backup")
 
     @patch("batid.services.tchap.notify_tech")
     @patch("batid.services.s3_backup.backup_task.notify_tech")
@@ -59,7 +64,7 @@ class TestS3Backups(TestCase):
         result = backup_to_s3.apply()
 
         self.assertEqual(result.state, "SUCCESS")
-        service_notify_mock.assert_called_once_with(SUCCESS_MSG)
+        service_notify_mock.assert_called_once_with(**SUCCESS_KWARGS)
         receiver_notify_mock.assert_not_called()
 
     @patch("batid.services.tchap.notify_tech")
@@ -93,7 +98,7 @@ class TestS3Backups(TestCase):
 
         self.assertEqual(result.state, "SUCCESS")
         self.assertEqual(create_mock.call_count, 2)
-        service_notify_mock.assert_called_once_with(SUCCESS_MSG)
+        service_notify_mock.assert_called_once_with(**SUCCESS_KWARGS)
         receiver_notify_mock.assert_not_called()
 
     @patch(

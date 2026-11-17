@@ -140,7 +140,8 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
         released_before="2026-09-01", Etalab index mocked to list 2026-06-01
         and 2026-09-01.
         Expected: 4 chained tasks (dl_source then import_plots per
-        departement), every one carrying "2026-06-01".
+        departement), every one carrying "2026-06-01"; the Tchap message shows
+        "Millésime : 01/06/2026".
         """
         queue_full_plots_import.run(
             dpt_start="01", dpt_end="02", released_before="2026-09-01"
@@ -157,3 +158,6 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
             ],
         )
         chain_mock.return_value.assert_called_once_with()
+        self.assertIn(
+            ("Millésime", "01/06/2026"), notify_mock.call_args.kwargs["details"]
+        )

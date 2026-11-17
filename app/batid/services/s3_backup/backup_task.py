@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 import requests
-from batid.services.tchap import notify_tech
+from batid.services.tchap import TchapLevel, notify_tech
 from botocore.config import Config  # type: ignore[import-untyped]
 
 
@@ -21,9 +21,12 @@ def backup_to_s3():
 
 def notify_tchap(backup_name):
 
-    msg = f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}."
     try:
-        notify_tech(msg)
+        notify_tech(
+            level=TchapLevel.SUCCESS,
+            title="Sauvegarde de la base de prod créée chez OVH",
+            details=[("Nom", backup_name)],
+        )
     except Exception:
         # A retry would start the whole backup again
         logging.exception("Tchap report of the S3 backup failed")

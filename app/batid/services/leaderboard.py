@@ -66,7 +66,7 @@ def send_monthly_leaderboard_emails() -> str:
 
     leaderboard = get_monthly_edit_leaderboard(year, month)
     if not leaderboard:
-        return "No edits this month, no emails sent"
+        return "Aucune modification ce mois-ci, aucun envoi"
 
     label = french_month_year_label(year, month)
     new_users = get_monthly_new_users(year, month)
@@ -84,4 +84,4 @@ def send_monthly_leaderboard_emails() -> str:
         msg.send()
         sent += 1
 
-    return f"Sent {sent} emails for {label}"
+    return f"{sent} {'envoi' if sent <= 1 else 'envois'} pour {label}"
