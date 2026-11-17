@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from batid.services.tchap import TchapLevel, notify_if_error, notify_tech
+from batid.services.tchap import Code, TchapLevel, notify_if_error, notify_tech
 from batid.tasks import import_cities, import_plots, send_monthly_leaderboard_emails
 from django.test import TestCase, override_settings
 
@@ -23,7 +23,8 @@ class Decorator(TestCase):
         """
         Input: a decorated function raising Exception("Forced error").
         Expected: the exception is re-raised and one failure notification is sent,
-        titled with the function name, the error text in the error block.
+        generic title, the function name as a Code "Fonction" detail, the error
+        text in the error block.
         """
 
         @notify_if_error
@@ -36,8 +37,12 @@ class Decorator(TestCase):
         self.assertTrue("Forced error" in str(context.exception))
 
         notify.assert_called_once_with(
-            level=TchapLevel.FAILURE, title="Échec de test_func", error="Forced error"
+            level=TchapLevel.FAILURE,
+            title="Échec d'une fonction",
+            details=[("Fonction", "test_func")],
+            error="Forced error",
         )
+        self.assertIsInstance(notify.call_args.kwargs["details"][0][1], Code)
 
 
 class NotifyTaskFailure(TestCase):
@@ -48,8 +53,8 @@ class NotifyTaskFailure(TestCase):
         Input: import_plots (max_retries=3) raises on every attempt, run through
         Celery with its retries.
         Expected: 4 attempts, the task ends in FAILURE and one single failure
-        notification is sent: title naming the task, task id as "Identifiant"
-        detail, "boom" as error.
+        notification is sent: generic title, task name as "Tâche" and task id as
+        "Identifiant" details, both Code, "boom" as error.
         """
         result = import_plots.apply(args=["75", "2026-01-01"])
 
@@ -58,8 +63,12 @@ class NotifyTaskFailure(TestCase):
         notify.assert_called_once()
         kwargs = notify.call_args.kwargs
         self.assertEqual(kwargs["level"], TchapLevel.FAILURE)
-        self.assertEqual(kwargs["title"], "Échec de la tâche batid.tasks.import_plots")
-        self.assertEqual(kwargs["details"][0][0], "Identifiant")
+        self.assertEqual(kwargs["title"], "Échec de la tâche")
+        (task_label, task_name), (id_label, task_id) = kwargs["details"]
+        self.assertEqual((task_label, task_name), ("Tâche", "batid.tasks.import_plots"))
+        self.assertEqual((id_label, task_id), ("Identifiant", result.id))
+        self.assertIsInstance(task_name, Code)
+        self.assertIsInstance(task_id, Code)
         self.assertEqual(kwargs["error"], "boom")
 
     @patch("batid.services.tchap.notify_tech")
@@ -171,7 +180,7 @@ class NotifyTech(TestCase):
         launch messages titled "hello" with one "Départements" detail.
         Expected: one PUT per message on the Matrix send endpoint of the room, with
         the bearer token, a unique transaction id and a m.text payload: plain text
-        body and HTML formatted_body, emoji then bold title, one line per detail.
+        body and HTML formatted_body, level dot then bold title, one line per detail.
         """
         put_mock.return_value.status_code = 200
 
@@ -196,9 +205,9 @@ class NotifyTech(TestCase):
             first.kwargs["json"],
             {
                 "msgtype": "m.text",
-                "body": "🚀 hello\nDépartements : 01 à 976",
+                "body": "🔵 hello\nDépartements : 01 à 976",
                 "format": "org.matrix.custom.html",
-                "formatted_body": "<b>🚀 hello</b><br>Départements : 01 à 976",
+                "formatted_body": "<b>🔵 hello</b><br>Départements : 01 à 976",
             },
         )
         self.assertEqual(
@@ -274,11 +283,11 @@ class NotifyTech(TestCase):
         payload = put_mock.call_args.kwargs["json"]
         self.assertEqual(
             payload["body"],
-            "❌ <script>title</script>\nZone : a & b\nline 1 <script>\nline 2 & co",
+            "🔴 <script>title</script>\nZone : a & b\nline 1 <script>\nline 2 & co",
         )
         self.assertEqual(
             payload["formatted_body"],
-            "<b>❌ &lt;script&gt;title&lt;/script&gt;</b><br>Zone : a &amp; b"
+            "<b>🔴 &lt;script&gt;title&lt;/script&gt;</b><br>Zone : a &amp; b"
             "<pre><code>line 1 &lt;script&gt;\nline 2 &amp; co</code></pre>",
         )
         self.assertNotIn("<script>", payload["formatted_body"])
@@ -314,3 +323,34 @@ class NotifyTech(TestCase):
         self.assertEqual(len(error_part), 1000)
         self.assertTrue(error_part.endswith("<…"))
         self.assertTrue(payload["formatted_body"].endswith("a&lt;…</code></pre>"))
+
+    @override_settings(TCHAP_NOTIFICATIONS=True)
+    @patch.dict(
+        "os.environ",
+        {
+            "TCHAP_HOMESERVER_URL": "https://matrix.example.gouv.fr",
+            "TCHAP_ACCESS_TOKEN": "syt_secret",
+            "TCHAP_ROOM_ID": "!room:example.gouv.fr",
+        },
+    )
+    @patch("batid.services.tchap.requests.put")
+    def test_code_detail(self, put_mock):
+        """
+        Input: success message with a Code detail "a<b>&c" and a plain detail "x<y".
+        Expected: body shows both values as raw text; formatted_body wraps only the
+        Code value in <code>, escaped, and escapes the plain value without <code>.
+        """
+        put_mock.return_value.status_code = 200
+
+        notify_tech(
+            level=TchapLevel.SUCCESS,
+            title="hello",
+            details=[("Nom", Code("a<b>&c")), ("Zone", "x<y")],
+        )
+
+        payload = put_mock.call_args.kwargs["json"]
+        self.assertEqual(payload["body"], "🟢 hello\nNom : a<b>&c\nZone : x<y")
+        self.assertEqual(
+            payload["formatted_body"],
+            "<b>🟢 hello</b><br>Nom : <code>a&lt;b&gt;&amp;c</code><br>Zone : x&lt;y",
+        )

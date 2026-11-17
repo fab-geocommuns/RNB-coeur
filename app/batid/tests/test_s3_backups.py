@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
-from batid.services.tchap import TchapLevel
+from batid.services.tchap import Code, TchapLevel
 from batid.tasks import backup_to_s3
 from django.test import TestCase
 
 SUCCESS_KWARGS = {
     "level": TchapLevel.SUCCESS,
     "title": "Sauvegarde de la base de prod créée chez OVH",
-    "details": [("Nom", "rnb_backup_test")],
+    "details": [("Nom", Code("rnb_backup_test"))],
 }
 
 
@@ -23,7 +23,7 @@ class TestS3Backups(TestCase):
         attempts of the task (max_retries=1), run through Celery with its retries.
         Expected: the task ends in FAILURE with the backup error, the service sends
         no notification and the generic failure receiver sends one single message,
-        titled with the task name, carrying the error.
+        with the task name as "Tâche" detail, carrying the error.
         """
         post_mock.return_value.status_code = 500
 
@@ -35,7 +35,7 @@ class TestS3Backups(TestCase):
         service_notify_mock.assert_not_called()
         receiver_notify_mock.assert_called_once()
         kwargs = receiver_notify_mock.call_args.kwargs
-        self.assertIn("batid.tasks.backup_to_s3", kwargs["title"])
+        self.assertEqual(kwargs["details"][0], ("Tâche", "batid.tasks.backup_to_s3"))
         self.assertEqual(kwargs["error"], "Error while creating the scaleway backup")
 
     @patch("batid.services.tchap.notify_tech")

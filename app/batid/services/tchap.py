@@ -13,10 +13,14 @@ ERROR_MAX_LENGTH = 1000
 
 
 class TchapLevel(Enum):
-    LAUNCH = "🚀"
-    SUCCESS = "✅"
-    FAILURE = "❌"
-    ALERT = "⚠️"
+    LAUNCH = "🔵"
+    SUCCESS = "🟢"
+    FAILURE = "🔴"
+    ALERT = "🟠"
+
+
+class Code(str):
+    """Detail value shown as inline code in the HTML message."""
 
 
 def notify_tech(
@@ -28,7 +32,8 @@ def notify_tech(
 ) -> None:
     """
     Send a message to the tech team Tchap room: a bold title prefixed by the level
-    emoji, one "label : value" line per detail, and an optional error block.
+    dot, one "label : value" line per detail (Code values as inline code), and an
+    optional error block.
 
     Tchap is a Matrix server, so we use the Matrix client API directly:
     https://spec.matrix.org/latest/client-server-api/#put_matrixclientv3roomsroomidsendeventtypetxnid
@@ -95,7 +100,8 @@ def notify_if_error(func):
         except Exception as e:
             notify_tech(
                 level=TchapLevel.FAILURE,
-                title=f"Échec de {func.__name__}",
+                title="Échec d'une fonction",
+                details=[("Fonction", Code(func.__name__))],
                 error=str(e),
             )
             raise e
@@ -121,7 +127,12 @@ def _render(
         f"{label} : {value}" for label, value in details
     ]
     html_lines = [f"<b>{level.value} {escape(title)}</b>"] + [
-        f"{escape(label)} : {escape(value)}" for label, value in details
+        (
+            f"{escape(label)} : <code>{escape(value)}</code>"
+            if isinstance(value, Code)
+            else f"{escape(label)} : {escape(value)}"
+        )
+        for label, value in details
     ]
     body = "\n".join(text_lines)
     formatted_body = "<br>".join(html_lines)

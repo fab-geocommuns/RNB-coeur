@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 import requests
-from batid.services.tchap import TchapLevel, notify_tech
+from batid.services.tchap import Code, TchapLevel, notify_tech
 from botocore.config import Config  # type: ignore[import-untyped]
 
 
@@ -25,7 +25,7 @@ def notify_tchap(backup_name):
         notify_tech(
             level=TchapLevel.SUCCESS,
             title="Sauvegarde de la base de prod créée chez OVH",
-            details=[("Nom", backup_name)],
+            details=[("Nom", Code(backup_name))],
         )
     except Exception:
         # A retry would start the whole backup again
