@@ -202,8 +202,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
 
         # paginate
 
-        # get the "format" query parameter
-        format_param = request.query_params.get("format", "json").lower()
+        # get the "format" query parameter, as validated (lowercased and stripped)
+        format_param = query_serializer.validated_data.get("format", "json")
 
         # Mypy annotations
         paginator: OGCApiPagination | BuildingListingCursorPagination

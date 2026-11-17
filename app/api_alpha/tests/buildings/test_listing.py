@@ -1103,15 +1103,17 @@ class ListingMultipleStatusTest(APITestCase):
 
     def test_format_is_case_insensitive(self):
         """
-        Input: format=GeoJSON, then format=XML.
-        Expected: 200 with a FeatureCollection for GeoJSON, as with "geojson";
+        Input: format=GeoJSON and format="geojson " (trailing space), then format=XML.
+        Expected: 200 with a FeatureCollection for both, as with "geojson";
         400 naming the value for XML.
         """
-        r = self.client.get(
-            "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "GeoJSON"}
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertEqual(r.json()["type"], "FeatureCollection")
+        for format in ("GeoJSON", "geojson "):
+            with self.subTest(format=format):
+                r = self.client.get(
+                    "/api/alpha/buildings/", {"bbox": self.BBOX, "format": format}
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual(r.json()["type"], "FeatureCollection")
 
         r = self.client.get(
             "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "XML"}
