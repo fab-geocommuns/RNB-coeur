@@ -3,14 +3,21 @@ from io import BytesIO
 
 from api_alpha.endpoints.auth.pro_connect import issue_login_code
 from api_alpha.utils.login_throttle import LoginRateThrottle
-from api_alpha.utils.rnb_doc import rnb_doc
-from batid.services.mfa import MFAError, confirm_enrollment, start_enrollment
+from api_alpha.utils.rnb_doc import TOKEN_REQUIRED_RESPONSE, rnb_doc
+from batid.services.mfa import (
+    MFAError,
+    confirm_enrollment,
+    has_confirmed_app,
+    start_enrollment,
+)
 from django.contrib.auth.models import User
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django_otp.qr import write_qrcode_image
 from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 MFA_ERRORS = {
     MFAError.REQUIRED: (
@@ -282,3 +289,41 @@ class MFAConfirmView(MFAView):
                 "backup_codes": codes,
             }
         )
+
+
+class MFAStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "État de la double authentification",
+                "description": "Indique si une application d'authentification est confirmée pour le compte du jeton.",
+                "operationId": "getMFAStatus",
+                "tags": AUTH_TAGS,
+                "security": [{"tokenAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "État de la double authentification du compte.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "configured": {
+                                            "type": "boolean",
+                                            "description": "`true` si une application d'authentification est confirmée. Une application en attente de confirmation ou des codes de secours seuls ne comptent pas.",
+                                        }
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "401": TOKEN_REQUIRED_RESPONSE,
+                },
+            }
+        },
+        with_400=False,
+    )
+    def get(self, request):
+        return Response({"configured": has_confirmed_app(request.user)})

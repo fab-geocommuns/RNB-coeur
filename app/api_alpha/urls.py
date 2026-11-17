@@ -1,6 +1,10 @@
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
-from api_alpha.endpoints.auth.mfa import MFAConfirmView, MFASetupView
+from api_alpha.endpoints.auth.mfa import (
+    MFAConfirmView,
+    MFASetupView,
+    MFAStatusView,
+)
 from api_alpha.endpoints.auth.pro_connect import (
     AuthorizeView,
     CallbackView,
@@ -159,6 +163,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     ),
     path("auth/mfa/setup/", MFASetupView.as_view()),
     path("auth/mfa/confirm/", MFAConfirmView.as_view()),
+    path("auth/mfa/status/", MFAStatusView.as_view()),
     path("auth/pro_connect/authorize/", AuthorizeView.as_view()),
     path("auth/pro_connect/callback/", CallbackView.as_view()),
     path("auth/pro_connect/exchange/", ExchangeView.as_view()),

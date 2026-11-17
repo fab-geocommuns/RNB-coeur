@@ -364,3 +364,37 @@ class MFAEnrollmentTest(APITestCase):
         response = self.confirm(otp=current_code(self.pending_device()))
 
         self.assertEqual(response.status_code, 200)
+
+
+class MFAStatusTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="jdupont", email="jdupont@exemple.fr", password=PASSWORD
+        )
+        self.token = Token.objects.create(user=self.user)
+
+    def status(self):
+        return self.client.get(
+            "/api/alpha/auth/mfa/status/",
+            HTTP_AUTHORIZATION=f"Token {self.token.key}",
+        )
+
+    def test_configured_with_a_confirmed_app(self):
+        """User with a confirmed app, GET with its token: 200 {"configured": true}."""
+        TOTPDevice.objects.create(user=self.user, name="app", confirmed=True)
+
+        response = self.status()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"configured": True})
+
+    def test_not_configured_without_a_confirmed_app(self):
+        """User with a pending app and a backup-code device, no confirmed app, GET
+        with its token: 200 {"configured": false}."""
+        TOTPDevice.objects.create(user=self.user, name="app", confirmed=False)
+        StaticDevice.objects.create(user=self.user, name="backup")
+
+        response = self.status()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"configured": False})
