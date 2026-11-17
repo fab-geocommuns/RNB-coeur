@@ -13,6 +13,10 @@ class RNBLoggingMixin(LoggingMixin):
         data = self.log
         # API responses take too much DB space and are not useful
         data["response"] = None
+        # The body stays in data, to investigate past calls. The library also
+        # copies it into query_params when the URL has no params: rebuild
+        # query_params from the URL only, cleaned as the library does.
+        data["query_params"] = self._clean_data(self.request.query_params.dict())
 
         # truncate user agent at 255 chars because of DB limit
         data["user_agent"] = data["user_agent"][:255]
