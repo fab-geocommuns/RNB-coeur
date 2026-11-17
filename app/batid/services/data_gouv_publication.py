@@ -20,14 +20,17 @@ def datagouv_publication_enabled() -> bool:
     return os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true"
 
 
-def publish(area: str):
+def publish(area: str) -> bool:
+    """Build the area archive and send it to data.gouv.fr. Return False when the
+    publication is disabled: the archive is built, nothing is sent."""
     print(f"Processing area: {area}")
 
     directory_name = create_directory(area)
     try:
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
-        if datagouv_publication_enabled():
+        enabled = datagouv_publication_enabled()
+        if enabled:
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv_with_retries(
                 area=area,
@@ -38,7 +41,7 @@ def publish(area: str):
     finally:
         # we always cleanup the directory, no matter what happens
         cleanup_directory(directory_name)
-    return True
+    return enabled
 
 
 def create_directory(area):

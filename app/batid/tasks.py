@@ -356,7 +356,7 @@ def publish_area_or_report(*, area: str, run_id: str | None = None) -> str:
     Tchap room.
     """
     try:
-        publish(area)
+        published = publish(area)
     except DataGouvAccessDenied:
         raise
     except Exception as e:
@@ -372,7 +372,7 @@ def publish_area_or_report(*, area: str, run_id: str | None = None) -> str:
             # Tchap down must not stop the chain either; Sentry already has the publication error.
             logger.exception("Tchap notification failed")
         return "failed"
-    if run_id:
+    if run_id and published:
         _count_published_area(run_id)
     return "done"
 

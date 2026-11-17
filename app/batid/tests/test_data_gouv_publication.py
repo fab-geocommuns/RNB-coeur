@@ -973,6 +973,24 @@ class TestDataGouvPublication(TestCase):
 
         sleep_mock.assert_not_called()
 
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_archive",
+        return_value=("archive.zip", 1, "sha1"),
+    )
+    @mock.patch("batid.services.data_gouv_publication.cleanup_directory")
+    @mock.patch("batid.services.data_gouv_publication.create_directory")
+    def test_publish_returns_false_when_disabled(
+        self, create_directory_mock, cleanup_mock, create_archive_mock, upload_mock
+    ):
+        """
+        Input: publish("33") with ENABLE_DATAGOUV_PUBLICATION="false".
+        Expected: False, nothing uploaded.
+        """
+        self.assertFalse(publish("33"))
+        upload_mock.assert_not_called()
+
     @mock.patch(
         "batid.services.data_gouv_publication.create_directory",
         side_effect=OSError(28, "No space left on device"),
@@ -1147,6 +1165,25 @@ class TestDataGouvPublishTasks(TestCase):
             level=TchapLevel.ALERT,
             title="Publication data.gouv terminée",
             details=[("Zones publiées", f"2 sur {total}")],
+        )
+
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=False)
+    def test_disabled_publication_is_not_counted(self, publish_mock, summary_mock):
+        """
+        Input: the national file under a run id, publish returning False (the flag
+        was turned off after the launch, nothing sent to data.gouv.fr).
+        Expected: the zone is not counted, the summary alerts with 0 published zones.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        get_area_publish_task("nat", run_id=run_id).apply()
+
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"0 sur {total}")],
         )
 
     @mock.patch("batid.tasks.notify_tech_or_log")
