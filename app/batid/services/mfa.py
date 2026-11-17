@@ -112,8 +112,7 @@ def start_enrollment(user: User) -> TOTPDevice | MFAError:
     _lock_enrollment(user)
     if has_confirmed_app(user):
         return MFAError.ALREADY_CONFIGURED
-    TOTPDevice.objects.filter(user=user, confirmed=False).delete()
-    return TOTPDevice.objects.create(user=user, name=APP_DEVICE_NAME, confirmed=False)
+    return _create_pending_app(user)
 
 
 @transaction.atomic
@@ -122,11 +121,28 @@ def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
     and revoke the API token: one obtained with the password alone stops working.
 
     Returns the backup codes (readable only now), or the refusal.
-    A refused code must not raise: the throttling failure it records would roll back.
     """
     _lock_enrollment(user)
     if has_confirmed_app(user):
         return MFAError.ALREADY_CONFIGURED
+    device = _confirm_pending_app(user=user, otp=otp)
+    if isinstance(device, MFAError):
+        return device
+    codes = _issue_backup_codes(user)
+    Token.objects.filter(user=user).delete()
+    return codes
+
+
+def _create_pending_app(user: User) -> TOTPDevice:
+    TOTPDevice.objects.filter(user=user, confirmed=False).delete()
+    return TOTPDevice.objects.create(user=user, name=APP_DEVICE_NAME, confirmed=False)
+
+
+def _confirm_pending_app(*, user: User, otp) -> TOTPDevice | MFAError:
+    """Confirm the latest pending app with its first code.
+
+    A refused code must not raise: the throttling failure it records would roll back.
+    """
     device = (
         TOTPDevice.objects.filter(user=user, confirmed=False).order_by("-id").first()
     )
@@ -139,13 +155,16 @@ def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
     # A row deleted outside the user lock (TOTPDevice admin page) must not raise.
     if not TOTPDevice.objects.filter(pk=device.pk).update(confirmed=True):
         return MFAError.SETUP_NOT_STARTED
+    return device
+
+
+def _issue_backup_codes(user: User) -> list[str]:
     codes = [StaticToken.random_token() for _ in range(BACKUP_CODES_COUNT)]
     StaticDevice.objects.filter(user=user).delete()
     backup_device = StaticDevice.objects.create(user=user, name=BACKUP_DEVICE_NAME)
     StaticToken.objects.bulk_create(
         StaticToken(device=backup_device, token=code) for code in codes
     )
-    Token.objects.filter(user=user).delete()
     return codes
 
 
