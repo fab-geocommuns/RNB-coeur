@@ -184,6 +184,12 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
         query_params: dict[str, Any] = request.query_params.dict()
+        # list_bdgs needs the cleaned statuses, not the raw value.
+        # "status=" is absent from validated_data: the raw empty value is kept and
+        # matches no building (200 with no result), as before, so that existing
+        # clients are not broken.
+        if "status" in query_serializer.validated_data:
+            query_params["status"] = query_serializer.validated_data["status"]
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
@@ -195,8 +201,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
 
         # paginate
 
-        # get the "format" query parameter
-        format_param = request.query_params.get("format", "json").lower()
+        # get the "format" query parameter, as validated (lowercased and stripped)
+        format_param = query_serializer.validated_data.get("format", "json")
 
         # Mypy annotations
         paginator: OGCApiPagination | BuildingListingCursorPagination
