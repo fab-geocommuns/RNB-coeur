@@ -39,3 +39,16 @@ class OpenAPISchemes(TestCase):
             validate(schema)
         except OpenAPIValidationError as e:
             self.fail(f"OGC schema is not valid: {e}")
+
+    def test_mfa_management_endpoints_are_documented(self):
+        """All endpoints schema: the status, replacement and backup codes paths of
+        the second factor are documented."""
+        paths = build_schema_all_endpoints()["paths"]
+
+        for path in (
+            "/api/alpha/auth/mfa/status/",
+            "/api/alpha/auth/mfa/replace/setup/",
+            "/api/alpha/auth/mfa/replace/confirm/",
+            "/api/alpha/auth/mfa/backup_codes/",
+        ):
+            self.assertIn(path, paths)

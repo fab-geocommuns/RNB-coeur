@@ -98,8 +98,8 @@ def login_mfa_outcome(*, user: User, otp) -> LoginMFAOutcome | MFAError:
 
 
 def _lock_enrollment(user: User) -> None:
-    """Lock the user row until the end of the transaction: setup and confirm of
-    the same user run one after the other."""
+    """Lock the user row until the end of the transaction: enrollment, replacement
+    and regeneration of the same user run one after the other."""
     User.objects.select_for_update().get(pk=user.pk)
 
 
@@ -131,6 +131,55 @@ def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
     codes = _issue_backup_codes(user)
     Token.objects.filter(user=user).delete()
     return codes
+
+
+@transaction.atomic
+def start_replacement(*, user: User, otp) -> TOTPDevice | MFAError:
+    """Create a new unconfirmed app once the current second factor is proven, by a
+    code of the confirmed app or a backup code. The confirmed app keeps working
+    until the new one is confirmed with `confirm_replacement`."""
+    _lock_enrollment(user)
+    refusal = _current_factor_refusal(user=user, otp=otp)
+    return refusal or _create_pending_app(user)
+
+
+@transaction.atomic
+def confirm_replacement(*, user: User, otp) -> list[str] | MFAError:
+    """Confirm the latest pending app with its first code, delete the other apps and
+    issue new backup codes. The API token is kept: the replacement changes the
+    second factor, not the API key, and was started with the password and the
+    current second factor.
+
+    Returns the backup codes (readable only now), or the refusal.
+    """
+    _lock_enrollment(user)
+    # Without a confirmed app, this would finish a first enrollment without
+    # revoking the token issued with the password alone.
+    if not has_confirmed_app(user):
+        return MFAError.SETUP_NOT_STARTED
+    device = _confirm_pending_app(user=user, otp=otp)
+    if isinstance(device, MFAError):
+        return device
+    TOTPDevice.objects.filter(user=user).exclude(pk=device.pk).delete()
+    return _issue_backup_codes(user)
+
+
+@transaction.atomic
+def regenerate_backup_codes(*, user: User, otp) -> list[str] | MFAError:
+    """Replace the backup codes once the current second factor is proven."""
+    _lock_enrollment(user)
+    refusal = _current_factor_refusal(user=user, otp=otp)
+    return refusal or _issue_backup_codes(user)
+
+
+def _current_factor_refusal(*, user: User, otp) -> MFAError | None:
+    # The app check comes first: a backup code of an account without app is not
+    # consumed.
+    if not has_confirmed_app(user):
+        return MFAError.SETUP_NOT_STARTED
+    if not verify_otp(user=user, otp=otp):
+        return MFAError.INVALID
+    return None
 
 
 def _create_pending_app(user: User) -> TOTPDevice:

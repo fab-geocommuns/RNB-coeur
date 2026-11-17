@@ -7,8 +7,11 @@ from api_alpha.utils.rnb_doc import TOKEN_REQUIRED_RESPONSE, rnb_doc
 from batid.services.mfa import (
     MFAError,
     confirm_enrollment,
+    confirm_replacement,
     has_confirmed_app,
+    regenerate_backup_codes,
     start_enrollment,
+    start_replacement,
 )
 from django.contrib.auth.models import User
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -172,6 +175,12 @@ NEW_APP_OTP_PROPERTY = {
     "example": "123456",
 }
 
+CURRENT_OTP_PROPERTY = {
+    "type": "string",
+    "description": "Code affiché par l'application d'authentification actuelle, ou l'un des codes de secours, qui est alors consommé.",
+    "example": "123456",
+}
+
 BACKUP_CODES_PROPERTY = {
     "type": "array",
     "items": {"type": "string"},
@@ -185,6 +194,11 @@ SETUP_NOT_STARTED_400_DOC = {
 
 NEW_APP_OTP_BODY_DOC = credentials_body_doc(
     properties={**CREDENTIALS_PROPERTIES, "otp": NEW_APP_OTP_PROPERTY},
+    required=("username", "password", "otp"),
+)
+
+CURRENT_FACTOR_BODY_DOC = credentials_body_doc(
+    properties={**CREDENTIALS_PROPERTIES, "otp": CURRENT_OTP_PROPERTY},
     required=("username", "password", "otp"),
 )
 
@@ -289,6 +303,98 @@ class MFAConfirmView(MFAView):
                 "backup_codes": codes,
             }
         )
+
+
+def backup_codes_200_doc(description: str) -> dict:
+    return {
+        "description": description,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {"backup_codes": BACKUP_CODES_PROPERTY},
+                }
+            }
+        },
+    }
+
+
+class MFAReplaceSetupView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Changement d'application d'authentification",
+                "description": "Génère une nouvelle application d'authentification (TOTP) non confirmée, à confirmer avec `/auth/mfa/replace/confirm/`. L'application actuelle reste valable jusqu'à cette confirmation. Refusé si aucune application n'est confirmée.",
+                "operationId": "replaceMFASetup",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": CURRENT_FACTOR_BODY_DOC,
+                "responses": {
+                    "200": SETUP_200_DOC,
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        device = start_replacement(user=user, otp=request.data.get("otp"))
+        if isinstance(device, MFAError):
+            return mfa_error_response(device)
+        return setup_response(device)
+
+
+class MFAReplaceConfirmView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Confirmation du changement d'application d'authentification",
+                "description": "Confirme la nouvelle application d'authentification avec son premier code, supprime l'ancienne et renvoie 10 nouveaux codes de secours, affichés une seule fois : les anciens sont refusés. Le jeton d'API du compte ne change pas.",
+                "operationId": "replaceMFAConfirm",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": NEW_APP_OTP_BODY_DOC,
+                "responses": {
+                    "200": backup_codes_200_doc("Nouvelle application confirmée."),
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        codes = confirm_replacement(user=user, otp=request.data.get("otp"))
+        if isinstance(codes, MFAError):
+            return mfa_error_response(codes)
+        return Response({"backup_codes": codes})
+
+
+class MFABackupCodesView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Régénération des codes de secours",
+                "description": "Remplace les codes de secours par 10 nouveaux, affichés une seule fois : les anciens sont refusés. Refusé si aucune application d'authentification n'est confirmée.",
+                "operationId": "regenerateMFABackupCodes",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": CURRENT_FACTOR_BODY_DOC,
+                "responses": {
+                    "200": backup_codes_200_doc("Nouveaux codes de secours."),
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        codes = regenerate_backup_codes(user=user, otp=request.data.get("otp"))
+        if isinstance(codes, MFAError):
+            return mfa_error_response(codes)
+        return Response({"backup_codes": codes})
 
 
 class MFAStatusView(APIView):

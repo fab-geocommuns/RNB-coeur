@@ -79,6 +79,30 @@ class AdminOTPTest(TestCase):
         )
         self.assertEqual(self.client.get("/admin/").status_code, 200)
 
+    def test_pending_app_is_refused_at_admin_login(self):
+        """Superuser with a confirmed app and a pending one, POST /admin/login/ with
+        the pending device forged in otp_device and its current code: /admin/ still
+        redirects to the login page and no device id is left in the session."""
+        TOTPDevice.objects.create(user=self.superuser, name="app", confirmed=True)
+        pending = TOTPDevice.objects.create(
+            user=self.superuser, name="new app", confirmed=False
+        )
+
+        self.client.post(
+            "/admin/login/",
+            {
+                "username": "admin",
+                "password": PASSWORD,
+                "otp_device": pending.persistent_id,
+                "otp_token": current_code(pending),
+            },
+        )
+
+        response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+        self.assertNotIn(DEVICE_ID_SESSION_KEY, self.client.session)
+
     def test_proxies_refuse_unverified_superuser(self):
         """Superuser logged in without a second factor: /flower/ and a non-public
         Metabase URL answer 403."""
