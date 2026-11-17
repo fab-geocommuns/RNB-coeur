@@ -9,6 +9,7 @@ from batid.models import (
     UserProfile,
 )
 from batid.services import mfa
+from batid.services.tchap import TchapLevel, notify_tech_or_log
 from batid.views import (
     export_ads,
     export_contributions,
@@ -310,11 +311,21 @@ class CustomUserAdmin(BaseUserAdmin):
     )
     def reset_mfa(self, request, queryset):
         """Delete the authenticator app and backup codes of the selected users (support)."""
+        usernames = []
         with transaction.atomic():
             # Locks taken in pk order: two overlapping resets cannot deadlock.
             for user in queryset.order_by("pk"):
                 mfa.reset_mfa(user)
                 self.log_change(request, user, "Double authentification réinitialisée.")
+                usernames.append(user.username)
+        notify_tech_or_log(
+            level=TchapLevel.ALERT,
+            title="Double authentification réinitialisée",
+            details=[
+                ("Auteur", request.user.username),
+                ("Comptes", ", ".join(usernames)),
+            ],
+        )
         self.message_user(
             request,
             f"Double authentification réinitialisée pour {queryset.count()} utilisateur(s).",
