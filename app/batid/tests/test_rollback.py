@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from unittest import mock
 
 from batid.exceptions import (
@@ -15,12 +16,17 @@ from batid.models.building import (
     EventType,
 )
 from batid.models.others import DataFix, UserProfile
-from batid.services.rollback import rollback, rollback_dry_run, rollback_event
+from batid.services.rollback import (
+    _format_period,
+    rollback,
+    rollback_dry_run,
+    rollback_event,
+)
 from batid.services.tchap import Code, TchapLevel
 from batid.tests.helpers import addresses_cle_interop
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TransactionTestCase, override_settings
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 
 
 class TestUnitaryRollback(TransactionTestCase):
@@ -1479,3 +1485,17 @@ class TestGlobalRollback(TransactionTestCase):
                 event_origin={"source": "data_fix", "id": results["data_fix_id"]}
             ).count(),
         )
+
+
+class FormatPeriod(SimpleTestCase):
+    def test_bounds_are_converted_to_utc(self):
+        """
+        Input: start 01/07/2026 12:00 at +02:00, end 02/07/2026 08:30 at -04:00.
+        Expected: "du 01/07/2026 10:00 au 02/07/2026 12:30 (UTC)".
+        """
+        period = _format_period(
+            start_time=datetime.fromisoformat("2026-07-01T12:00:00+02:00"),
+            end_time=datetime.fromisoformat("2026-07-02T08:30:00-04:00"),
+        )
+
+        self.assertEqual(period, "du 01/07/2026 10:00 au 02/07/2026 12:30 (UTC)")

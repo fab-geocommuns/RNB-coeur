@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from batid.exceptions import (
     DatabaseInconsistency,
@@ -172,9 +172,12 @@ def _rollback_details(
 
 
 def _format_period(*, start_time: datetime | None, end_time: datetime | None) -> str:
-    # TIME_ZONE is UTC
-    start = f"du {start_time:%d/%m/%Y %H:%M}" if start_time else "du début"
-    end = f"au {end_time:%d/%m/%Y %H:%M}" if end_time else "à maintenant"
+    start = (
+        f"du {start_time.astimezone(UTC):%d/%m/%Y %H:%M}" if start_time else "du début"
+    )
+    end = (
+        f"au {end_time.astimezone(UTC):%d/%m/%Y %H:%M}" if end_time else "à maintenant"
+    )
     return f"{start} {end} (UTC)"
 
 
