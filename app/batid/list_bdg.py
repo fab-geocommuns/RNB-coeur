@@ -1,22 +1,11 @@
-from batid.models import Building, City, Plot
+from typing import Iterable
+
+from batid.models import Building, City
 from batid.services.bdg_status import BuildingStatus
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Polygon
-from django.db.models import (
-    Case,
-    CharField,
-    ExpressionWrapper,
-    F,
-    FloatField,
-    Func,
-    OuterRef,
-    Prefetch,
-    QuerySet,
-    Subquery,
-    Value,
-    When,
-)
-from django.db.models.lookups import Exact, In
+from django.db import connection
+from django.db.models import Prefetch, QuerySet
 from django.shortcuts import get_object_or_404
 
 
@@ -107,74 +96,6 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         qs = qs.filter(addresses_internal_read_only__cle_interop=cle_interop_ban)
         qs = qs.order_by("created_at")
 
-    # #######################
-    # With plots (adding plots ids to the buildings
-    with_plots = params.get("with_plots", False)
-    if with_plots:
-
-        # Subquery to get the plots ids and the bdg_cover_ratio
-        # This quite a big nested query. Here is the breakdwon:
-        # - We filter the plots that intersects the building shape
-        # - We annotate the bdg_cover_ratio field with the ratio of the building shape that is covered by the plot
-        # - We use a Case statement to handle the different geometry types (Point, Polygon)
-        # - We use a subquery to get the plots ids and the bdg_cover_ratio
-        # - We make an array of them in the "plot" field in the main query (PlotsAggSubquery)
-        subquery = (
-            Plot.objects.filter(shape__intersects=OuterRef("shape"))
-            .annotate(
-                bdg_cover_ratio=Case(
-                    # When the building shape is a point, the intersecting ratio is 1 (we hard code it since SQL returns 0 instead of 1)
-                    When(
-                        Exact(
-                            Func(OuterRef("shape"), function="ST_GeometryType"),
-                            "ST_Point",
-                        ),
-                        then=Value(1.0),
-                    ),
-                    # When the building shape is a polygon or a multipolygon, we calculate the intersecting ratio
-                    When(
-                        In(
-                            Func(
-                                OuterRef("shape"),
-                                function="ST_GeometryType",
-                                output_field=CharField(),
-                            ),
-                            ("ST_Polygon", "ST_MultiPolygon"),
-                        ),
-                        then=(
-                            # This is the formula to calculate the intersecting ratio
-                            ExpressionWrapper(
-                                (
-                                    # We get the area of the intersection between the building shape and the plot shape
-                                    Func(
-                                        Func(
-                                            OuterRef("shape"),
-                                            F("shape"),
-                                            function="ST_Intersection",
-                                        ),
-                                        function="ST_Area",
-                                        output_field=FloatField(),
-                                    )
-                                    # We divide it ...
-                                    /
-                                    # ... by the area of the building shape
-                                    Func(
-                                        OuterRef("shape"),
-                                        function="ST_Area",
-                                        output_field=FloatField(),
-                                    )
-                                ),
-                                output_field=FloatField(),
-                            )
-                        ),
-                    ),
-                    default=Value(0.0),
-                )
-            )
-            .values("id", "bdg_cover_ratio")
-        )
-        qs = qs.annotate(plots=PlotsAggSubquery(subquery))
-
     # to prevent an ugly N+1 problem on the addresses and the validated_by fields
     qs = qs.prefetch_related("addresses_internal_read_only")
     # order the validators explicitly: the M2M has no default ordering, so without
@@ -189,5 +110,70 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     return qs
 
 
-class PlotsAggSubquery(Subquery):
-    template = "(SELECT json_agg(json_build_object('id', _agg.id, 'bdg_cover_ratio', _agg.bdg_cover_ratio)) FROM (%(subquery)s) _agg)"
+# Plots intersecting each building of a list, with the ratio of the building shape
+# covered by each plot.
+#
+# The filter on the extent of the buildings (`plot.shape && ST_MakeEnvelope(...)`) does
+# not change the result: a plot intersecting a building always intersects the extent
+# of all the buildings. It is there for the query planner: the building shapes are
+# only known at execution time, so PostGIS cannot estimate `ST_Intersects` and falls
+# back on a default selectivity (about 9 000 plots per building instead of 1 to 5).
+# This overestimation used to trigger a costly JIT compilation on almost every call.
+# The extent is a constant, which PostGIS estimates with the real statistics of
+# batid_plot. It only works because Django binds parameters on the client side
+# (no `server_side_binding` option): the planner sees the values as literals.
+BUILDINGS_PLOTS_SQL = """
+SELECT
+    bdg.id,
+    json_agg(
+        json_build_object(
+            'id', plot.id,
+            'bdg_cover_ratio',
+            CASE
+                -- the intersection area of a point is 0, but a point is fully in its plot
+                WHEN ST_GeometryType(bdg.shape) = 'ST_Point' THEN 1.0
+                WHEN ST_GeometryType(bdg.shape) IN ('ST_Polygon', 'ST_MultiPolygon')
+                THEN ST_Area(ST_Intersection(bdg.shape, plot.shape)) / ST_Area(bdg.shape)
+                ELSE 0.0
+            END
+        )
+        ORDER BY plot.id
+    ) AS plots
+FROM batid_building AS bdg
+JOIN batid_plot AS plot
+    ON ST_Intersects(plot.shape, bdg.shape)
+    AND plot.shape && ST_MakeEnvelope(%(xmin)s, %(ymin)s, %(xmax)s, %(ymax)s, 4326)
+WHERE bdg.id = ANY(%(ids)s)
+GROUP BY bdg.id
+"""
+
+
+def attach_plots(buildings: Iterable[Building]) -> None:
+    """
+    Set the `plots` attribute of each building: a list of {"id", "bdg_cover_ratio"}
+    for the plots it intersects, ordered by plot id, or None if it has no plot.
+
+    Meant to be called on already loaded buildings (an API page, a single building),
+    so the plots are computed in one query for all of them.
+    """
+
+    buildings = list(buildings)
+    shapes = [bdg.shape for bdg in buildings if bdg.shape is not None]
+
+    plots_by_bdg: dict[int, list[dict]] = {}
+    if shapes:
+        extents = [shape.extent for shape in shapes]
+        params = {
+            "ids": [bdg.id for bdg in buildings],
+            "xmin": min(e[0] for e in extents),
+            "ymin": min(e[1] for e in extents),
+            "xmax": max(e[2] for e in extents),
+            "ymax": max(e[3] for e in extents),
+        }
+        with connection.cursor() as cursor:
+            cursor.execute(BUILDINGS_PLOTS_SQL, params)
+            plots_by_bdg = dict(cursor.fetchall())
+
+    for bdg in buildings:
+        # plots is not a model field: it is read by the "plots" field of the serializers
+        bdg.plots = plots_by_bdg.get(bdg.id)  # type: ignore[attr-defined]

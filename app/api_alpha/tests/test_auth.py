@@ -15,7 +15,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
+from app.mfa_enforcement import MFAEnforcement
 
+
+# /login/ with MFA_ENFORCEMENT=OFF behaves as before the second factor existed
+@override_settings(MFA_ENFORCEMENT=MFAEnforcement.OFF)
 class ADSEnpointsNoAuthTest(APITestCase):
     def __init__(self, *args, **kwargs):
         # init parent class
@@ -56,6 +60,7 @@ class ADSEnpointsNoAuthTest(APITestCase):
         )
 
 
+@override_settings(MFA_ENFORCEMENT=MFAEnforcement.OFF)
 class ForgottenPassword(APITestCase):
     def setUp(self):
 

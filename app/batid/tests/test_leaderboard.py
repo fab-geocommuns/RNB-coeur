@@ -1,6 +1,7 @@
 import datetime
 import json
 import uuid
+from unittest.mock import patch
 
 from batid.models import Organization
 from batid.models.building import Building
@@ -8,11 +9,13 @@ from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import (
     get_monthly_edit_leaderboard,
     get_monthly_new_users,
+    send_monthly_leaderboard_emails,
 )
 from batid.tests.factories.users import ContributorUserFactory
 from batid.utils.date import french_month_year_label
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.core import mail
 from django.core.mail import EmailMultiAlternatives
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -328,3 +331,18 @@ class LeaderboardEmailTestCase(TestCase):
 
         html_body = str(msg.alternatives[0][0])
         self.assertNotIn("Bienvenue aux nouveaux inscrits", html_body)
+
+    def test_send_monthly_leaderboard_emails_single_recipient(self):
+        """
+        Input: previous month patched to the current month; alice (non-staff, joined last month) is the only editor; no staff, no new users.
+        Expected: exactly 1 email sent to alice; returned summary uses the singular "1 envoi pour <mois>".
+        """
+        with patch(
+            "batid.services.leaderboard.previous_month",
+            return_value=(self.year, self.month),
+        ):
+            result = send_monthly_leaderboard_emails()
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
+        self.assertEqual(result, f"1 envoi pour {self.month_label}")
