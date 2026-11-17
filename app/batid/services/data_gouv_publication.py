@@ -444,14 +444,18 @@ def cleanup_directory(directory_name):
     shutil.rmtree(directory_name)
 
 
-def get_area_publish_task(area: str):
+def get_area_publish_task(area: str, *, run_id: str | None = None):
+
+    kwargs = {"run_id": run_id} if run_id else None
 
     if area == "nat":
-        return Signature("batid.tasks.publish_datagouv_national", immutable=True)
+        return Signature(
+            "batid.tasks.publish_datagouv_national", kwargs=kwargs, immutable=True
+        )
 
     if area in dpts_list():
         return Signature(
-            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True  # type: ignore[arg-type]
+            "batid.tasks.publish_datagouv_dpt", args=[area], kwargs=kwargs, immutable=True  # type: ignore[arg-type]
         )
 
     raise ValueError(

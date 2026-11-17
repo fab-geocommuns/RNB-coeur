@@ -228,16 +228,24 @@ class ImportBDTopoGeopackage(TransactionTestCase):
 
 class TestImportTasks(TestCase):
     def test_tasks_count(self):
-
+        """
+        Input: every BD Topo department, release 2023-09-15.
+        Expected: a chord whose header holds one 2-task chain per department and
+        whose body is the summary task, with the launch uuid and the release date.
+        """
         dpts = bdtopo_dpts_list()
 
-        all_tasks = create_bdtopo_full_import_tasks(dpts, "2023-09-15")
+        full_import = create_bdtopo_full_import_tasks(dpts, "2023-09-15")
 
-        self.assertEqual(len(all_tasks), len(dpts))
-
-        for dpt_chain in all_tasks:
-
+        self.assertEqual(len(full_import.tasks), len(dpts))
+        for dpt_chain in full_import.tasks:
             self.assertEqual(len(dpt_chain.tasks), 2)
+
+        body = full_import.body
+        self.assertEqual(body.task, "batid.tasks.report_bdtopo_import")
+        self.assertEqual(body.kwargs["release_date"], "2023-09-15")
+        launch_uuid = full_import.tasks[0].tasks[1].args[1]
+        self.assertEqual(body.kwargs["bulk_launch_uuid"], str(launch_uuid))
 
 
 class TestLockBuildingImport(TestCase):

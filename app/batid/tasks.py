@@ -46,6 +46,7 @@ from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_bdgs,
 )
 from batid.services.imports.import_bdtopo import (
+    bdtopo_created_candidates,
     bdtopo_dpts_list,
     bdtopo_recente_release_date,
     create_bdtopo_full_import_tasks,
@@ -78,12 +79,13 @@ from batid.services.source import (
     delete_files_older_than,
     remove_paths_of_successful_task,
 )
-from batid.services.tchap import Code, TchapLevel, notify_tech
+from batid.services.tchap import Code, TchapLevel, notify_tech, notify_tech_or_log
 from batid.utils.auth import make_random_password
 from batid.utils.date import iso_to_french_date
 from celery import Signature, chain, shared_task
 from celery.signals import task_postrun
 from django.conf import settings
+from django.core.cache import cache
 
 
 # Sent once the task state is stored, before the ack of acks_late tasks.
@@ -169,12 +171,26 @@ def queue_full_bdtopo_import(
         ],
     )
 
-    all_chains = create_bdtopo_full_import_tasks(dpts, release_date)
+    create_bdtopo_full_import_tasks(dpts, release_date).apply_async()
 
-    for one_dpt_chain in all_chains:
-        one_dpt_chain.apply_async()
+    return f"Queued {len(dpts)} departments import"
 
-    return f"Queued {len(all_chains)} departments import"
+
+@shared_task
+def report_bdtopo_import(
+    skipped_counts: list[int], *, bulk_launch_uuid: str, release_date: str
+) -> None:
+    notify_tech(
+        level=TchapLevel.SUCCESS,
+        title="Import BD Topo terminé",
+        details=[
+            ("Millésime", iso_to_french_date(release_date)),
+            ("Départements traités", str(len(skipped_counts))),
+            ("Candidats créés", str(bdtopo_created_candidates(bulk_launch_uuid))),
+            ("Bâtiments sautés", str(sum(skipped_counts))),
+            ("À faire", Code("python manage.py inspect_candidates")),
+        ],
+    )
 
 
 @shared_task(
@@ -213,6 +229,19 @@ def queue_full_plots_import(
     )
 
     tasks = create_plots_full_import_tasks(dpt_list=dpts, release_date=release_date)
+    tasks.append(
+        Signature(
+            "batid.tasks.notify_import_end",
+            kwargs={
+                "title": "Import du cadastre terminé",
+                "details": [
+                    ["Millésime", iso_to_french_date(release_date)],
+                    ["Départements", str(len(dpts))],
+                ],
+            },
+            immutable=True,
+        )
+    )
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
@@ -240,9 +269,30 @@ def queue_full_cities_import():
         Signature("batid.tasks.import_cities", args=[dpt], immutable=True)
         for dpt in dpts
     ]
+    # No vintage: the import reads the current geo.api.gouv.fr cities
+    tasks.append(
+        Signature(
+            "batid.tasks.notify_import_end",
+            kwargs={
+                "title": "Import des communes terminé",
+                "details": [["Départements", str(len(dpts))]],
+            },
+            immutable=True,
+        )
+    )
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
+
+
+@shared_task
+def notify_import_end(*, title: str, details: list[list[str]]) -> None:
+    """Last link of an import chain: runs only when every department succeeded."""
+    notify_tech(
+        level=TchapLevel.SUCCESS,
+        title=title,
+        details=[(label, value) for label, value in details],
+    )
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
@@ -279,7 +329,25 @@ def backup_to_s3():
     return "done"
 
 
-def publish_area_or_report(area: str) -> str:
+DATAGOUV_RUN_CACHE_TIMEOUT = 3 * 24 * 3600
+
+
+def _datagouv_run_cache_key(run_id: str) -> str:
+    return f"datagouv_published:{run_id}"
+
+
+def _count_published_area(run_id: str) -> None:
+    """Count the published areas of a run in the shared cache: the run (~35 h) outlives
+    the Celery results. A lost count under-counts, so the summary alerts."""
+    try:
+        key = _datagouv_run_cache_key(run_id)
+        cache.add(key, 0, timeout=DATAGOUV_RUN_CACHE_TIMEOUT)
+        cache.incr(key)
+    except Exception:
+        logger.exception("data.gouv.fr published areas count failed")
+
+
+def publish_area_or_report(*, area: str, run_id: str | None = None) -> str:
     """
     Publish one area and never raise, so that a failed area does not stop the
     publish_datagouv_all chain. Exception: a key refused by data.gouv.fr (401/403)
@@ -304,17 +372,32 @@ def publish_area_or_report(area: str) -> str:
             # Tchap down must not stop the chain either; Sentry already has the publication error.
             logger.exception("Tchap notification failed")
         return "failed"
+    if run_id:
+        _count_published_area(run_id)
     return "done"
 
 
 @shared_task
-def publish_datagouv_national():
-    return publish_area_or_report("nat")
+def publish_datagouv_national(*, run_id: str | None = None):
+    result = publish_area_or_report(area="nat", run_id=run_id)
+    if run_id:
+        _notify_datagouv_summary(run_id)
+    return result
+
+
+def _notify_datagouv_summary(run_id: str) -> None:
+    published = cache.get(_datagouv_run_cache_key(run_id), 0)
+    total = len(dpts_list()) + 1
+    notify_tech_or_log(
+        level=TchapLevel.SUCCESS if published == total else TchapLevel.ALERT,
+        title="Publication data.gouv terminée",
+        details=[("Zones publiées", f"{published} sur {total}")],
+    )
 
 
 @shared_task
-def publish_datagouv_dpt(dept: str):
-    return publish_area_or_report(dept)
+def publish_datagouv_dpt(dept: str, *, run_id: str | None = None):
+    return publish_area_or_report(area=dept, run_id=run_id)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
@@ -338,7 +421,8 @@ def publish_datagouv_all():
     )
 
     areas = dpts_list() + ["nat"]
-    tasks = [get_area_publish_task(area) for area in areas]
+    run_id = uuid.uuid4().hex
+    tasks = [get_area_publish_task(area, run_id=run_id) for area in areas]
 
     chain(*tasks)()
 

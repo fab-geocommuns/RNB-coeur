@@ -1,6 +1,12 @@
 from unittest.mock import patch
 
-from batid.services.tchap import Code, TchapLevel, notify_if_error, notify_tech
+from batid.services.tchap import (
+    Code,
+    TchapLevel,
+    notify_if_error,
+    notify_tech,
+    notify_tech_or_log,
+)
 from batid.tasks import (
     create_sandbox_user,
     import_cities,
@@ -248,6 +254,29 @@ class NotifyTaskFailure(TestCase):
             import_plots.delay("75", "2026-01-01")
 
         apply_async.assert_called_once_with(("75", "2026-01-01"), {})
+
+
+class NotifyTechOrLog(TestCase):
+    @patch("batid.services.tchap.notify_tech", side_effect=Exception("tchap down"))
+    def test_tchap_down_is_logged(self, notify):
+        """
+        Input: notify_tech_or_log with a success message, notify_tech raising.
+        Expected: no exception, the message was attempted once with the same
+        arguments and one ERROR record with the stack trace is logged.
+        """
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            notify_tech_or_log(
+                level=TchapLevel.SUCCESS, title="hello", details=[("Zone", "01")]
+            )
+
+        notify.assert_called_once_with(
+            level=TchapLevel.SUCCESS,
+            title="hello",
+            details=[("Zone", "01")],
+            error=None,
+        )
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsNotNone(logs.records[0].exc_info)
 
 
 class NotifyTech(TestCase):

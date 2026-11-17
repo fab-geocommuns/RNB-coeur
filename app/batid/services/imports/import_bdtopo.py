@@ -12,12 +12,16 @@ from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy, Source
 from batid.utils.db import copy_from_file
 from batid.utils.geo import drop_z, fix_nested_shells
-from celery import Signature, chain
+from celery import Signature, chain, chord
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import DatabaseError, connection, transaction
+from django.db.models import Sum
 
 
-def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
+def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> chord:
+    """The department chains run in parallel; the summary task runs once all of them
+    succeeded, with the list of their skipped feature counts. A department failing
+    for good means no summary."""
 
     chains = []
 
@@ -28,7 +32,30 @@ def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
         dpt_chain = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
         chains.append(dpt_chain)
 
-    return chains
+    # ponytail: the chord state in Redis expires result_expires (1 day) after the
+    # launch or the last finished department; a day without any department end loses
+    # the summary. Raise CELERY_RESULT_EXPIRES if that happens.
+    return chord(
+        chains,
+        Signature(
+            "batid.tasks.report_bdtopo_import",
+            kwargs={
+                "bulk_launch_uuid": str(bulk_launch_uuid),
+                "release_date": release_date,
+            },
+        ),
+    )
+
+
+def bdtopo_created_candidates(bulk_launch_uuid: str) -> int:
+    """Candidates created by a BD Topo launch, counted once per department even when
+    a department was replayed."""
+    return (
+        BuildingImport.objects.filter(
+            import_source="bdtopo", bulk_launch_uuid=bulk_launch_uuid
+        ).aggregate(total=Sum("candidate_created_count"))["total"]
+        or 0
+    )
 
 
 def create_bdtopo_dpt_import_tasks(dpt: str, release_date: str, bulk_launch_id=None):
