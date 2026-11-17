@@ -180,7 +180,7 @@ def queue_full_bdtopo_import(
 def report_bdtopo_import(
     skipped_counts: list[int], *, bulk_launch_uuid: str, release_date: str
 ) -> None:
-    notify_tech(
+    notify_tech_or_log(
         level=TchapLevel.SUCCESS,
         title="Import BD Topo terminé",
         details=[
@@ -288,7 +288,7 @@ def queue_full_cities_import():
 @shared_task
 def notify_import_end(*, title: str, details: list[list[str]]) -> None:
     """Last link of an import chain: runs only when every department succeeded."""
-    notify_tech(
+    notify_tech_or_log(
         level=TchapLevel.SUCCESS,
         title=title,
         details=[(label, value) for label, value in details],

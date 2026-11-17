@@ -1,3 +1,5 @@
+import os
+import uuid
 from datetime import date
 from unittest import mock
 
@@ -8,8 +10,13 @@ from batid.services.imports.import_bdtopo import (
 )
 from batid.services.tchap import Code, TchapLevel
 from batid.tasks import queue_full_bdtopo_import, report_bdtopo_import
-from batid.tests.helpers import create_default_bdg
-from django.test import SimpleTestCase, TestCase, TransactionTestCase
+from batid.tests.helpers import TCHAP_ENV, create_default_bdg
+from django.test import (
+    SimpleTestCase,
+    TestCase,
+    TransactionTestCase,
+    override_settings,
+)
 
 
 class ReleaseDate(TransactionTestCase):
@@ -48,7 +55,7 @@ class QueueFullImportMessage(SimpleTestCase):
 
 
 class ReportBDTopoImport(TestCase):
-    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.notify_tech_or_log")
     def test_summary(self, notify_mock):
         """
         Input: a launch of 3 departments that skipped 3, 0 and 2 features, with two
@@ -90,6 +97,23 @@ class ReportBDTopoImport(TestCase):
             ],
         )
         self.assertIsInstance(notify_mock.call_args.kwargs["details"][4][1], Code)
+
+    @override_settings(TCHAP_NOTIFICATIONS=True)
+    @mock.patch.dict(os.environ, TCHAP_ENV)
+    @mock.patch("batid.services.tchap.requests.put")
+    def test_tchap_error_does_not_fail_the_task(self, put_mock):
+        """
+        Input: report_bdtopo_import of one department while Tchap answers HTTP 500.
+        Expected: the task does not raise and one ERROR record is logged.
+        """
+        put_mock.return_value.status_code = 500
+
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            report_bdtopo_import.run(
+                [0], bulk_launch_uuid=str(uuid.uuid4()), release_date="2026-09-15"
+            )
+
+        self.assertEqual(len(logs.records), 1)
 
 
 class KnownId(TransactionTestCase):

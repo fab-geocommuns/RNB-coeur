@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from unittest import mock
 
@@ -10,7 +11,8 @@ from batid.services.imports.import_plots import (
 )
 from batid.services.tchap import TchapLevel
 from batid.tasks import notify_import_end, queue_full_plots_import
-from django.test import SimpleTestCase
+from batid.tests.helpers import TCHAP_ENV
+from django.test import SimpleTestCase, override_settings
 
 RELEASE_DATES = [
     date(2026, 9, 1),
@@ -176,7 +178,7 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
 
 
 class NotifyImportEnd(SimpleTestCase):
-    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.notify_tech_or_log")
     def test_message(self, notify_mock):
         """
         Input: notify_import_end with a title and two details as JSON lists.
@@ -192,3 +194,20 @@ class NotifyImportEnd(SimpleTestCase):
             title="Import du cadastre terminé",
             details=[("Millésime", "01/06/2026"), ("Départements", "2")],
         )
+
+    @override_settings(TCHAP_NOTIFICATIONS=True)
+    @mock.patch.dict(os.environ, TCHAP_ENV)
+    @mock.patch("batid.services.tchap.requests.put")
+    def test_tchap_error_does_not_fail_the_task(self, put_mock):
+        """
+        Input: notify_import_end while Tchap answers HTTP 500.
+        Expected: the task does not raise and one ERROR record is logged.
+        """
+        put_mock.return_value.status_code = 500
+
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            notify_import_end.run(
+                title="Import du cadastre terminé", details=[["Départements", "2"]]
+            )
+
+        self.assertEqual(len(logs.records), 1)
