@@ -209,11 +209,11 @@ Retrouvez les étapes pour effectuer des rapprochements à partir d'un accès à
 
 ## Durée de conservation du journal des appels à l'API
 
-Les appels à l'API sont enregistrés dans la table `rest_framework_tracking_apirequestlog`, avec notamment l'adresse IP, l'utilisateur, le chemin et les paramètres d'URL, le corps de la requête, et en cas d'erreur la trace de l'exception (colonne `errors`), qui peut reprendre une valeur refusée.
+Les appels à l'API sont enregistrés dans la table `rest_framework_tracking_apirequestlog`, avec notamment l'adresse IP, l'utilisateur, le chemin et les paramètres d'URL (jetons masqués), le corps de la requête, et en cas d'erreur la trace de l'exception (colonne `errors`), qui peut reprendre une valeur refusée.
 
 1. En base : 1 an. La tâche `purge_old_api_request_logs` supprime chaque nuit à 04:30 UTC, par lots, les lignes de plus d'un an, sans lancer de nouveau lot passé 1 h : un retard se résorbe les nuits suivantes.
-2. Sauvegardes : jusqu'à 35 jours (copie OVH hebdomadaire supprimée au passage qui suit ses 30 jours, sauvegardes automatiques Scaleway 20 jours, export Scaleway 7 jours), hors envois OVH inachevés, voir #1206.
-3. Journaux des conteneurs : effacés à chaque recréation du conteneur, sans limite de volume pour l'instant (#1166).
+2. Sauvegardes : jusqu'à 35 jours (copie OVH hebdomadaire supprimée au passage qui suit ses 30 jours, sauvegardes automatiques Scaleway 20 jours, export Scaleway 7 jours), hors envois OVH inachevés, jamais supprimés pour l'instant.
+3. Journaux des conteneurs : effacés à chaque recréation du conteneur, sans limite de volume pour l'instant.
 
 ## A propos du RNB
 
