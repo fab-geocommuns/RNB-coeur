@@ -1066,14 +1066,21 @@ class ListingMultipleStatusTest(APITestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, {"DEMOLISHED01"})
 
+    def test_empty_status_keeps_its_behaviour(self):
+        """
+        Input: status= (empty value).
+        Expected: 200 with no building, as before this change (API contract kept).
+        """
+        r = self._get("")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["results"], [])
+
     def test_empty_item_is_named(self):
         """
-        Input: an empty status ("status="), or a list with an empty item
-        ("constructed,", "constructed, ,demolished").
-        Expected: 400 for each, the error shows the empty value between quotes,
-        instead of an empty 200 listing.
+        Input: a list with an empty item ("constructed,", "constructed, ,demolished").
+        Expected: 400 for each, the error shows the empty value between quotes.
         """
-        for status in ("", "constructed,", "constructed, ,demolished"):
+        for status in ("constructed,", "constructed, ,demolished"):
             with self.subTest(status=status):
                 r = self._get(status)
                 self.assertEqual(r.status_code, 400)

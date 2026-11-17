@@ -163,9 +163,9 @@ class OgcBuildingQuerySerializer(serializers.Serializer):
 class ListBuildingQuerySerializer(serializers.Serializer):
     insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
     # "all", or one or more statuses separated by commas.
-    # allow_blank: an empty value reaches validate_status and is refused, instead
-    # of being treated as absent by DRF.
-    status = serializers.CharField(required=False, allow_blank=True)
+    # An empty value ("status=") is treated as absent by DRF and never reaches
+    # validate_status: see the view.
+    status = serializers.CharField(required=False)
     cle_interop_ban = serializers.CharField(required=False)
     with_plots = serializers.IntegerField(required=False, min_value=0, max_value=1)
     # Case-insensitive, like the view and the single building endpoint
