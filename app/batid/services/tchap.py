@@ -1,14 +1,39 @@
 import os
 import uuid
+from collections.abc import Sequence
+from enum import Enum
+from html import escape
+from typing import Optional
 from urllib.parse import quote
 
 import requests
 from django.conf import settings
 
+ERROR_MAX_LENGTH = 1000
 
-def notify_tech(msg: str) -> None:
+
+class TchapLevel(Enum):
+    LAUNCH = "🔵"
+    SUCCESS = "🟢"
+    FAILURE = "🔴"
+    ALERT = "🟠"
+
+
+class Code(str):
+    """Detail value shown as inline code in the HTML message."""
+
+
+def notify_tech(
+    *,
+    level: TchapLevel,
+    title: str,
+    details: Sequence[tuple[str, str]] = (),
+    error: Optional[str] = None,
+) -> None:
     """
-    Send a text message to the tech team Tchap room.
+    Send a message to the tech team Tchap room: a bold title prefixed by the level
+    dot, one "label : value" line per detail (Code values as inline code), and an
+    optional error block.
 
     Tchap is a Matrix server, so we use the Matrix client API directly:
     https://spec.matrix.org/latest/client-server-api/#put_matrixclientv3roomsroomidsendeventtypetxnid
@@ -31,6 +56,10 @@ def notify_tech(msg: str) -> None:
     if not _notifications_are_active():
         return
 
+    body, formatted_body = _render(
+        level=level, title=title, details=details, error=error
+    )
+
     homeserver_url = os.environ.get("TCHAP_HOMESERVER_URL")
     access_token = os.environ.get("TCHAP_ACCESS_TOKEN")
     room_id = os.environ.get("TCHAP_ROOM_ID")
@@ -47,7 +76,12 @@ def notify_tech(msg: str) -> None:
 
     r = requests.put(
         url,
-        json={"msgtype": "m.text", "body": msg},
+        json={
+            "msgtype": "m.text",
+            "body": body,
+            "format": "org.matrix.custom.html",
+            "formatted_body": formatted_body,
+        },
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=10,
     )
@@ -64,10 +98,48 @@ def notify_if_error(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            notify_tech(f"Échec de {func.__name__} : {e}")
+            notify_tech(
+                level=TchapLevel.FAILURE,
+                title="Échec d'une fonction",
+                details=[("Fonction", Code(func.__name__))],
+                error=str(e),
+            )
             raise e
 
     return wrapper
+
+
+def _render(
+    *,
+    level: TchapLevel,
+    title: str,
+    details: Sequence[tuple[str, str]],
+    error: Optional[str],
+) -> tuple[str, str]:
+    """
+    Build the plain text body and its HTML version (Matrix org.matrix.custom.html format).
+    """
+    # Cut before escaping, so that no HTML entity is split.
+    if error and len(error) > ERROR_MAX_LENGTH:
+        error = error[: ERROR_MAX_LENGTH - 1] + "…"
+
+    text_lines = [f"{level.value} {title}"] + [
+        f"{label} : {value}" for label, value in details
+    ]
+    html_lines = [f"<b>{level.value} {escape(title)}</b>"] + [
+        (
+            f"{escape(label)} : <code>{escape(value)}</code>"
+            if isinstance(value, Code)
+            else f"{escape(label)} : {escape(value)}"
+        )
+        for label, value in details
+    ]
+    body = "\n".join(text_lines)
+    formatted_body = "<br>".join(html_lines)
+    if error:
+        body += f"\n{error}"
+        formatted_body += f"<pre><code>{escape(error)}</code></pre>"
+    return body, formatted_body
 
 
 def _notifications_are_active() -> bool:

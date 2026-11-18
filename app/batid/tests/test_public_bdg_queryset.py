@@ -1,6 +1,6 @@
 import json
 
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.models import Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.tests.factories.users import UserFactory
@@ -352,66 +352,119 @@ class SearchWithPlots(TestCase):
             ),
         )
 
+    def _plots_of(self, bdg):
+        """Reload the building and attach its plots, as an API view does."""
+        bdg = Building.objects.get(rnb_id=bdg.rnb_id)
+        attach_plots([bdg])
+        return bdg.plots
+
     def test_bdg_on_both_plots(self):
-        qs = list_bdgs({"with_plots": True}).filter(
-            rnb_id=self.bdg_on_both_plots.rnb_id
-        )
+        """
+        Input: a polygon building straddling plots "one" and "two".
+        Expected: both plots, ordered by id, with cover ratios of about 0.52 and 0.44.
+        """
+        plots = self._plots_of(self.bdg_on_both_plots)
 
-        # Check there is only one building
-        count = qs.count()
-        self.assertEqual(count, 1)
-
-        bdg = qs.first()
-
-        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
-        self.assertListEqual(["one", "two"], bdg_plots_ids)
-
-        self.assertAlmostEqual(bdg.plots[0]["bdg_cover_ratio"], 0.52, delta=0.01)
-        self.assertAlmostEqual(bdg.plots[1]["bdg_cover_ratio"], 0.44, delta=0.01)
+        self.assertListEqual(["one", "two"], [plot["id"] for plot in plots])
+        self.assertAlmostEqual(plots[0]["bdg_cover_ratio"], 0.52, delta=0.01)
+        self.assertAlmostEqual(plots[1]["bdg_cover_ratio"], 0.44, delta=0.01)
 
     def test_minuscule_intersection(self):
-        qs = list_bdgs({"with_plots": True}).filter(
-            rnb_id=self.bdg_minuscule_corner.rnb_id
-        )
+        """
+        Input: a polygon building touching plot "two" on a tiny corner only.
+        Expected: plot "two" only, with a cover ratio of about 0.0016.
+        """
+        plots = self._plots_of(self.bdg_minuscule_corner)
 
-        # Check there is only one building
-        count = qs.count()
-        self.assertEqual(count, 1)
-
-        bdg = qs.first()
-
-        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
-        self.assertListEqual(["two"], bdg_plots_ids)
-        self.assertAlmostEqual(bdg.plots[0]["bdg_cover_ratio"], 0.0016, delta=0.0001)
+        self.assertListEqual(["two"], [plot["id"] for plot in plots])
+        self.assertAlmostEqual(plots[0]["bdg_cover_ratio"], 0.0016, delta=0.0001)
 
     def test_bdg_point(self):
         """
-        When checking for building with point the intersecting ratio is always 1
-
+        Input: a point-shaped building inside plot "one".
+        Expected: plot "one" with a cover ratio of 1 (a point is fully in its plot).
         """
+        plots = self._plots_of(self.bdg_point)
 
-        qs = list_bdgs({"with_plots": True}).filter(rnb_id=self.bdg_point.rnb_id)
-
-        # Check there is only one building
-        count = qs.count()
-        self.assertEqual(count, 1)
-
-        bdg = qs.first()
-        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
-        self.assertListEqual(["one"], bdg_plots_ids)
-        self.assertEqual(bdg.plots[0]["bdg_cover_ratio"], 1.0)
+        self.assertListEqual(["one"], [plot["id"] for plot in plots])
+        self.assertEqual(plots[0]["bdg_cover_ratio"], 1.0)
 
     def test_bdg_point_on_exact_corner(self):
+        """
+        Input: a point-shaped building on the exact corner of plot "one". The page
+        extent is then reduced to that point.
+        Expected: plot "one" with a cover ratio of 1.
+        """
+        plots = self._plots_of(self.bdg_point_on_exact_corner)
 
-        qs = list_bdgs({"with_plots": True}).filter(
-            rnb_id=self.bdg_point_on_exact_corner.rnb_id
+        self.assertListEqual(["one"], [plot["id"] for plot in plots])
+        self.assertEqual(plots[0]["bdg_cover_ratio"], 1.0)
+
+    def test_several_buildings_at_once(self):
+        """
+        Input: the four buildings, attached in a single call, as an API page.
+        Expected: each building gets its own plots, the same as when attached alone,
+        in one query.
+        """
+        bdgs = list(Building.objects.filter(is_active=True).order_by("id"))
+        self.assertEqual(len(bdgs), 4)
+
+        with self.assertNumQueries(1):
+            attach_plots(bdgs)
+
+        plots_by_rnb_id = {
+            bdg.rnb_id: [plot["id"] for plot in bdg.plots] for bdg in bdgs
+        }
+        self.assertDictEqual(
+            plots_by_rnb_id,
+            {
+                self.bdg_on_both_plots.rnb_id: ["one", "two"],
+                self.bdg_minuscule_corner.rnb_id: ["two"],
+                self.bdg_point.rnb_id: ["one"],
+                self.bdg_point_on_exact_corner.rnb_id: ["one"],
+            },
         )
 
-        # Check there is only one building
-        count = qs.count()
-        self.assertEqual(count, 1)
+    def test_buildings_without_plots(self):
+        """
+        Input: a building far from any plot and a building without shape, attached
+        together with a building on plot "one".
+        Expected: plots is None for the first two, as with the former subquery, and
+        the third one still gets plot "one".
+        """
+        far_bdg = Building.objects.create(
+            rnb_id="FARFROMPLOT",
+            shape=GEOSGeometry("POINT (2.35 48.85)", srid=4326),
+            point=GEOSGeometry("POINT (2.35 48.85)", srid=4326),
+            status="constructed",
+            is_active=True,
+        )
+        no_shape_bdg = Building.objects.create(
+            rnb_id="NOSHAPE", status="constructed", is_active=True
+        )
+        bdgs = [
+            far_bdg,
+            no_shape_bdg,
+            Building.objects.get(rnb_id=self.bdg_point.rnb_id),
+        ]
 
-        bdg = qs.first()
-        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
-        self.assertListEqual(["one"], bdg_plots_ids)
-        self.assertEqual(bdg.plots[0]["bdg_cover_ratio"], 1.0)
+        attach_plots(bdgs)
+
+        self.assertIsNone(bdgs[0].plots)
+        self.assertIsNone(bdgs[1].plots)
+        self.assertListEqual(["one"], [plot["id"] for plot in bdgs[2].plots])
+
+    def test_no_query_when_no_building_has_a_shape(self):
+        """
+        Input: an empty list, then a building without shape.
+        Expected: no query is run, and the building gets plots = None.
+        """
+        no_shape_bdg = Building.objects.create(
+            rnb_id="NOSHAPE", status="constructed", is_active=True
+        )
+
+        with self.assertNumQueries(0):
+            attach_plots([])
+            attach_plots([no_shape_bdg])
+
+        self.assertIsNone(no_shape_bdg.plots)

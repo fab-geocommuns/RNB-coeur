@@ -15,7 +15,6 @@ from batid.services.kpi import (
     KPI_API_REQUESTS_COUNT,
     KPI_DATA_GOUV_DOWNLOADS,
     KPI_DATA_GOUV_VIEWS,
-    backfill_api_requests_kpi,
     compute_daily_kpis,
     count_active_buildings_kpis,
     count_api_requests,
@@ -347,7 +346,6 @@ class LongQueryTimeout(TransactionTestCase):
         queries = {
             "count_active_buildings_kpis": count_active_buildings_kpis,
             "count_edits": count_edits,
-            "count_api_requests": count_api_requests,
             "count_edits_by_department": count_edits_by_department,
             "count_building_changes_daily": lambda: count_building_changes_daily(
                 date.today()
@@ -501,65 +499,33 @@ class CountEditsByDepartment(TestCase):
 class CountApiRequests(TestCase):
     def setUp(self):
         """3 API requests in the log."""
-        make_api_log(datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc))
-        make_api_log(datetime(2024, 2, 5, 8, 0, tzinfo=timezone.utc))
-        make_api_log(datetime(2024, 3, 20, 9, 0, tzinfo=timezone.utc))
+        self.logs = [
+            make_api_log(datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc)),
+            make_api_log(datetime(2024, 2, 5, 8, 0, tzinfo=timezone.utc)),
+            make_api_log(datetime(2024, 3, 20, 9, 0, tzinfo=timezone.utc)),
+        ]
+        self.max_id = max(log.id for log in self.logs)
 
     def test_count(self):
-        """3 log entries: count_api_requests should return 3."""
-        self.assertEqual(count_api_requests(), 3)
+        """3 log entries: count_api_requests returns the largest id."""
+        self.assertEqual(count_api_requests(), self.max_id)
 
     def test_kpi_created_by_compute(self):
-        """compute_daily_kpis creates an api_requests_count KPI with the total count."""
+        """compute_daily_kpis creates an api_requests_count KPI equal to the largest id."""
         compute_daily_kpis(external_calls=False)
         kpi = KPI.objects.get(name=KPI_API_REQUESTS_COUNT, value_date=date.today())
-        self.assertEqual(kpi.value, 3)
+        self.assertEqual(kpi.value, self.max_id)
 
+    def test_does_not_decrease_after_old_rows_deleted(self):
+        """The 2 oldest entries are deleted: count_api_requests is unchanged."""
+        before = count_api_requests()
+        APIRequestLog.objects.filter(id__in=[log.id for log in self.logs[:2]]).delete()
+        self.assertEqual(count_api_requests(), before)
 
-class BackfillApiRequestsKpi(TestCase):
-    def setUp(self):
-        """
-        2 requests in Jan 2024, 1 in Feb 2024.
-        Expected backfill: Jan KPI = 2, Feb KPI = 3 (cumulative).
-        """
-        make_api_log(datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc))
-        make_api_log(datetime(2024, 1, 25, 8, 0, tzinfo=timezone.utc))
-        make_api_log(datetime(2024, 2, 5, 9, 0, tzinfo=timezone.utc))
-
-    def test_creates_one_kpi_per_month(self):
-        """Backfill should create one KPI per past month, stopping before current month."""
-        backfill_api_requests_kpi()
-        kpis = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).order_by("value_date")
-        # Should not include current month
-        for kpi in kpis:
-            self.assertLess(kpi.value_date, date.today().replace(day=1))
-
-    def test_cumulative_values(self):
-        """Jan KPI = 2 (requests up to Jan 31), Feb KPI = 3 (cumulative up to Feb 29)."""
-        backfill_api_requests_kpi()
-        jan_kpi = KPI.objects.get(
-            name=KPI_API_REQUESTS_COUNT, value_date=date(2024, 1, 31)
-        )
-        feb_kpi = KPI.objects.get(
-            name=KPI_API_REQUESTS_COUNT, value_date=date(2024, 2, 29)
-        )
-        self.assertEqual(jan_kpi.value, 2)
-        self.assertEqual(feb_kpi.value, 3)
-
-    def test_idempotent(self):
-        """Calling backfill twice should not create duplicate entries."""
-        backfill_api_requests_kpi()
-        first_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
-        backfill_api_requests_kpi()
-        second_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
-
-        self.assertEqual(second_count, first_count)
-
-    def test_empty_log(self):
-        """Empty APIRequestLog: backfill should create no KPIs."""
+    def test_empty_table(self):
+        """Empty log table: count_api_requests returns 0."""
         APIRequestLog.objects.all().delete()
-        backfill_api_requests_kpi()
-        self.assertEqual(KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count(), 0)
+        self.assertEqual(count_api_requests(), 0)
 
 
 class DataGouvMetrics(TestCase):

@@ -171,24 +171,24 @@ class SchemaMatchesAPITest(APITestCase):
             "Fields returned by the API but missing from the documentation",
         )
 
-    def test_write_operations_document_the_token(self):
+    def test_token_operations_answer_401_without_token(self):
         """
-        Input: every documented operation that is not a read (POST, PATCH...).
-        Expected: it declares the tokenAuth security scheme and a 401 response, and the
-        API really answers 401 when it is called without a token.
+        Input: every documented operation requiring the tokenAuth scheme (writes,
+        and reads that declare it, like the current user).
+        Expected: it declares a 401 response, and the API really answers 401 when it
+        is called without a token.
         """
         self.assertIn("tokenAuth", self.schema["components"]["securitySchemes"])
 
-        write_operations = [
+        token_operations = [
             (path, method, operation)
             for path, method, operation in self._operations()
-            if method not in READ_ONLY_METHODS
+            if {"tokenAuth": []} in operation.get("security", [])
         ]
-        self.assertTrue(write_operations)
+        self.assertTrue(token_operations)
 
-        for path, method, operation in write_operations:
+        for path, method, operation in token_operations:
             with self.subTest(path=path, method=method):
-                self.assertIn({"tokenAuth": []}, operation.get("security", []))
                 self.assertIn("401", operation["responses"])
 
                 r = getattr(self.client, method)(
@@ -196,18 +196,47 @@ class SchemaMatchesAPITest(APITestCase):
                 )
                 self.assertEqual(r.status_code, 401)
 
-    def test_read_operations_need_no_token(self):
+    def test_write_operations_require_the_token_unless_password(self):
         """
-        Input: every documented read operation (GET).
-        Expected: it declares no security requirement, and the API never answers 401
-        or 403 to an anonymous call. It documents a 401, which the API returns when
-        an invalid token is sent.
+        Input: every documented write operation (POST, PATCH...).
+        Expected: it requires the tokenAuth scheme, unless it declares no security
+        requirement (login with a password). Such an operation answers 400, not
+        401 or 403, to an anonymous call with an empty body, and the documented 401
+        to an invalid token.
         """
         for path, method, operation in self._operations():
-            if method not in READ_ONLY_METHODS:
+            if method in READ_ONLY_METHODS:
                 continue
             with self.subTest(path=path, method=method):
-                self.assertNotIn("security", operation)
+                self.assertIn(operation.get("security"), ([{"tokenAuth": []}], []))
+                if operation["security"]:
+                    continue
+
+                r = getattr(self.client, method)(
+                    _fill_path_params(path), {}, format="json"
+                )
+                self.assertEqual(r.status_code, 400)
+
+                self.assertIn("401", operation["responses"])
+                r = getattr(self.client, method)(
+                    _fill_path_params(path),
+                    {},
+                    format="json",
+                    HTTP_AUTHORIZATION="Token invalide",
+                )
+                self.assertEqual(r.status_code, 401)
+
+    def test_read_operations_need_no_token(self):
+        """
+        Input: every documented read operation (GET), except those declaring the
+        tokenAuth scheme.
+        Expected: the API never answers 401 or 403 to an anonymous call. It documents
+        a 401, which the API returns when an invalid token is sent.
+        """
+        for path, method, operation in self._operations():
+            if method not in READ_ONLY_METHODS or "security" in operation:
+                continue
+            with self.subTest(path=path, method=method):
                 r = self.client.get(_fill_path_params(path))
                 self.assertNotIn(r.status_code, (401, 403))
 
@@ -220,12 +249,14 @@ class SchemaMatchesAPITest(APITestCase):
     def test_every_operation_has_a_tag(self):
         """
         Input: every documented operation.
-        Expected: it is tagged OGC, Bâtiments (reads) or Édition (writes).
+        Expected: it is tagged OGC, Bâtiments (reads), Édition (writes) or
+        Authentification (login and current user).
         """
         for path, method, operation in self._operations():
             with self.subTest(path=path, method=method):
                 self.assertIn(
-                    operation.get("tags"), (["OGC"], ["Bâtiments"], ["Édition"])
+                    operation.get("tags"),
+                    (["OGC"], ["Bâtiments"], ["Édition"], ["Authentification"]),
                 )
 
     def test_operations_without_400_never_answer_400(self):
