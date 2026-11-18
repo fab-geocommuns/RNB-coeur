@@ -242,7 +242,12 @@ def rollback_confirm_view(request):
 
     if request.method == "POST":
         if "confirm" in request.POST:
-            results = rollback_service(user, start_time, end_time)
+            results = rollback_service(
+                author=request.user,
+                user=user,
+                start_time=start_time,
+                end_time=end_time,
+            )
 
             del request.session["rollback_user_id"]
             if "rollback_start_time" in request.session:

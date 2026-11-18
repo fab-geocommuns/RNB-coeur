@@ -13,6 +13,13 @@ from requests import Response
 
 from app import settings as settings_module
 
+# Complete Tchap configuration, for tests that let notify_tech reach requests.put
+TCHAP_ENV = {
+    "TCHAP_HOMESERVER_URL": "https://matrix.example.gouv.fr",
+    "TCHAP_ACCESS_TOKEN": "syt_secret",
+    "TCHAP_ROOM_ID": "!room:example.gouv.fr",
+}
+
 
 def create_paris():
     geometry = {

@@ -16,14 +16,21 @@ from django.db import connection, transaction
 from app.settings import WRITABLE_DATA_DIR
 
 
-def publish(area: str):
+def datagouv_publication_enabled() -> bool:
+    return os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true"
+
+
+def publish(area: str) -> bool:
+    """Build the area archive and send it to data.gouv.fr. Return False when the
+    publication is disabled: the archive is built, nothing is sent."""
     print(f"Processing area: {area}")
 
     directory_name = create_directory(area)
     try:
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
-        if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
+        enabled = datagouv_publication_enabled()
+        if enabled:
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv_with_retries(
                 area=area,
@@ -34,7 +41,7 @@ def publish(area: str):
     finally:
         # we always cleanup the directory, no matter what happens
         cleanup_directory(directory_name)
-    return True
+    return enabled
 
 
 def create_directory(area):
@@ -440,14 +447,18 @@ def cleanup_directory(directory_name):
     shutil.rmtree(directory_name)
 
 
-def get_area_publish_task(area: str):
+def get_area_publish_task(area: str, *, run_id: str | None = None):
+
+    kwargs = {"run_id": run_id} if run_id else None
 
     if area == "nat":
-        return Signature("batid.tasks.publish_datagouv_national", immutable=True)
+        return Signature(
+            "batid.tasks.publish_datagouv_national", kwargs=kwargs, immutable=True
+        )
 
     if area in dpts_list():
         return Signature(
-            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True  # type: ignore[arg-type]
+            "batid.tasks.publish_datagouv_dpt", args=[area], kwargs=kwargs, immutable=True  # type: ignore[arg-type]
         )
 
     raise ValueError(

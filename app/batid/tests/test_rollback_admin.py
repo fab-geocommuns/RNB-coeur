@@ -1,5 +1,8 @@
+from unittest import mock
+
 from batid.models.building import Building
 from batid.models.others import DataFix, UserProfile
+from batid.services.tchap import TchapLevel
 from batid.tests.helpers import login_with_otp
 from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import GEOSGeometry
@@ -276,8 +279,14 @@ class RollbackConfirmTest(RollbackAdminTestCase):
         self.assertEqual("/admin/rollback/", response.url)
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
-    def test_confirm_executes_rollback(self):
-        """Confirmation executes the rollback"""
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_confirm_executes_rollback(self, notify_mock):
+        """
+        Input: the logged-in rollback_staff confirms the rollback of contributor
+        over the whole period.
+        Expected: the building creation is reverted and one ALERT "Rollback des
+        éditions d'un utilisateur" names rollback_staff as the author.
+        """
         login_with_otp(client=self.client, user=self.rollback_user)
 
         # Configure session with rollback parameters
@@ -300,6 +309,18 @@ class RollbackConfirmTest(RollbackAdminTestCase):
         self.building.refresh_from_db()
         self.assertFalse(self.building.is_active)
         self.assertEqual(self.building.event_type, "revert_creation")
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Rollback des éditions d'un utilisateur",
+            details=[
+                ("Auteur", "rollback_staff"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", "du début à maintenant (UTC)"),
+                ("Événements annulés", "1 sur 1"),
+                ("DataFix", str(DataFix.objects.latest("id").id)),
+            ],
+        )
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_rollback_creates_datafix(self):

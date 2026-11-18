@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from collections.abc import Sequence
@@ -10,6 +11,8 @@ import requests
 from django.conf import settings
 
 ERROR_MAX_LENGTH = 1000
+
+logger = logging.getLogger(__name__)
 
 
 class TchapLevel(Enum):
@@ -90,6 +93,23 @@ def notify_tech(
         raise Exception(
             f"Error {r.status_code} while sending the Tchap notification: {r.text}"
         )
+
+
+def notify_tech_or_log(
+    *,
+    level: TchapLevel,
+    title: str,
+    details: Sequence[tuple[str, str]] = (),
+    error: Optional[str] = None,
+) -> None:
+    """
+    notify_tech that never raises: for messages sent once the work is done, where a
+    Tchap outage must neither fail nor replay the work. The failure goes to Sentry.
+    """
+    try:
+        notify_tech(level=level, title=title, details=details, error=error)
+    except Exception:
+        logger.exception("Tchap notification failed")
 
 
 # create a decorator to notify the tech team
