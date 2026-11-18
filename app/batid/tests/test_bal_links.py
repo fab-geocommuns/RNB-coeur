@@ -1,9 +1,10 @@
 import json
+import os
 import uuid
 from unittest.mock import patch
 
 import batid.tests.helpers as helpers
-from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import BANAPIDown, BANUnknownCleInterop
 from batid.models import Address, Building, BuildingImport, Plot
 from batid.services.imports.import_bal import (
     create_dpt_bal_rnb_links,
@@ -11,6 +12,8 @@ from batid.services.imports.import_bal import (
     find_bdg_to_link,
 )
 from batid.services.rnb_id import generate_rnb_id
+from batid.services.tchap import TchapLevel
+from batid.tasks import create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_task
 from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import addresses_cle_interop
 from django.contrib.gis.geos import GEOSGeometry, Point
@@ -290,6 +293,48 @@ class BALImportWithUnknownCleInterop(TestCase):
         report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
         self.assertEqual(report.building_updated_count, 0)
         self.assertEqual(report.building_refused_count, 1)
+
+
+class BALTaskWithBANDown(TestCase):
+    def setUp(self):
+        UserFactory(username="RNB")
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch(
+        "batid.services.imports.import_bal.find_and_update_bdg",
+        side_effect=BANAPIDown(),
+    )
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_ban_down_fails_the_task(self, source_mock, find_mock, notify_mock):
+        """
+        Input: create_dpt_bal_rnb_links (max_retries=3) on the BAL test file, the
+        BAN API down (BANAPIDown raised without a message) on every address, run
+        with .apply(): Celery runs the retries eagerly, in the same call.
+        Expected: 4 attempts, each stopped at the first address (BANAPIDown is not
+        counted as a refusal, it propagates), the task ends in
+        FAILURE; one failure message naming the task and its arguments, with the
+        exception name "BANAPIDown" as error.
+        """
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+        # A failed task keeps its source file for the retry
+        self.addCleanup(os.remove, source_mock.return_value)
+
+        result = create_dpt_bal_rnb_links_task.apply(args=[{"dpt": "01"}])
+
+        self.assertEqual(result.state, "FAILURE")
+        self.assertEqual(find_mock.call_count, 4)
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.create_dpt_bal_rnb_links"),
+                ("Identifiant", result.id),
+                ("Arguments", "{'dpt': '01'}"),
+            ],
+            error="BANAPIDown",
+        )
 
 
 class LinkSearch(TestCase):

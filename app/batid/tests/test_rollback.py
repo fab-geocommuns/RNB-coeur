@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from unittest import mock
 
 from batid.exceptions import (
     DatabaseInconsistency,
@@ -14,11 +16,17 @@ from batid.models.building import (
     EventType,
 )
 from batid.models.others import DataFix, UserProfile
-from batid.services.rollback import rollback, rollback_dry_run, rollback_event
+from batid.services.rollback import (
+    _format_period,
+    rollback,
+    rollback_dry_run,
+    rollback_event,
+)
+from batid.services.tchap import Code, TchapLevel
 from batid.tests.helpers import addresses_cle_interop
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TransactionTestCase, override_settings
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 
 
 class TestUnitaryRollback(TransactionTestCase):
@@ -542,6 +550,10 @@ class TestGlobalRollback(TransactionTestCase):
         )
         UserProfile.objects.create(user=self.other_user)
 
+        self.author = User.objects.create_user(
+            username="admin_rollback", email="admin_rollback@example.test"
+        )
+
         self.team_rnb = User.objects.create_user(username="RNB")
 
         self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
@@ -581,6 +593,232 @@ class TestGlobalRollback(TransactionTestCase):
         self.address_1 = Address.objects.create(cle_interop="1")
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_rollback_is_announced(self, notify_mock):
+        """
+        Input: rollback by admin_rollback of the 2 edits of contributor since the
+        creation of building_1, no end time.
+        Expected: one ALERT "Rollback des éditions d'un utilisateur" with the
+        author, the target, the period, "2 sur 2" and the DataFix id as Code.
+        """
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=None
+        )
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Rollback des éditions d'un utilisateur",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "2 sur 2"),
+                ("DataFix", str(results["data_fix_id"])),
+            ],
+        )
+        self.assertIsInstance(notify_mock.call_args.kwargs["details"][4][1], Code)
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_stopped_rollback_is_announced(self, notify_mock):
+        """
+        Input: rollback of the 2 edits of contributor since the creation of
+        building_1, the second revert raising DatabaseInconsistency.
+        Expected: the error is raised again and one FAILURE "Rollback des éditions
+        interrompu" is sent with "1 sur 2", the DataFix id and the error.
+        """
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+
+        with mock.patch.object(
+            Event,
+            "revert_event",
+            side_effect=[uuid.uuid4(), DatabaseInconsistency("broken lineage")],
+        ):
+            with self.assertRaises(DatabaseInconsistency):
+                rollback(
+                    author=self.author,
+                    user=self.user,
+                    start_time=start_time,
+                    end_time=None,
+                )
+
+        data_fix = DataFix.objects.latest("id")
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Rollback des éditions interrompu",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "1 sur 2"),
+                ("DataFix", str(data_fix.id)),
+            ],
+            error="broken lineage",
+        )
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_rollback_announces_already_reverted_events(self, notify_mock):
+        """
+        Input: a first rollback of contributor since the creation of building_2,
+        then a second one since the creation of building_1 (building_2 creation
+        already reverted).
+        Expected: the second ALERT counts "1 sur 2" and adds "Déjà annulés" 1
+        before the DataFix; the first one has no "Déjà annulés" line.
+        """
+        self.building_2.refresh_from_db()
+        rollback(
+            author=self.author,
+            user=self.user,
+            start_time=self.building_2.sys_period.lower,
+            end_time=None,
+        )
+        first_labels = [
+            label for label, _value in notify_mock.call_args.kwargs["details"]
+        ]
+        self.assertNotIn("Déjà annulés", first_labels)
+
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=None
+        )
+
+        notify_mock.assert_called_with(
+            level=TchapLevel.ALERT,
+            title="Rollback des éditions d'un utilisateur",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "1 sur 2"),
+                ("Déjà annulés", "1"),
+                ("DataFix", str(results["data_fix_id"])),
+            ],
+        )
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_rollback_announces_skipped_events(self, notify_mock):
+        """
+        Input: contributor reverts the creation of building_other_user, then
+        contributor_2 updates building_1; rollback of contributor since the creation
+        of building_1.
+        Expected: the ALERT counts "1 sur 3" (building_2 creation) and explains the
+        two others: "Non annulables" 1 (building_1, edited since by contributor_2)
+        and "Déjà des annulations" 1 (the revert made by contributor).
+        """
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        Event.revert_event(
+            {"source": "contribution"},
+            self.building_other_user.event_id,
+            user_making_revert=self.user,
+        )
+        self.building_1.update(
+            self.other_user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_cle_interop=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=None
+        )
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Rollback des éditions d'un utilisateur",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "1 sur 3"),
+                ("Non annulables", "1"),
+                ("Déjà des annulations", "1"),
+                ("DataFix", str(results["data_fix_id"])),
+            ],
+        )
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_stopped_rollback_announces_already_reverted_events(self, notify_mock):
+        """
+        Input: a first rollback of contributor since the creation of building_2,
+        then a second one since the creation of building_1 whose revert raises
+        DatabaseInconsistency (building_2, the newest event, is already reverted).
+        Expected: the error is raised again and the FAILURE "Rollback des éditions
+        interrompu" counts "0 sur 2" and adds "Déjà annulés" 1 before the DataFix.
+        """
+        self.building_2.refresh_from_db()
+        rollback(
+            author=self.author,
+            user=self.user,
+            start_time=self.building_2.sys_period.lower,
+            end_time=None,
+        )
+
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        with mock.patch.object(
+            Event,
+            "revert_event",
+            side_effect=DatabaseInconsistency("broken lineage"),
+        ):
+            with self.assertRaises(DatabaseInconsistency):
+                rollback(
+                    author=self.author,
+                    user=self.user,
+                    start_time=start_time,
+                    end_time=None,
+                )
+
+        data_fix = DataFix.objects.latest("id")
+        notify_mock.assert_called_with(
+            level=TchapLevel.FAILURE,
+            title="Rollback des éditions interrompu",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "0 sur 2"),
+                ("Déjà annulés", "1"),
+                ("DataFix", str(data_fix.id)),
+            ],
+            error="broken lineage",
+        )
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.tchap.notify_tech", side_effect=Exception("tchap down"))
+    def test_tchap_down_does_not_stop_the_rollback(self, notify_mock):
+        """
+        Input: rollback of the 2 edits of contributor since the creation of
+        building_1, the Tchap message raising.
+        Expected: the rollback result is returned with 2 reverted events, the
+        message was attempted once and one ERROR record is logged.
+        """
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            results = rollback(
+                author=self.author,
+                user=self.user,
+                start_time=start_time,
+                end_time=None,
+            )
+
+        self.assertEqual(results["events_reverted_n"], 2)
+        notify_mock.assert_called_once()
+        self.assertEqual(len(logs.records), 1)
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback(self):
         self.building_1.refresh_from_db()
         start_time = self.building_1.sys_period.lower
@@ -600,7 +838,9 @@ class TestGlobalRollback(TransactionTestCase):
         )
 
         # Rollback for real
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
 
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 2)
@@ -676,7 +916,9 @@ class TestGlobalRollback(TransactionTestCase):
             [building_2_creation_event_id],
         )
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
 
         self.assertEqual(results["user"], self.user.username)
         # 2 creations, 1 update
@@ -817,7 +1059,9 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(results["events_are_revert_n"], 1)
         self.assertEqual(results["events_already_reverted_n"], 1)
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
         self.assertEqual(results["events_reverted_n"], 0)
         self.assertEqual(results["events_not_revertable_n"], 4)
         self.assertEqual(results["events_are_revert_n"], 1)
@@ -871,7 +1115,9 @@ class TestGlobalRollback(TransactionTestCase):
         self.building_2.refresh_from_db()
         building_2_edition_5_event_id = self.building_2.event_id
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
 
         self.assertEqual(results["user"], self.user.username)
         # 1 creation, 5 editions (update, update, deactivation, reactivation, split)
@@ -962,7 +1208,9 @@ class TestGlobalRollback(TransactionTestCase):
             [building_1_creation_event_id],
         )
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
 
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 2)
@@ -1039,7 +1287,9 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(results["events_revertable_n"], 2)
         self.assertEqual(results["events_not_revertable_n"], 0)
 
-        results = rollback(self.user, start_time, None)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=None
+        )
 
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 2)
@@ -1088,7 +1338,9 @@ class TestGlobalRollback(TransactionTestCase):
             set([building_2_creation_event_id, building_2_update_event_id]),
         )
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 2)
         self.assertEqual(results["start_time"], start_time)
@@ -1112,7 +1364,12 @@ class TestGlobalRollback(TransactionTestCase):
             dry_results["events_already_reverted"], [building_2_update_event_id]
         )
 
-        results = rollback(self.user, next_start_time, end_time)
+        results = rollback(
+            author=self.author,
+            user=self.user,
+            start_time=next_start_time,
+            end_time=end_time,
+        )
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 1)
         self.assertEqual(results["start_time"], next_start_time)
@@ -1162,21 +1419,32 @@ class TestGlobalRollback(TransactionTestCase):
             results_dry["events_not_revertable"], [building_2_update_event_id]
         )
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
         self.assertEqual(results["events_not_revertable"], [building_2_update_event_id])
 
         # other_user contributions are rollbacked
-        rollback(self.other_user, start_time, end_time)
+        rollback(
+            author=self.author,
+            user=self.other_user,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
         # building 2 update by user are now rollbackable!
         results_dry = rollback_dry_run(self.user, start_time, end_time)
         self.assertEqual(results_dry["events_revertable"], [building_2_update_event_id])
 
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
         self.assertEqual(results["events_reverted"], [building_2_update_event_id])
 
         # if you rollback again, nothing is impacted
-        results = rollback(self.user, start_time, end_time)
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=end_time
+        )
         self.assertEqual(results["events_reverted"], [])
 
     def test_rollback_raises_for_old_reactivations(self):
@@ -1193,7 +1461,7 @@ class TestGlobalRollback(TransactionTestCase):
             rollback_dry_run(self.user, None, None)
 
         with self.assertRaises(DatabaseInconsistency):
-            rollback(self.user, None, None)
+            rollback(author=self.author, user=self.user, start_time=None, end_time=None)
 
     def test_successive_rollbacks(self):
 
@@ -1209,7 +1477,9 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(dry_results["events_are_revert_n"], 0)
 
         # Rollback
-        results = rollback(self.user, None, None)
+        results = rollback(
+            author=self.author, user=self.user, start_time=None, end_time=None
+        )
 
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 3)
@@ -1240,7 +1510,9 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(dry_results["events_are_revert_n"], 0)
 
         # Rollback
-        results = rollback(self.user, None, None)
+        results = rollback(
+            author=self.author, user=self.user, start_time=None, end_time=None
+        )
 
         self.assertEqual(results["user"], self.user.username)
         self.assertEqual(results["events_found_n"], 3)
@@ -1258,3 +1530,17 @@ class TestGlobalRollback(TransactionTestCase):
                 event_origin={"source": "data_fix", "id": results["data_fix_id"]}
             ).count(),
         )
+
+
+class FormatPeriod(SimpleTestCase):
+    def test_bounds_are_converted_to_utc(self):
+        """
+        Input: start 01/07/2026 12:00 at +02:00, end 02/07/2026 08:30 at -04:00.
+        Expected: "du 01/07/2026 10:00 au 02/07/2026 12:30 (UTC)".
+        """
+        period = _format_period(
+            start_time=datetime.fromisoformat("2026-07-01T12:00:00+02:00"),
+            end_time=datetime.fromisoformat("2026-07-02T08:30:00-04:00"),
+        )
+
+        self.assertEqual(period, "du 01/07/2026 10:00 au 02/07/2026 12:30 (UTC)")
