@@ -56,7 +56,7 @@ PAGINATION_PARAMETERS = [
     {
         "name": "limit",
         "in": "query",
-        "description": "Nombre maximum de bâtiments par page. Une valeur hors de l'intervalle renvoie une erreur 400.",
+        "description": "Nombre maximum de bâtiments par page.",
         "required": False,
         "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
         "example": 50,

@@ -66,7 +66,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Ratio, entre 0 et 1, de la surface du polygone fourni qui est couverte par la géométrie du bâtiment RNB. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio du polygone fourni qui est couvert par la géométrie du bâtiment RNB, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.9,
                                                             },
                                                             "rnb_covered_by_input": {
@@ -74,7 +74,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Ratio, entre 0 et 1, de la surface de la géométrie du bâtiment RNB qui est couverte par le polygone fourni. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio de la géométrie du bâtiment RNB qui est couvert par le polygone fourni, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.88,
                                                             },
                                                         },

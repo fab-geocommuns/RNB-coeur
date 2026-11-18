@@ -3,11 +3,13 @@ Tests checking that the documentation of the search endpoints (closest, address,
 intersect, plot, change_stats) matches what they really do.
 """
 
+from datetime import date
 from unittest.mock import patch
 
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.exceptions import BANAPIDown
-from batid.models import Building, Plot
+from batid.models import KPI, Building, Plot
+from batid.services.kpi import KPI_BUILDING_CHANGES_IMPORT_BDTOPO
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from openapi_schema_validator import OAS31Validator, validate
 from rest_framework.test import APITestCase
@@ -216,11 +218,18 @@ class SearchDocTest(APITestCase):
 
     def test_change_stats_matches_documented_response(self):
         """
-        Input: change_stats with the documented since and until examples.
-        Expected: 200, one entry per day, validating against the documented schema.
+        Input: change_stats with the documented since and until examples (January
+        2024), with 1200 BD Topo changes stored on 2024-01-15.
+        Expected: 200, one entry per day, the 15th counts 1200 BD Topo changes, and
+        the response validates against the documented schema.
         """
         path, operation = self._operation("getBuildingChangeStats")
         params = self._params("getBuildingChangeStats")
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+            value=1200,
+            value_date=date(2024, 1, 15),
+        )
 
         r = self._get(
             path,
@@ -228,6 +237,8 @@ class SearchDocTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.json()), 31)
+        self.assertEqual(r.json()[14]["date"], "2024-01-15")
+        self.assertEqual(r.json()[14]["events_count"]["import_bdtopo"], 1200)
         self._validate(
             r.json(),
             operation["responses"]["200"]["content"]["application/json"]["schema"],
