@@ -703,6 +703,51 @@ class TestGlobalRollback(TransactionTestCase):
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     @mock.patch("batid.services.rollback.notify_tech_or_log")
+    def test_rollback_announces_skipped_events(self, notify_mock):
+        """
+        Input: contributor reverts the creation of building_other_user, then
+        contributor_2 updates building_1; rollback of contributor since the creation
+        of building_1.
+        Expected: the ALERT counts "1 sur 3" (building_2 creation) and explains the
+        two others: "Non annulables" 1 (building_1, edited since by contributor_2)
+        and "Déjà des annulations" 1 (the revert made by contributor).
+        """
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        Event.revert_event(
+            {"source": "contribution"},
+            self.building_other_user.event_id,
+            user_making_revert=self.user,
+        )
+        self.building_1.update(
+            self.other_user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_cle_interop=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        results = rollback(
+            author=self.author, user=self.user, start_time=start_time, end_time=None
+        )
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Rollback des éditions d'un utilisateur",
+            details=[
+                ("Auteur", "admin_rollback"),
+                ("Utilisateur visé", "contributor"),
+                ("Période", f"du {start_time:%d/%m/%Y %H:%M} à maintenant (UTC)"),
+                ("Événements annulés", "1 sur 3"),
+                ("Non annulables", "1"),
+                ("Déjà des annulations", "1"),
+                ("DataFix", str(results["data_fix_id"])),
+            ],
+        )
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    @mock.patch("batid.services.rollback.notify_tech_or_log")
     def test_stopped_rollback_announces_already_reverted_events(self, notify_mock):
         """
         Input: a first rollback of contributor since the creation of building_2,

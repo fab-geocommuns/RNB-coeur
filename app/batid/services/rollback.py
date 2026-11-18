@@ -78,9 +78,9 @@ def rollback(
     one_building_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
 
     events_reverted: list[uuid.UUID | None] = []
-    events_not_revertable = []
+    events_not_revertable: list[uuid.UUID | None] = []
     events_already_reverted: list[uuid.UUID | None] = []
-    events_are_revert = []
+    events_are_revert: list[uuid.UUID | None] = []
 
     def details() -> list[tuple[str, str]]:
         return _rollback_details(
@@ -90,6 +90,8 @@ def rollback(
             end_time=end_time,
             progress=f"{len(events_reverted)} sur {len(event_ids)}",
             already_reverted_n=len(events_already_reverted),
+            not_revertable_n=len(events_not_revertable),
+            are_revert_n=len(events_are_revert),
             data_fix_id=data_fix.id,  # type: ignore[attr-defined]
         )
 
@@ -156,6 +158,8 @@ def _rollback_details(
     end_time: datetime | None,
     progress: str,
     already_reverted_n: int,
+    not_revertable_n: int,
+    are_revert_n: int,
     data_fix_id: int,
 ) -> list[tuple[str, str]]:
     details = [
@@ -164,9 +168,13 @@ def _rollback_details(
         ("Période", _format_period(start_time=start_time, end_time=end_time)),
         ("Événements annulés", progress),
     ]
-    # The total counts the events reverted by an earlier rollback
-    if already_reverted_n > 0:
-        details.append(("Déjà annulés", str(already_reverted_n)))
+    # The total also counts the events skipped by the rollback: say why
+    skipped = [
+        ("Déjà annulés", already_reverted_n),
+        ("Non annulables", not_revertable_n),
+        ("Déjà des annulations", are_revert_n),
+    ]
+    details += [(label, str(n)) for label, n in skipped if n > 0]
     details.append(("DataFix", Code(str(data_fix_id))))
     return details
 
