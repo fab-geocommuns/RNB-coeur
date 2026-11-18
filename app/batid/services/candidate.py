@@ -8,7 +8,7 @@ from batid.models import Address, Building, BuildingWithHistory, Candidate
 from batid.services.bdg_diff import building_identicals
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.RNB_team_user import get_RNB_team_user
-from batid.utils.geo import assert_shape_is_valid
+from batid.utils.geo import assert_shape_is_valid, radius_in_degrees
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, transaction
@@ -62,10 +62,20 @@ class Inspector:
 
     def get_matching_bdgs(self):
 
+        # The bbox radius cannot be computed for a missing or empty shape. Such a
+        # candidate is refused (or fails) in inspect_candidate before its matching
+        # buildings are ever read, so it has none.
+        if self.candidate.shape is None or self.candidate.shape.empty:
+            self.matching_bdgs = []
+            return
+
+        # The bbox pre-filter lets the planner use the geometry index.
+        # The 3 of ST_DWithin is the radius_m of radius_deg.
         q = sql.SQL(
             "SELECT id, shape "
             "FROM {building} "
-            "WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(c_shape)s)::geography, 3) "
+            "WHERE shape && ST_Expand(ST_GeomFromText(%(c_shape)s), %(radius_deg)s) "
+            "AND ST_DWithin(shape::geography, ST_GeomFromText(%(c_shape)s)::geography, 3) "
             "AND status = ANY(%(status)s) "
             "AND is_active = true"
         ).format(
@@ -73,6 +83,7 @@ class Inspector:
         )
         params = {
             "c_shape": f"{self.candidate.shape}",
+            "radius_deg": radius_in_degrees(radius_m=3, geom=self.candidate.shape),
             "status": list(BuildingStatusService.REAL_BUILDINGS_STATUS),
         }
         self.matching_bdgs = Building.objects.raw(q, params)

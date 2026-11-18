@@ -106,6 +106,14 @@ Garder `rnb_pg16.dump` jusqu'à ce que tout fonctionne en 17 : c'est le seul ret
 docker exec -it web python manage.py createsuperuser
 ```
 
+L'admin (`/admin/`) demande un code de double authentification, quel que soit `MFA_ENFORCEMENT`. Pour une première connexion, générer un code à usage unique :
+
+```
+docker exec -it web python manage.py addstatictoken <username>
+```
+
+Sur la page de connexion de l'admin, saisir l'identifiant et le mot de passe puis valider : la page revient avec « Veuillez saisir votre jeton OTP. » et un champ « Appareil OTP ». Y choisir « Backup Code », saisir le code affiché dans « Jeton OTP » (identifiant et mot de passe à nouveau), puis valider. Pour un accès durable, configurer une application d'authentification depuis la page de connexion de RNB-site.
+
 ### 6. Importer des données de travail
 
 La commande `seed_local_db` remplit la base locale avec les bâtiments situés autour d'un ou plusieurs points GPS, extraits d'une base existante (typiquement la sandbox, copie de la prod). Elle importe aussi les adresses liées à ces bâtiments ainsi que les communes et départements concernés. Aucun utilisateur n'est copié.
@@ -123,6 +131,25 @@ docker exec -it web python manage.py seed_local_db --point 48.8584,2.2945 --poin
 ```
 
 Avant l'import, la commande vérifie que les points sont en France, affiche le volume à importer et demande confirmation. `--truncate` vide d'abord les tables locales concernées, pour repartir de zéro.
+
+## Double authentification (2FA)
+
+La connexion par mot de passe (`POST /api/alpha/login/`) et l'admin acceptent un code d'application d'authentification (TOTP) ou un code de secours. Les clés API (`Authorization: Token`) et ProConnect ne sont pas concernés.
+
+`MFA_ENFORCEMENT`, dans `.env.app.<env>`, règle `/login/` :
+
+| Valeur | Effet |
+|---|---|
+| `OFF` | aucun code demandé, même aux comptes qui ont une application |
+| `OPTIONAL` | code demandé aux comptes qui ont une application ; les autres doivent en configurer une s'ils sont staff ou superuser, sinon elle leur est proposée (`mfa_setup_suggested: true`) |
+| `REQUIRED` | tout compte doit avoir une application ; valeur appliquée si la variable est absente |
+
+Une autre valeur fait échouer le démarrage. Dans le vault Ansible de RNB-infra, la mettre entre guillemets (`"OFF"`) : sans guillemets, YAML la lit comme un booléen. La règle est dans `login_mfa_outcome` (`app/batid/services/mfa.py`). L'admin exige le code quel que soit le mode.
+
+Depuis l'admin :
+
+* téléphone perdu : action « Réinitialiser la double authentification » sur l'utilisateur, qui reconfigure son application à la connexion suivante. Un utilisateur ne peut pas remplacer lui-même une application déjà confirmée ;
+* premier accès à l'admin : `addstatictoken`, voir « Créer un super utilisateur ».
 
 ## Lancer les tests
 ```
@@ -179,6 +206,14 @@ Il est possible d'[installer](https://pre-commit.com/#install) pre-commit en loc
 ## Effectuer des rapprochements
 
 Retrouvez les étapes pour effectuer des rapprochements à partir d'un accès à une base du RNB dans la section [`Rapprochements`](app/notebooks/rapprochements/README.md)
+
+## Durée de conservation du journal des appels à l'API
+
+Les appels à l'API sont enregistrés dans la table `rest_framework_tracking_apirequestlog`, avec notamment l'adresse IP, l'utilisateur, le chemin et les paramètres d'URL (jetons masqués), le corps de la requête, et en cas d'erreur la trace de l'exception (colonne `errors`), qui peut reprendre une valeur refusée.
+
+1. En base : 1 an. La tâche `purge_old_api_request_logs` supprime chaque nuit à 04:30 UTC, par lots, les lignes de plus d'un an, sans lancer de nouveau lot passé 1 h : un retard se résorbe les nuits suivantes.
+2. Sauvegardes : jusqu'à 35 jours (copie OVH hebdomadaire supprimée au passage qui suit ses 30 jours, sauvegardes automatiques Scaleway 20 jours, export Scaleway 7 jours), hors envois OVH inachevés, jamais supprimés pour l'instant.
+3. Journaux des conteneurs : effacés à chaque recréation du conteneur, sans limite de volume pour l'instant.
 
 ## A propos du RNB
 
