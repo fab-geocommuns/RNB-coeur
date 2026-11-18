@@ -10,16 +10,11 @@ for an hour.
 
 import logging
 import time
-from datetime import date, datetime, timedelta
-from datetime import timezone as dt_timezone
+from datetime import datetime, timedelta
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
-from batid.models import KPI, City, Department, SummerChallenge
-from batid.services.kpi import (
-    KPI_BUILDING_CHANGES_IMPORT_BAL,
-    KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-)
+from batid.models import City, Department, SummerChallenge
 from batid.services.RNB_team_user import RNB_TEAM_USERNAME
 from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
@@ -33,7 +28,6 @@ from django.db.models import (
     Q,
     QuerySet,
     Subquery,
-    Sum,
     When,
 )
 from django.db.models.functions import Left
@@ -56,6 +50,9 @@ TOP_LIMIT = 5
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
+# version of the response format, in the cache key: an entry cached by the
+# previous code (without the contributions field) is never read
+CACHE_FORMAT_VERSION = "v2"
 # days parameter of every period, all cached in a single entry
 PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
 # An entry is recomputed after an hour, but kept a day: while one request
@@ -77,9 +74,8 @@ EMPTY_CACHE_POLL_SECONDS = 0.5
 # event_id: a single update (eg. shape + address) writes several rows sharing
 # the same event_id.
 #
-# The whole computation, for every period, takes 4 queries: one pass over the
-# contributions, one over the cities, the ranked cities and the daily import
-# KPIs. The passes group the rows first and only then look up the names, for
+# The whole computation, for every period, takes 3 queries: one pass over the
+# contributions, one over the cities, and the ranked cities. The passes group the rows first and only then look up the names, for
 # each group: joining the names before grouping is several times slower.
 
 
@@ -132,7 +128,7 @@ def _period_counts_annotations(
 
 def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
     """
-    Query 1/4, one pass over the Contribution rows for every period at once.
+    Query 1/3, one pass over the Contribution rows for every period at once.
     Per contributor (user_id None for a contribution without user): the date
     of their very first contribution ("first_at"), their number of
     contributions since each start ("n_<period key>"), their username and
@@ -178,7 +174,7 @@ def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
 
 def _city_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
     """
-    Query 2/4, one pass over the SummerChallenge rows for every period at
+    Query 2/3, one pass over the SummerChallenge rows for every period at
     once. Per city: the date of its very first contribution ("first_at") and
     its number of contributions since each start ("n_<period key>"), the
     distinct events counted from the covering index sc_city_event_idx alone
@@ -199,7 +195,7 @@ def _city_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
 
 def _city_details(ids: set[int]) -> dict[int, dict]:
     """
-    Query 3/4: INSEE code, name and department of cities, by id. Cities have
+    Query 3/3: INSEE code, name and department of cities, by id. Cities have
     no department of their own: its code is the start of the INSEE code (3
     characters overseas, as 977 Saint-Barthélemy, 2 elsewhere, as 2A Corse-du-
     Sud). It matches the department of every contributed city.
@@ -229,57 +225,6 @@ def _department(city: dict) -> Optional[dict]:
     if city["department_name"] is None:
         return None
     return {"code": city["department_code"], "name": city["department_name"]}
-
-
-def _daily_imports(now: datetime) -> dict[date, float]:
-    """
-    Query 4/4: buildings changed by the imports (BD TOPO and BAL), per day
-    since the opening of the edition, from the daily KPIs. A KPI covers a UTC
-    day and is computed at 3 am UTC for the day before: today is left out.
-    """
-    return {
-        row["value_date"]: row["value"]
-        for row in KPI.objects.filter(
-            name__in=[
-                KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-                KPI_BUILDING_CHANGES_IMPORT_BAL,
-            ],
-            value_date__gte=EDITION_OPENING.date(),
-            value_date__lt=now.astimezone(dt_timezone.utc).date(),
-        )
-        .values("value_date")
-        .annotate(value=Sum("value"))
-        .order_by()
-    }
-
-
-def _building_changes(
-    daily_imports: dict[date, float], days: Optional[int], contributions: int
-) -> dict:
-    """
-    Building changes of the period: the imports of the last `days` complete
-    days (since the opening of the collaborative edition if None), from the
-    daily KPIs (a building changed twice counts twice), plus the
-    `contributions` of the period. The imports end on the latest computed day:
-    a day not computed yet would otherwise be missing from the sum.
-    The contributions are counted as the internal dashboard does, one per
-    edition request, and not from the daily KPI of contribution changes: it
-    counts a merge or a split of N buildings N + 1 times, and misses the days
-    its computation failed.
-    """
-    imports = 0.0
-    if daily_imports:
-        last_day = max(daily_imports)
-        first_day = (
-            EDITION_OPENING.date()
-            if days is None
-            else last_day - timedelta(days=days - 1)
-        )
-        imports = sum(v for d, v in daily_imports.items() if d >= first_day)
-    return {
-        "total": int(imports) + contributions,
-        "contributions": contributions,
-    }
 
 
 def _organization_stats(users: list[dict], keys: list[str]) -> list[dict]:
@@ -348,14 +293,13 @@ def _newcomers(users: list[dict], key: str, since: datetime) -> list[dict]:
 def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, dict]:
     """
     Summary of each period ({key: days}, days None for the whole period), in
-    4 queries for all of them, all at the same instant: a shorter period is
+    3 queries for all of them, all at the same instant: a shorter period is
     always included in a longer one
     """
     now = now.astimezone(PARIS_TZ)
     starts = {key: _period_start(now, days) for key, days in periods.items()}
     users = _user_stats(now, starts)
     cities = _city_stats(now, starts)
-    daily_imports = _daily_imports(now)
     organizations = _organization_stats(users, list(periods))
     top_cities = {key: _ranked(cities, key, "city_id") for key in periods}
     city_details = _city_details(
@@ -372,9 +316,9 @@ def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, di
             # whose very first contribution is in it
             "cities": _period_counts(cities, key, starts[key]),
             "organizations": _period_counts(organizations, key, starts[key]),
-            "building_changes": _building_changes(
-                daily_imports, days, sum(u[f"n_{key}"] for u in users)
-            ),
+            # edition requests of the period, one per request: the imports
+            # (BD TOPO, BAL) write no Contribution row and are left out
+            "contributions": {"total": sum(u[f"n_{key}"] for u in users)},
             "top": {
                 "users": [
                     {
@@ -487,8 +431,7 @@ def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
     Summaries of every period, keyed by their days parameter ("7", "30",
     "all"), all computed from the same pass over the contributions: a shorter
     period never counts more cities or organizations than a longer one. Still
-    not covered: a daily KPI written meanwhile (building_changes) or a row
-    updated meanwhile (a user changing organization), until the next refresh.
+    not covered: a row updated meanwhile (a user changing organization), until the next refresh.
     """
     return _summaries(
         now or timezone.now(),
@@ -502,7 +445,7 @@ def summaries_cache_key() -> str:
     entry cached before a period was added (by the previous code during a
     deploy, or until it expires) is never read.
     """
-    return f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+    return f"{CACHE_KEY}:{CACHE_FORMAT_VERSION}:{','.join(PERIOD_KEYS)}"
 
 
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:

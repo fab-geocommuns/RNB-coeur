@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     atomic = False
     dependencies = [
-        ("batid", "0162_drop_shape_geography_indexes"),
+        ("batid", "0163_drop_unused_apirequestlog_indexes"),
     ]
 
     operations = [

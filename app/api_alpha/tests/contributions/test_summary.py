@@ -135,7 +135,7 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["cities"], {"total": 0, "new": 0})
         self.assertEqual(data["organizations"], {"total": 0, "new": 0})
-        self.assertEqual(data["building_changes"], {"total": 0, "contributions": 0})
+        self.assertEqual(data["contributions"], {"total": 0})
         self.assertEqual(data["top"], {"users": [], "organizations": [], "cities": []})
         self.assertEqual(data["newcomers"], {"users": []})
         self.assertEqual(data["window_days"], 30)
@@ -363,7 +363,7 @@ class ContributionSummaryTest(TestCase):
             [("alice", 1), ("bob", 1)],
         )
         self.assertIn({"username": "alice"}, data["newcomers"]["users"])
-        self.assertEqual(data["building_changes"]["contributions"], 2)
+        self.assertEqual(data["contributions"]["total"], 2)
 
     def test_a_merge_counts_once(self):
         """
@@ -401,7 +401,7 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(data["top"]["users"][0]["count"], 3)
-        self.assertEqual(data["building_changes"]["contributions"], 3)
+        self.assertEqual(data["contributions"]["total"], 3)
 
     def test_organizations_have_no_department(self):
         """
@@ -480,77 +480,61 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["top"]["users"][0]["username"], "l.martin")
 
-    def test_building_changes_sum_the_last_30_complete_days(self):
+    def test_contributions_are_not_read_from_the_kpis(self):
         """
-        Input: import KPIs on 14 October (yesterday), 15 September (30 days
-        ago), 14 September (31 days ago) and today, a daily KPI of contribution
-        changes, and 2 contributions in the window.
-        Expected: the imports of yesterday and of 30 days ago, plus the 2
-        contributions; the KPI of contribution changes is not read.
+        Input: a daily KPI of contribution changes on 14 October (yesterday),
+        and 2 contributions in the window.
+        Expected: contributions.total is 2: the Contribution rows are counted,
+        the KPI is not read.
         """
-        for day, bdtopo, bal, contributions in [
-            (date(2026, 10, 14), 100, 10, 5),
-            (date(2026, 9, 15), 50, 0, 2),
-            (date(2026, 9, 14), 999, 999, 999),
-            (date(2026, 10, 15), 999, 999, 999),
-        ]:
-            for name, value in [
-                (KPI_BUILDING_CHANGES_IMPORT_BDTOPO, bdtopo),
-                (KPI_BUILDING_CHANGES_IMPORT_BAL, bal),
-                (KPI_BUILDING_CHANGES_CONTRIBUTIONS, contributions),
-            ]:
-                KPI.objects.create(name=name, value_date=day, value=value)
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+            value_date=date(2026, 10, 14),
+            value=999,
+        )
         contribution(self.alice, IN_WINDOW)
         contribution(self.bob, IN_WINDOW)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["building_changes"], {"total": 162, "contributions": 2})
+        self.assertEqual(data["contributions"], {"total": 2})
 
-    def test_building_changes_end_on_the_latest_computed_day(self):
+    def test_contributions_of_the_whole_period(self):
         """
-        Input: at 2 am in Paris on 15 October, the KPIs of 14 October are not
-        computed yet (the cron runs at 3 am UTC); import KPIs on 13 October and
-        on 14 and 13 September.
-        Expected: the 30 days of imports end on 13 October: 13 October and
-        14 September are summed, 13 September is not.
+        Input: contributions on 31 March 2025 and 1 April 2025.
+        Expected: with days=None, only the one from 1 April 2025 (opening of
+        the edition) is counted.
         """
-        for day, value in [
-            (date(2026, 10, 13), 10),
-            (date(2026, 9, 14), 5),
-            (date(2026, 9, 13), 999),
-        ]:
-            KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value_date=day, value=value
-            )
-
-        data = compute_contribution_summary(
-            now=datetime(2026, 10, 15, 2, 0, tzinfo=PARIS)
-        )
-
-        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 0})
-
-    def test_building_changes_of_the_whole_period(self):
-        """
-        Input: import KPIs on 31 March 2025, 1 April 2025 and 14 October 2026
-        (yesterday); contributions on 31 March 2025 and 1 April 2025.
-        Expected: with days=None, the imports and contributions from 1 April
-        2025 are summed.
-        """
-        for day, value in [
-            (date(2025, 3, 31), 999),
-            (date(2025, 4, 1), 10),
-            (date(2026, 10, 14), 5),
-        ]:
-            KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_IMPORT_BAL, value_date=day, value=value
-            )
         contribution(self.alice, datetime(2025, 3, 31, 12, tzinfo=PARIS))
         contribution(self.alice, datetime(2025, 4, 1, 12, tzinfo=PARIS))
 
         data = compute_contribution_summary(now=NOW, days=None)
 
-        self.assertEqual(data["building_changes"], {"total": 16, "contributions": 1})
+        self.assertEqual(data["contributions"], {"total": 1})
+
+    def test_contributions_leave_the_imports_out(self):
+        """
+        Input: import KPIs (BD TOPO and BAL) on 14 October, a building created
+        by an import in the window, and 2 contributions in the window.
+        Expected: contributions.total is 2, whatever the imports.
+        """
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+            value_date=date(2026, 10, 14),
+            value=100,
+        )
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_IMPORT_BAL,
+            value_date=date(2026, 10, 14),
+            value=10,
+        )
+        edition(self.alice, IN_WINDOW, origin=IMPORT)
+        edition(self.alice, IN_WINDOW)
+        edition(self.bob, IN_WINDOW)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["contributions"], {"total": 2})
 
 
 # a cache of its own, so that the tests never touch the Redis one
@@ -851,6 +835,25 @@ class ContributionSummaryApiTest(APITestCase):
 
         self.assertEqual(response.json()["window_days"], 30)
         self.assertEqual(cache.get_many(list(old_entries)), old_entries)
+
+    def test_entry_of_the_previous_format_is_not_read(self):
+        """
+        Input: a fresh entry under the key of the previous response format
+        (no contributions field), as right after the deploy.
+        Expected: the summary is computed and has its contributions field; the
+        previous entry is left to the previous code.
+        """
+        old_key = f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+        old = {
+            "data": {key: {"from_previous_code": True} for key in PERIOD_KEYS},
+            "fresh_until": time.time() + 600,
+        }
+        cache.set(old_key, old, 600)
+
+        response = self.client.get(f"{self.URL}?days=30")
+
+        self.assertEqual(response.json()["contributions"], {"total": 0})
+        self.assertEqual(cache.get(old_key), old)
 
     def test_entry_without_a_new_period_is_not_read(self):
         """
