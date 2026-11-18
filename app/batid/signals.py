@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-# ponytail: QuerySet.update(is_superuser=True) and raw SQL bypass these signals and are
+# QuerySet.update() and raw SQL bypass these signals: a superuser granted that way is
 # not announced.
 
 
@@ -26,7 +26,7 @@ def announce_new_superuser(*, sender, instance, **kwargs) -> None:
         return
     instance._became_superuser = False
     username = instance.username
-    # Sent once the row is committed: an admin save runs in a transaction
+    # Sent once the row is committed: a Django Admin save runs in a transaction
     transaction.on_commit(
         lambda: notify_tech_or_log(
             level=TchapLevel.ALERT,

@@ -9,7 +9,7 @@ import requests
 from batid.services.tchap import Code, TchapLevel, notify_tech
 from botocore.config import Config  # type: ignore[import-untyped]
 
-# ponytail: fixed floor, prod backups are 71-72 GB; lower it if the database shrinks
+# Prod backups are about 72 GB: one under this floor is a failed backup
 BACKUP_MIN_SIZE_BYTES = 50 * 10**9
 
 

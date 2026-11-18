@@ -32,9 +32,6 @@ def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> chord:
         dpt_chain = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
         chains.append(dpt_chain)
 
-    # ponytail: the chord state in Redis expires result_expires (1 day) after the
-    # launch or the last finished department; a day without any department end loses
-    # the summary. Raise CELERY_RESULT_EXPIRES if that happens.
     return chord(
         chains,
         Signature(
