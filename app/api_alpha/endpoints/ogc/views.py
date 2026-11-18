@@ -266,7 +266,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "bbox",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box. Quatre nombres séparés par des virgules, dans l'ordre `min_lon,min_lat,max_lon,max_lat` (WGS84). La taille est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4, soit environ deux départements français.",
+                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box. Quatre nombres séparés par des virgules, dans l'ordre `min_lon,min_lat,max_lon,max_lat` (WGS84). La taille est limitée : (max_lon - min_lon) * (max_lat - min_lat) ne doit pas dépasser 4, soit environ 34 000 km² en France métropolitaine.",
                         "required": False,
                         "schema": {
                             "type": "array",
@@ -349,7 +349,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                         },
                     },
                     "404": {
-                        "description": "Le code INSEE ne correspond à aucune commune."
+                        "description": "Le code INSEE ne correspond à aucune commune, ou le curseur de pagination (`cursor`) n'est pas valide. Dans ce dernier cas, repartir de la première page ou d'un lien `next`/`prev` renvoyé par l'API."
                     },
                 },
             }

@@ -78,13 +78,15 @@ class OGCDocTest(APITestCase):
     def test_ogc_bbox_is_serialized_as_one_value(self):
         """
         Input: a building at the center of the documented OGC bbox example, then the
-        example serialized the way its style says (explode false: one
-        comma-separated value), then exploded.
+        example serialized the way its style says (style form, explode false: one
+        comma-separated value), then exploded; then bboxes of area 4 and just above.
         Expected: the documented serialization returns only that building, the
-        exploded one is refused.
+        exploded one is refused; an area of 4 is accepted, as documented, a larger
+        one is refused.
         """
         path, _ = self._operation("ogcBuildingItems")
         bbox = self._params("ogcBuildingItems")["bbox"]
+        self.assertEqual(bbox["style"], "form")
         self.assertFalse(bbox["explode"])
 
         values = bbox["example"]
@@ -106,6 +108,11 @@ class OGCDocTest(APITestCase):
         self.assertEqual([f["id"] for f in r.json()["features"]], ["INEXAMPLEBOX"])
 
         r = self.client.get(path + "?" + "&".join(f"bbox={v}" for v in values))
+        self.assertEqual(r.status_code, 400)
+
+        r = self._get(path, {"bbox": "0,40,2,42"})
+        self.assertEqual(r.status_code, 200)
+        r = self._get(path, {"bbox": "0,40,2,42.01"})
         self.assertEqual(r.status_code, 400)
 
     def test_ogc_items_return_real_buildings_by_default(self):
@@ -140,32 +147,60 @@ class OGCDocTest(APITestCase):
 
     def test_ogc_with_plots_and_insee_code(self):
         """
-        Input: OGC items and OGC item with withPlots=1, then OGC items on the test
-        city INSEE code, on an unknown one and on codes of 4 and 6 characters.
-        Expected: withPlots is documented on both operations and adds the plots to
-        the properties; the city filter returns its buildings, an unknown INSEE code
-        gives the documented 404, a code without 5 characters the documented 400.
+        Input: a building whose footprint crosses the test city limit while its point
+        is outside; OGC items and OGC item with withPlots=1, then OGC items on the
+        test city INSEE code, on an unknown one, on codes of 4 and 6 characters, and
+        with an invalid cursor.
+        Expected: withPlots is documented on both operations and adds the plot
+        covering the building, with its cover ratio; the city filter returns only
+        the buildings whose point is in the city; an unknown INSEE code and an
+        invalid cursor give the documented 404, a code without 5 characters the
+        documented 400.
         """
         items_path, items_doc = self._operation("ogcBuildingItems")
         item_path, _ = self._operation("ogcBuildingItem")
         for operation_id in ("ogcBuildingItems", "ogcBuildingItem"):
             self.assertIn("withPlots", self._params(operation_id))
 
+        # The city is a 0.01° buffer around POLYGONS[0]: this footprint starts inside
+        # it, its point is outside
+        lng, lat = CLOSEST_POINT[1], CLOSEST_POINT[0]
+        crossing = GEOSGeometry(
+            f"POLYGON(({lng + 0.0095} {lat}, {lng + 0.0115} {lat}, "
+            f"{lng + 0.0115} {lat + 0.0001}, {lng + 0.0095} {lat + 0.0001}, "
+            f"{lng + 0.0095} {lat}))",
+            srid=4326,
+        )
+        Building.objects.create(
+            rnb_id="CROSSESLIMIT",
+            shape=crossing,
+            point=GEOSGeometry(f"POINT({lng + 0.0112} {lat + 0.00005})", srid=4326),
+            status="constructed",
+            ext_ids=[],
+        )
+
         r = self._get(items_path, {"insee_code": "33063", "withPlots": "1"})
         self.assertEqual(r.status_code, 200)
-        features = r.json()["features"]
-        self.assertEqual(len(features), len(POLYGONS))
-        self.assertIn("plots", features[0]["properties"])
+        features = {f["id"]: f for f in r.json()["features"]}
+        self.assertEqual(sorted(features), ["CLOSEST00000", "CLOSEST00001"])
+        plots = features["CLOSEST00000"]["properties"]["plots"]
+        self.assertEqual([p["id"] for p in plots], ["PLOTWITHBDGS"])
+        self.assertAlmostEqual(plots[0]["bdg_cover_ratio"], 1.0, places=3)
 
         r = self._get(
             item_path.replace("{featureId}", "CLOSEST00000"), {"withPlots": "1"}
         )
         self.assertEqual(r.status_code, 200)
-        self.assertIn("plots", r.json()["properties"])
+        plots = r.json()["properties"]["plots"]
+        self.assertEqual([p["id"] for p in plots], ["PLOTWITHBDGS"])
+        self.assertAlmostEqual(plots[0]["bdg_cover_ratio"], 1.0, places=3)
 
         r = self._get(items_path, {"insee_code": "99999"})
         self.assertEqual(r.status_code, 404)
         self.assertIn("404", items_doc["responses"])
+
+        r = self._get(items_path, {"cursor": "a"})
+        self.assertEqual(r.status_code, 404)
 
         insee_schema = self._params("ogcBuildingItems")["insee_code"]["schema"]
         self.assertEqual((insee_schema["minLength"], insee_schema["maxLength"]), (5, 5))
