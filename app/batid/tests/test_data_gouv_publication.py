@@ -1231,7 +1231,7 @@ class TestDataGouvPublishTasks(TestCase):
         CACHES={
             "default": {
                 "BACKEND": "django.core.cache.backends.redis.RedisCache",
-                "LOCATION": "redis://127.0.0.1:1/0",
+                "LOCATION": "unix:///nonexistent/redis.sock",
             }
         }
     )
@@ -1242,7 +1242,7 @@ class TestDataGouvPublishTasks(TestCase):
     ):
         """
         Input: the national file published under a run id, the cache pointing to a
-        Redis that refuses connections (count and read both fail).
+        Redis socket that cannot exist (count and read both fail).
         Expected: the task ends with "done" instead of failing after the
         publication, and the summary alerts with an unknown count.
         """
