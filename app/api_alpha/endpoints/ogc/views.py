@@ -7,7 +7,7 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints, rnb_doc
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.services.rnb_id import clean_rnb_id
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -367,13 +367,14 @@ class OGCBuildingItemsView(OGCAPIBaseView):
 
         with_plots_param = request.query_params.get("withPlots", None)
         with_plots = True if with_plots_param == "1" else False
-        query_params["with_plots"] = with_plots
 
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
 
         paginator = OGCApiPagination()
         paginated_buildings = paginator.paginate_queryset(buildings, request)
+        if with_plots:
+            attach_plots(paginated_buildings)
         serializer = BuildingGeoJSONSerializer(
             paginated_buildings, with_plots=with_plots, many=True
         )
@@ -434,10 +435,12 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
         with_plots = with_plots_param == "1"
 
         qs = list_bdgs(
-            {"user": request.user, "status": "all", "with_plots": with_plots},
+            {"user": request.user, "status": "all"},
             only_active=False,
         )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(featureId))
+        if with_plots:
+            attach_plots([building])
 
         serializer = BuildingGeoJSONSerializer(building, with_plots=with_plots)
 

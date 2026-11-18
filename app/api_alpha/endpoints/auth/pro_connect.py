@@ -10,6 +10,7 @@ from batid.models import ProConnectIdentity, UserProfile
 from batid.services.organization import link_user_to_organization
 from batid.services.sandbox import mirror_user_to_sandbox
 from batid.services.url import add_params_to_url
+from batid.services.user import login_response_body
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import signing
@@ -209,10 +210,10 @@ LOGIN_STATE_MAX_AGE_SECONDS = 3600
 ACR_NOT_SATISFIED_DESCRIPTION = "requested ACRs could not be satisfied"
 
 
-def issue_login_code(user: User) -> str:
+def issue_login_code(user: User, *, ttl_seconds: int = LOGIN_CODE_TTL_SECONDS) -> str:
     """Store a short-lived one-time code mapped to the user id and return it."""
     code = secrets.token_urlsafe(32)
-    cache.set(LOGIN_CODE_CACHE_PREFIX + code, user.pk, timeout=LOGIN_CODE_TTL_SECONDS)
+    cache.set(LOGIN_CODE_CACHE_PREFIX + code, user.pk, timeout=ttl_seconds)
     return code
 
 
@@ -489,15 +490,7 @@ class ExchangeView(APIView):
                 {"error": "invalid_code"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        token, _ = Token.objects.get_or_create(user=user)
-        return Response(
-            {
-                "id": user.id,
-                "token": token.key,
-                "username": user.username,
-                "groups": [group.name for group in user.groups.all()],
-            }
-        )
+        return Response(login_response_body(user))
 
 
 class LogoutView(APIView):

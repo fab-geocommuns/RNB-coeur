@@ -10,13 +10,14 @@ Personal data is not copied: no user is imported, and the building columns
 referencing users (event_user_id, validated_by) are emptied.
 """
 
-import math
 import re
 import tempfile
 from dataclasses import dataclass
 
 from batid.utils.db import DISABLE_BUILDING_VERSIONING_SETTING, copy_from_file
+from batid.utils.geo import radius_in_degrees
 from django.conf import settings
+from django.contrib.gis.geos import Point
 from django.db import connection, transaction
 from psycopg import sql
 
@@ -36,9 +37,6 @@ FRANCE_BBOXES = [
 # The seed only writes into a database running next to the app, in development
 LOCAL_DB_HOSTS = {"db", "localhost", "127.0.0.1"}
 
-# Metres in one degree of latitude (and of longitude at the equator)
-METERS_PER_DEGREE = 111_320
-
 
 class SeedConfigError(Exception):
     pass
@@ -52,11 +50,8 @@ class Zone:
 
     @property
     def radius_deg(self) -> float:
-        # Upper bound of the radius in degrees, used to hit the geometry
-        # spatial indexes before the exact (geography) distance check.
-        # A degree of longitude shrinks with the latitude, hence the cosine.
-        return (
-            self.radius_m / (METERS_PER_DEGREE * math.cos(math.radians(self.lat))) * 1.1
+        return radius_in_degrees(
+            radius_m=self.radius_m, geom=Point(self.lon, self.lat, srid=4326)
         )
 
 

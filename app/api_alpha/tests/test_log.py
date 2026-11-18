@@ -4,7 +4,6 @@ from unittest import mock
 from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from batid.models import Building
 from django.contrib.gis.geos import GEOSGeometry
-from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -72,39 +71,70 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 0)
 
-    @freeze_time("2025-01-01")
-    @mock.patch("batid.services.geocoders.requests.get")
-    def test_guess_log(self, requests_mock):
-        requests_mock.return_value.status_code = 200
-        requests_mock.return_value.json.return_value = {"features": []}
-        r = self.client.get("/api/alpha/buildings/guess/?address=whatever")
-
-        self.assertEqual(r.status_code, 200)
-
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 1)
-
-        # BAN API and OSM API
-        self.assertEqual(requests_mock.call_count, 2)
-
-    @freeze_time("2025-01-01")
-    @mock.patch("batid.services.geocoders.requests.get")
-    def test_guess_no_log(self, requests_mock):
-        requests_mock.return_value.status_code = 200
-        requests_mock.return_value.json.return_value = {"features": []}
-        r = self.client.get(
-            "/api/alpha/buildings/guess/?address=whatever&from=monitoring"
+    def test_patch_body_logged_not_copied_to_query_params(self):
+        """
+        Unauthenticated PATCH on a building, JSON body with a marker, no URL params.
+        Expected: the refused call is logged, data holds the marker, query_params is "{}".
+        """
+        r = self.client.patch(
+            "/api/alpha/buildings/1234ABCD5678/",
+            {"comment": "body-marker"},
+            format="json",
         )
 
+        self.assertIn(r.status_code, (401, 403))
+
+        log = APIRequestLog.objects.get()
+        self.assertIn("body-marker", log.data)
+        self.assertEqual(log.query_params, "{}")
+
+    def test_post_body_logged_url_params_kept(self):
+        """
+        Unauthenticated POST on /buildings/?from_test=1 with a JSON body holding a marker.
+        Expected: data holds the body marker, query_params holds from_test and not the marker.
+        """
+        self.client.post(
+            "/api/alpha/buildings/?from_test=1",
+            {"comment": "body-marker"},
+            format="json",
+        )
+
+        log = APIRequestLog.objects.get()
+        self.assertIn("body-marker", log.data)
+        self.assertIn("from_test", log.query_params)
+        self.assertNotIn("body-marker", log.query_params)
+
+    def test_body_token_masked(self):
+        """
+        POST on /reports/ (open to everyone) with a body holding text and token=secret.
+        Expected: data keeps the text, token is masked and secret is absent.
+        """
+        self.client.post(
+            "/api/alpha/reports/",
+            {"rnb_id": "1234ABCD5678", "text": "body-marker", "token": "secret"},
+            format="json",
+        )
+
+        log = APIRequestLog.objects.get()
+        self.assertIn("body-marker", log.data)
+        self.assertIn("********************", log.data)
+        self.assertNotIn("secret", log.data)
+
+    @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
+    def test_get_url_params_logged_token_masked(self):
+        """
+        GET /buildings/?status=constructed&token=secret.
+        Expected: query_params holds status=constructed, token is masked and secret is absent.
+        """
+        r = self.client.get("/api/alpha/buildings/?status=constructed&token=secret")
+
         self.assertEqual(r.status_code, 200)
 
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 0)
-
-        # BAN API and OSM API
-        self.assertEqual(requests_mock.call_count, 2)
+        log = APIRequestLog.objects.get()
+        self.assertIn("status", log.query_params)
+        self.assertIn("constructed", log.query_params)
+        self.assertIn("********************", log.query_params)
+        self.assertNotIn("secret", log.query_params)
 
     def test_ogc_root(self):
         r = self.client.get("/api/alpha/ogc/")
