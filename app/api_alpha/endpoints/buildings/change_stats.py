@@ -48,7 +48,7 @@ class BuildingChangeStatsView(RNBLoggingMixin, APIView):
                 ],
                 "responses": {
                     "200": {
-                        "description": "Une entrée par jour entre since et until inclus, y compris les jours sans modification.",
+                        "description": "Une entrée par jour entre since et until inclus, y compris les jours sans modification. Les chiffres d'un jour sont calculés la nuit suivante, vers 3 h UTC : jusque-là, et pour les jours futurs, ils valent 0.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -63,7 +63,7 @@ class BuildingChangeStatsView(RNBLoggingMixin, APIView):
                                             },
                                             "events_count": {
                                                 "type": "object",
-                                                "description": "Nombre de bâtiments créés ou modifiés ce jour-là, par origine.",
+                                                "description": "Nombre de créations et de modifications de bâtiments ce jour-là, par origine. Un bâtiment modifié plusieurs fois compte plusieurs fois.",
                                                 "properties": {
                                                     "import_bdtopo": {
                                                         "type": "number",

@@ -88,7 +88,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                         },
                     },
                     "400": {
-                        "description": "Requête invalide : paramètre shape manquant, WKT non analysable, géométrie qui n'est pas un Polygon, géométrie 3D, polygone invalide ou aire supérieure à 1 km²",
+                        "description": "Requête invalide : paramètre shape manquant ou vide, WKT non analysable, géométrie qui n'est pas un Polygon, géométrie 3D, SRID autre que 4326, polygone invalide, aire supérieure à 1 km², ou `limit` qui n'est pas un entier entre 1 et 100",
                     },
                 },
             }

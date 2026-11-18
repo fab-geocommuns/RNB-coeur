@@ -288,7 +288,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         },
                     },
                     "503": {
-                        "description": "Le service de géocodage de la BAN est indisponible (recherche par `q` uniquement)."
+                        "description": "La BAN a répondu en erreur (recherche par `q` uniquement) : service indisponible, ou `q` refusé par la BAN, par exemple s'il fait moins de 3 caractères."
                     },
                 },
             }
