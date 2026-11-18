@@ -87,6 +87,20 @@ class ListingDocTest(APITestCase):
                 else:
                     self.assertEqual(r.status_code, 400)
 
+    def test_documented_status_example_is_accepted(self):
+        """
+        Input: listing with the documented status example and the bbox example.
+        Expected: 200.
+        """
+        r = self.client.get(
+            LIST_PATH,
+            {
+                "status": self.params["status"]["example"],
+                "bbox": self.params["bbox"]["example"],
+            },
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
     def test_status_doc_lists_every_status_and_default(self):
         """
         Input: the documentation of the status parameter.
