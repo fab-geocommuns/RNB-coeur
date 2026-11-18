@@ -1,7 +1,7 @@
 import json
 import os
 
-from batid.services.tchap import notify_tech
+from batid.services.tchap import TchapLevel, notify_tech
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -25,8 +25,14 @@ def scaleway(request, secret_token):
             return HttpResponse("Bad Request", status=400)
 
         threshold = int(threshold)
-        message = f"Attention : notre consommation Scaleway a dépassé {threshold}% du budget attendu pour la période commençant le {invoice_start_date}."
-        notify_tech(message)
+        notify_tech(
+            level=TchapLevel.ALERT,
+            title="Alerte budget Scaleway",
+            details=[
+                ("Seuil", f"{threshold} %"),
+                ("Période", f"à partir du {invoice_start_date}"),
+            ],
+        )
 
         return HttpResponse("ok", status=200)
     else:

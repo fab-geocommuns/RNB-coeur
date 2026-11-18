@@ -7,6 +7,7 @@ from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.utils.db import dictfetchone, long_query_timeout
 from django.db import connection
+from django.db.models import Max
 from rest_framework_tracking.models import APIRequestLog
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
@@ -340,47 +341,11 @@ def count_refused_reports():
 
 def count_api_requests():
     """
-    Count the total number of API requests logged in rest_framework_tracking_apirequestlog
+    Largest id of rest_framework_tracking_apirequestlog, used as the total number of
+    logged API requests. Unlike COUNT(*), it never decreases when old rows are purged.
+    Ids come from an identity column: gaps are negligible. Instant (primary key scan).
     """
-    with long_query_timeout(), connection.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
-        row = cursor.fetchone()
-        return row[0] if row else 0
-
-
-def backfill_api_requests_kpi():
-    """
-    One-shot function to backfill api_requests_count KPI, one cumulative value per month,
-    from the first recorded API request until the previous month (current month excluded).
-    Skips months that already have an entry.
-    """
-    first = (
-        APIRequestLog.objects.order_by("requested_at")
-        .values_list("requested_at", flat=True)
-        .first()
-    )
-    if not first:
-        return
-
-    today = date.today()
-    year, month = first.year, first.month
-
-    while (year, month) < (today.year, today.month):
-        # Last day of this month
-        if month == 12:
-            next_first = date(year + 1, 1, 1)
-        else:
-            next_first = date(year, month + 1, 1)
-        last_day = next_first - timedelta(days=1)
-
-        count = APIRequestLog.objects.filter(requested_at__date__lte=last_day).count()
-        KPI.objects.get_or_create(
-            name=KPI_API_REQUESTS_COUNT,
-            value_date=last_day,
-            defaults={"value": count},
-        )
-
-        year, month = next_first.year, next_first.month
+    return APIRequestLog.objects.aggregate(Max("id"))["id__max"] or 0
 
 
 def count_edits_by_department():

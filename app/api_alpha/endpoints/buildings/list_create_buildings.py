@@ -24,7 +24,7 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import list_bdgs
+from batid.list_bdg import attach_plots, list_bdgs
 from batid.models import Building, Contribution, Trophy
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -184,11 +184,16 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
         query_params: dict[str, Any] = request.query_params.dict()
+        # list_bdgs needs the cleaned statuses, not the raw value.
+        # "status=" is absent from validated_data: the raw empty value is kept and
+        # matches no building (200 with no result), as before, so that existing
+        # clients are not broken.
+        if "status" in query_serializer.validated_data:
+            query_params["status"] = query_serializer.validated_data["status"]
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
         with_plots = True if with_plots_param == "1" else False
-        query_params["with_plots"] = with_plots
 
         # add user to query params
         query_params["user"] = request.user
@@ -196,8 +201,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
 
         # paginate
 
-        # get the "format" query parameter
-        format_param = request.query_params.get("format", "json").lower()
+        # get the "format" query parameter, as validated (lowercased and stripped)
+        format_param = query_serializer.validated_data.get("format", "json")
 
         # Mypy annotations
         paginator: OGCApiPagination | BuildingListingCursorPagination
@@ -206,12 +211,16 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         if format_param == "geojson":
             paginator = OGCApiPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
+            if with_plots:
+                attach_plots(paginated_buildings)
             serializer = BuildingGeoJSONSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )
         else:
             paginator = BuildingListingCursorPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
+            if with_plots:
+                attach_plots(paginated_buildings)
             serializer = BuildingSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )
