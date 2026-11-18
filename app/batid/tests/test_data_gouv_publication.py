@@ -39,7 +39,7 @@ from batid.tasks import publish_datagouv_all
 from batid.tests.factories.users import ContributorUserFactory
 from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from freezegun import freeze_time
 from moto import mock_aws
 
@@ -1225,6 +1225,39 @@ class TestDataGouvPublishTasks(TestCase):
             level=TchapLevel.ALERT,
             title="Publication data.gouv terminée",
             details=[("Zones publiées", f"0 sur {total}")],
+        )
+
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": "redis://127.0.0.1:1/0",
+            }
+        }
+    )
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_unreachable_cache_does_not_fail_the_national_task(
+        self, publish_mock, summary_mock
+    ):
+        """
+        Input: the national file published under a run id, the cache pointing to a
+        Redis that refuses connections (count and read both fail).
+        Expected: the task ends with "done" instead of failing after the
+        publication, and the summary alerts with an unknown count.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            result = get_area_publish_task("nat", run_id=run_id).apply()
+
+        self.assertEqual(result.get(), "done")
+        self.assertEqual(len(logs.records), 2)
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"inconnu sur {total}")],
         )
 
 

@@ -386,8 +386,13 @@ def publish_datagouv_national(*, run_id: str | None = None):
 
 
 def _notify_datagouv_summary(run_id: str) -> None:
-    published = cache.get(_datagouv_run_cache_key(run_id), 0)
     total = len(dpts_list()) + 1
+    try:
+        published = cache.get(_datagouv_run_cache_key(run_id), 0)
+    except Exception:
+        # The national file is already published: a cache outage must not fail its task
+        logger.exception("data.gouv.fr published areas count unreadable")
+        published = "inconnu"
     notify_tech_or_log(
         level=TchapLevel.SUCCESS if published == total else TchapLevel.ALERT,
         title="Publication data.gouv terminée",
