@@ -153,17 +153,8 @@ def convert_geometry_collection(geom: GEOSGeometry) -> GEOSGeometry:
     raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
 
 
-def assert_shape_is_valid(geom: GEOSGeometry):
-    """Check if the provided WGS84 geometry is valid, and raises a InvalidWGS84Geometry exception if not."""
-    if not geom.valid:
-        raise InvalidWGS84Geometry()
-
-    # The RNB only stores 2D shapes: the geometry columns reject a Z dimension.
-    # We refuse 3D geometries explicitly rather than letting them fail later on.
-    if geom.hasz:
-        raise InvalidWGS84Geometry(
-            "Les géométries 3D ne sont pas supportées, veuillez fournir une géométrie 2D"
-        )
+def assert_coords_in_wgs84_bounds(geom: GEOSGeometry) -> None:
+    """Raise InvalidWGS84Geometry if a coordinate is outside ±180° longitude or ±90° latitude, nan included."""
 
     def check_simple_tuple(t):
         lon, lat = t
@@ -188,6 +179,21 @@ def assert_shape_is_valid(geom: GEOSGeometry):
             for coord in coords:
                 check_coords(coord)
 
+    check_coords(geom)
+
+
+def assert_shape_is_valid(geom: GEOSGeometry):
+    """Check if the provided WGS84 geometry is valid, and raises a InvalidWGS84Geometry exception if not."""
+    if not geom.valid:
+        raise InvalidWGS84Geometry()
+
+    # The RNB only stores 2D shapes: the geometry columns reject a Z dimension.
+    # We refuse 3D geometries explicitly rather than letting them fail later on.
+    if geom.hasz:
+        raise InvalidWGS84Geometry(
+            "Les géométries 3D ne sont pas supportées, veuillez fournir une géométrie 2D"
+        )
+
     def check_area(g):
 
         if g.geom_type == "Point":
@@ -206,7 +212,7 @@ def assert_shape_is_valid(geom: GEOSGeometry):
                 f"La surface du bâtiment ({surface}m²) est trop petite"
             )
 
-    check_coords(geom)
+    assert_coords_in_wgs84_bounds(geom)
     check_area(geom)
     return True
 
@@ -250,6 +256,23 @@ def compute_shape_area(shape: GEOSGeometry) -> float:
     area, _ = geod.geometry_area_perimeter(geom)
 
     return abs(area)
+
+
+EARTH_MEAN_RADIUS_M = 6_371_008.8
+
+
+def compute_extent_area(geom: GEOSGeometry) -> float:
+    """Area in m² of the longitude/latitude rectangle bounded by the geometry extent.
+
+    Unlike a geodesic measure, it follows the rectangle PostGIS works on: a box
+    180° wide covers half of the latitude band, not a degenerate line.
+    """
+    x_min, y_min, x_max, y_max = geom.extent
+    return (
+        EARTH_MEAN_RADIUS_M**2
+        * math.radians(x_max - x_min)
+        * abs(math.sin(math.radians(y_max)) - math.sin(math.radians(y_min)))
+    )
 
 
 def drop_z(coords):
