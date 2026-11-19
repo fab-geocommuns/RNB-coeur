@@ -1,6 +1,11 @@
 from unittest.mock import MagicMock, patch
 
-from batid.services.brevo import BrevoError, BrevoTemplate, send_transactional_email
+from batid.services.brevo import (
+    BrevoError,
+    BrevoTemplate,
+    BrevoUnavailable,
+    send_transactional_email,
+)
 from django.test import SimpleTestCase, override_settings
 
 
@@ -47,6 +52,22 @@ class SendTransactionalEmailTest(SimpleTestCase):
         with self.assertRaisesRegex(BrevoError, "400.*invalid_parameter"):
             send_transactional_email(
                 template=BrevoTemplate.REPORT_ACTIVITY, to="a@b.fr", params={}
+            )
+
+    def test_unavailable_only_when_brevo_did_not_process_the_request(self, mock_post):
+        """
+        Input: Brevo answers 429, 503, then 500.
+        Expected: BrevoUnavailable for 429 and 503 (request not processed, safe to
+                  send again), a plain BrevoError for 500 (the email may be sent).
+        """
+        for status, unavailable in ((429, True), (503, True), (500, False)):
+            mock_post.return_value = MagicMock(ok=False, status_code=status, text="")
+            with self.assertRaises(BrevoError) as raised:
+                send_transactional_email(
+                    template=BrevoTemplate.REPORT_ACTIVITY, to="a@b.fr", params={}
+                )
+            self.assertEqual(
+                isinstance(raised.exception, BrevoUnavailable), unavailable
             )
 
     @override_settings(EMAIL_SENDING_ENABLED=False)

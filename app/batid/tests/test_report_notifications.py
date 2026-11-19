@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import requests
 from batid.models import Building, EmailNotificationOptOut, Report
-from batid.services.brevo import BrevoTemplate
+from batid.services.brevo import BrevoTemplate, BrevoUnavailable
 from batid.services.email import read_unsubscribe_token
 from batid.services.reports.notifications import notify_report_author
 from batid.tasks import send_report_activity_notification
@@ -154,6 +154,16 @@ class SendReportActivityNotificationRetryTest(TestCase):
         result = send_report_activity_notification.apply(kwargs=self.TASK_KWARGS)
         self.assertEqual(mock_notify.call_count, 4)
         self.assertTrue(result.failed())
+
+    def test_retries_when_brevo_is_unavailable(self, mock_notify):
+        """
+        Input: the notification raises BrevoUnavailable (Brevo answered 503), then works.
+        Expected: 2 attempts, the task succeeds.
+        """
+        mock_notify.side_effect = [BrevoUnavailable("Brevo HTTP 503"), None]
+        result = send_report_activity_notification.apply(kwargs=self.TASK_KWARGS)
+        self.assertEqual(mock_notify.call_count, 2)
+        self.assertTrue(result.successful())
 
     def test_no_retry_after_read_timeout(self, mock_notify):
         """
