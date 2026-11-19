@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from batid.services.brevo import BrevoTemplate
 from batid.services.mfa import MFAChange
@@ -88,3 +88,29 @@ class MFAChangeNotificationTest(TestCase):
         self.notify()
 
         mock_send.assert_not_called()
+
+
+@override_settings(EMAIL_SENDING_ENABLED=True, BREVO_API_KEY="test-key")
+@patch("batid.services.brevo.requests.post")
+class MFAChangeNotificationRetryTest(TestCase):
+    def test_retries_when_brevo_is_unavailable(self, mock_post):
+        """
+        Input: Brevo answers 503, then 201, task run eagerly.
+        Expected: a second attempt sends the email and the task succeeds.
+        """
+        user = User.objects.create_user(username="jdupont", email="jdupont@exemple.fr")
+        mock_post.side_effect = [
+            MagicMock(ok=False, status_code=503, text=""),
+            MagicMock(ok=True),
+        ]
+
+        result = send_mfa_change_notification.apply(
+            kwargs={
+                "user_id": user.pk,
+                "change": "app_replaced",
+                "changed_at": CHANGED_AT,
+            }
+        )
+
+        self.assertEqual(mock_post.call_count, 2)
+        self.assertTrue(result.successful())

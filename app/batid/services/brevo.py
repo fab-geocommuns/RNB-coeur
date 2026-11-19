@@ -21,6 +21,18 @@ class BrevoError(Exception):
     pass
 
 
+class BrevoUnavailable(BrevoError):
+    """Brevo did not process the request (rate limit, maintenance)."""
+
+
+# The request was not processed: sending it again cannot send the email twice.
+UNAVAILABLE_STATUSES = {429, 503}
+
+# Errors after which a send is safe to retry. Not a read timeout or another 5xx:
+# Brevo may already have sent the email, and a retry would send it twice.
+RETRYABLE_ERRORS = (requests.ConnectionError, BrevoUnavailable)
+
+
 def send_transactional_email(
     *, template: BrevoTemplate, to: str, params: dict[str, str]
 ) -> None:
@@ -29,7 +41,8 @@ def send_transactional_email(
     Sender and subject are defined in the Brevo template; params fill its
     {{ params.X }} placeholders, escaped by Brevo.
     When EMAIL_SENDING_ENABLED is off, the email is logged instead of sent.
-    Raises BrevoError when Brevo refuses the request.
+    Raises BrevoError when Brevo refuses the request, BrevoUnavailable when it
+    did not process it.
     """
     if not settings.EMAIL_SENDING_ENABLED:
         logger.info(
@@ -52,5 +65,10 @@ def send_transactional_email(
         timeout=REQUEST_TIMEOUT_S,
     )
     if not response.ok:
+        error = (
+            BrevoUnavailable
+            if response.status_code in UNAVAILABLE_STATUSES
+            else BrevoError
+        )
         # Brevo error bodies hold a code and a message, never the api key.
-        raise BrevoError(f"Brevo HTTP {response.status_code}: {response.text[:500]}")
+        raise error(f"Brevo HTTP {response.status_code}: {response.text[:500]}")
