@@ -382,7 +382,7 @@ class BuildingIntersectQuerySerializer(serializers.Serializer):
         try:
             assert_coords_in_wgs84_bounds(geom)
         except InvalidWGS84Geometry as e:
-            raise serializers.ValidationError(str(e))
+            raise serializers.ValidationError(e.api_message_with_details())
 
         # The database reads a polygon crossing the antimeridian the long way round,
         # as a band over all longitudes.
