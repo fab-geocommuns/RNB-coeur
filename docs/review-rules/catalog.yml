@@ -1,0 +1,2764 @@
+last_run:
+  at: '2026-11-19T17:06:14Z'
+  mode: dry_run
+  collected_until: '2026-11-19T17:00:53Z'
+  errors: []
+families:
+- id: api-doc-contract-mismatch
+  title: Doc OpenAPI contredite par le comportement de l'API
+  description: La documentation OpenAPI d'un endpoint annonce des codes de statut, des cas de refus, des types ou des exemples de requête que l'API réelle contredit (code non documenté, exemple refusé, type faux).
+  suggested_check: 'Tests de contrat en CI : chaque exemple de requête de la doc doit être accepté, et un outil comme schemathesis signale les codes de statut non documentés et les erreurs 500.'
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1973275996
+    pr: 562
+    author: leonkenneth
+    created_at: '2025-02-27T10:10:50Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/562#discussion_r1973275996
+    path: app/api_alpha/views.py
+    commit: f07584d747171881be3691ad50d3407b43dade16
+    excerpt: J'imagine qu'on a aussi une 404 si le bâtiment en lui-même n'a pas été trouvé par exemple ?
+    after_ship: false
+  - comment_id: 1973841201
+    pr: 562
+    author: leonkenneth
+    created_at: '2025-02-27T15:35:40Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/562#discussion_r1973841201
+    path: app/api_alpha/views.py
+    commit: 6f7bfe6354f2fbeeae0fd3f7589fb6b267a08ce4
+    excerpt: 'suggestion : "description": "ID-RNB inconnu ou une clé d''interopérabilité n''a pas été trouvée auprès de la BAN"'
+    after_ship: false
+  - comment_id: 1973841799
+    pr: 562
+    author: leonkenneth
+    created_at: '2025-02-27T15:36:00Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/562#discussion_r1973841799
+    path: app/api_alpha/views.py
+    commit: 6f7bfe6354f2fbeeae0fd3f7589fb6b267a08ce4
+    excerpt: 'suggestion : "description": "ID-RNB inconnu ou une clé d''interopérabilité n''a pas été trouvée auprès de la BAN"'
+    after_ship: false
+  - comment_id: 1973842346
+    pr: 562
+    author: leonkenneth
+    created_at: '2025-02-27T15:36:21Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/562#discussion_r1973842346
+    path: app/api_alpha/views.py
+    commit: 6f7bfe6354f2fbeeae0fd3f7589fb6b267a08ce4
+    excerpt: 'suggestion : "description": "ID-RNB inconnu ou une clé d''interopérabilité n''a pas été trouvée auprès de la BAN"'
+    after_ship: false
+  - comment_id: 2016895837
+    pr: 581
+    author: fchabouis
+    created_at: '2025-03-27T15:08:30Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/581#discussion_r2016895837
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: a919691a0caa8d277c4b3fb0311e6f27e0cfc981
+    excerpt: Pour info, j'avais mis la 503 quand le endpoint fait potentiellement appel à l'API de la BAN (création de bâtiment par exemple) et pour gérer les indisponibilités de leur côté (si la BAN est indisp…
+    after_ship: false
+  - comment_id: 2349228658
+    pr: 709
+    author: fchabouis
+    created_at: '2025-09-15T14:37:26Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/709#discussion_r2349228658
+    path: app/api_alpha/endpoints/buildings/list_create_buildings.py
+    commit: d277f47163090073cecdb08d664afda659fa9500
+    excerpt: Si on demande aux personnes de mettre 1, techniquement le champ n'est pas un booléen mais un `integer`.
+    after_ship: false
+  - comment_id: 4422013202
+    pr: 1154
+    author: ThomasDos
+    created_at: '2026-10-30T09:02:46Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1154#discussion_r4422013202
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: 87f7afd9fa4811b08a27f30b53029c29bd8574fc
+    excerpt: 'L''anneau de l''exemple contient deux fois le même point. Ce n''est pas un polygone valide : GeoJSON demande au moins 4 positions, la première égale à la dernière, et GEOS refuse de le construire (« I…'
+    after_ship: false
+  - comment_id: 4478793271
+    pr: 1190
+    author: ThomasDos
+    created_at: '2026-11-05T09:36:28Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1190#discussion_r4478793271
+    path: app/api_alpha/endpoints/buildings/get_diff.py
+    commit: f5f429e9427f2920debd928c2cb7722ad336ec2e
+    excerpt: 'Une date future ne renvoie pas d''erreur : `since=2099-01-01T00:00:00Z` donne un 200 avec un fichier vide, sans en-tête. C''est pareil pour une date égale à la dernière modification du RNB, donc un c…'
+    after_ship: false
+  - comment_id: 4478793284
+    pr: 1190
+    author: ThomasDos
+    created_at: '2026-11-05T09:36:28Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1190#discussion_r4478793284
+    path: app/api_alpha/endpoints/buildings/get_diff.py
+    commit: f5f429e9427f2920debd928c2cb7722ad336ec2e
+    excerpt: 'Ce sont des objets, pas de simples identifiants. Exemple réel : `{"id": "BATIMENT0000000288564165", "source": "bdtopo", "created_at": "2023-12-21T20:47:57.150660+00:00", "source_version": "bdtopo_2…'
+    after_ship: false
+  - comment_id: 4478793294
+    pr: 1190
+    author: ThomasDos
+    created_at: '2026-11-05T09:36:28Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1190#discussion_r4478793294
+    path: app/api_alpha/endpoints/buildings/get_diff.py
+    commit: f5f429e9427f2920debd928c2cb7722ad336ec2e
+    excerpt: 'Une date qui n''existe pas renvoie une erreur 500, pas ce 400. Exemple : `since=2026-02-30T00:00:00Z`. La lecture de la date lève une `ValueError` que rien n''attrape. Le bug existait avant la PR, ma…'
+    after_ship: false
+  - comment_id: 4479178099
+    pr: 1192
+    author: ThomasDos
+    created_at: '2026-11-05T10:15:40Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1192#discussion_r4479178099
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: da31ac1fb04352d8498dc51744b49b4c5295d995
+    excerpt: 'Les lectures répondent aussi 401 avec un token invalide, et aucune ne le documente. Sur `GET /api/alpha/buildings/QBAAG16VCJWA/`, sans en-tête : 200. Avec `Authorization: Token invalide` : 401 « To…'
+    after_ship: false
+  - comment_id: 4479178154
+    pr: 1192
+    author: ThomasDos
+    created_at: '2026-11-05T10:15:41Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1192#discussion_r4479178154
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: da31ac1fb04352d8498dc51744b49b4c5295d995
+    excerpt: 'GitBook n''ajoute pas de préfixe à un `apiKey` : ses exemples afficheront `Authorization: YOUR_API_KEY`, et sans `Token` une écriture répond 401. [Doc GitBook](https://gitbook.com/docs/api-reference…'
+    after_ship: false
+  - comment_id: 4479716913
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:19Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716913
+    path: app/api_alpha/endpoints/buildings/single_building.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'L''exemple de requête que GitBook génère depuis ce schéma reste refusé : `is_active: true` avec `status`, `shape: "text"` et `is_valid: true` répond 400. À ajouter à côté de `schema` (ligne 201), le…'
+    after_ship: false
+  - comment_id: 4479716925
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:19Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716925
+    path: app/api_alpha/views.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'Même problème : l''exemple généré envoie `merge_existing_addresses: true` avec une liste d''adresses, l''API répond 400. À ajouter à côté de `schema` : python "example": { "comment": "un seul et même …'
+    after_ship: false
+  - comment_id: 4479716935
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:19Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716935
+    path: app/api_alpha/views.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'GitBook ignore `minItems` : l''exemple généré ne contient qu''un bâtiment, l''API répond 400. À ajouter à côté de `schema`, avec deux géométries distinctes : python "example": { "comment": "deux bâtim…'
+    after_ship: false
+  - comment_id: 4479716943
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:19Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716943
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'Un bâtiment actif démoli ne compte pas (le recouvrir répond 201), le bâtiment modifié ou scindé non plus. À l''inverse, un point dans un bâtiment construit répond 400. suggestion : f"ne pas recouvri…'
+    after_ship: false
+  - comment_id: 4479716961
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716961
+    path: app/api_alpha/endpoints/buildings/single_building.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: '`{"comment": "x"}` répond aussi 400. suggestion : * le corps est vide ou ne contient que `comment`, ou combine `is_active` avec `status`, `addresses_cle_interop`, `shape` ou `is_valid` ;'
+    after_ship: false
+  - comment_id: 4479716967
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716967
+    path: app/api_alpha/endpoints/buildings/single_building.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: '`{"status": "constructed"}` sur un bâtiment inactif déjà `constructed` répond 204. suggestion : * le bâtiment est inactif et la requête ne demande pas sa réactivation (une requête qui ne change rie…'
+    after_ship: false
+  - comment_id: 4479716982
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716982
+    path: app/api_alpha/endpoints/buildings/single_building.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'Il manque ce refus : la clé de voie `75105_8884` et la clé de commune `75105` répondent 400. À ajouter aussi à la création (`list_create_buildings.py:228`), à la fusion (`views.py:366`) et à la sci…'
+    after_ship: false
+  - comment_id: 4479716997
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479716997
+    path: app/api_alpha/views.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: '`false` avec une liste répond 201, `true` avec `[]` aussi, et `false` sans liste répond 400. suggestion : * `addresses_cle_interop` est absent alors que `merge_existing_addresses` n''est pas à `true…'
+    after_ship: false
+  - comment_id: 4479717007
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479717007
+    path: app/api_alpha/views.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: '`merge_existing_addresses: true` avec `[]` répond 201 et le nouveau bâtiment garde les adresses des parents. Ligne 394, écrire « ne doit alors contenir aucune adresse ». Ligne 359, retirer « , mais…'
+    after_ship: false
+  - comment_id: 4479717022
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479717022
+    path: app/api_alpha/endpoints/buildings/list_create_buildings.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'BAN injoignable : l''API répond 500 aujourd''hui (#1111). Le 503 ne tombe que si la BAN répond en erreur, par exemple 502. Même texte à `single_building.py:277`, `views.py:436` et `views.py:614`. sug…'
+    after_ship: false
+  - comment_id: 4479717034
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-05T11:12:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4479717034
+    path: app/api_alpha/endpoints/buildings/list_create_buildings.py
+    commit: 774ff67f2691bca41e42bb6c8cb58ca4e203641c
+    excerpt: 'Ligne 291 : `plots` n''est jamais dans le 201 du POST. Sans décision de renvoyer les parcelles, retirer `BuildingWPlots` ici et `with_plots=True` ligne 365, sans effet.'
+    after_ship: false
+  - comment_id: 4524011391
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-10T10:55:33Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4524011391
+    path: app/api_alpha/utils/rnb_doc.py
+    commit: b69b10634c97c4d4c2c8d7cba1b992ea5c762006
+    excerpt: 'Une ligne peut passer : `LINESTRING(-27 45, -26.999 45, -26.999 45.001)` répond 201, une `MULTILINESTRING` aussi. L''ancienne formulation était exacte : suggestion : f"pour un polygone ou un multipo…'
+    after_ship: false
+  - comment_id: 4524011413
+    pr: 1191
+    author: ThomasDos
+    created_at: '2026-11-10T10:55:33Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1191#discussion_r4524011413
+    path: app/api_alpha/views.py
+    commit: b69b10634c97c4d4c2c8d7cba1b992ea5c762006
+    excerpt: Deux bâtiments créés identiques au statut `demolished` répondent 201. Le cas réellement refusé est déjà couvert par la règle du champ `shape` (un autre bâtiment `constructed` ou `notUsable`). sugge…
+    after_ship: false
+  - comment_id: 4617118969
+    pr: 1224
+    author: ThomasDos
+    created_at: '2026-11-18T16:11:42Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1224#discussion_r4617118969
+    path: app/api_alpha/views.py
+    commit: f4b36542cff481b136df30c69921cea803936543
+    excerpt: '`?q=ab` renvoie 503 alors que la BAN fonctionne. La BAN refuse les adresses de moins de 3 caractères, et le code renvoie 503 pour toute réponse en erreur de la BAN. Proposition : « La BAN a répondu…'
+    after_ship: false
+  - comment_id: 4617118980
+    pr: 1224
+    author: ThomasDos
+    created_at: '2026-11-18T16:11:42Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1224#discussion_r4617118980
+    path: app/api_alpha/endpoints/buildings/intersect.py
+    commit: f4b36542cff481b136df30c69921cea803936543
+    excerpt: '`limit=0` renvoie 400, mais la liste des 400 de cet endpoint (ligne 91) ne le mentionne pas. Il y manque aussi le polygone dans une autre projection que WGS84 (`SRID=2154;POLYGON(...)`). Propositio…'
+    after_ship: false
+- id: comment-not-in-english
+  title: Commentaire de code en français
+  description: Un commentaire ou une docstring est écrit en français alors que la convention du dépôt est l'anglais.
+  suggested_check: Script CI détectant les commentaires et docstrings contenant des mots français ou des caractères accentués.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1544334354
+    pr: 357
+    author: fchabouis
+    created_at: '2024-03-29T10:23:23Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/357#discussion_r1544334354
+    path: app/batid/services/guess_bdg_new.py
+    commit: 16ed6577ad3bc342105e65852e4bc5214e01c6c6
+    excerpt: J'aimerais bien qu'on choisisse une langue pour les commentaires :) L'une ou l'autre me vont, mais peut-être pas les deux à la fois ?
+    after_ship: false
+  - comment_id: 1701765833
+    pr: 439
+    author: fchabouis
+    created_at: '2024-08-02T12:13:20Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/439#discussion_r1701765833
+    path: app/api_alpha/tests/test_ads.py
+    commit: 34c412ab3f096b792f6c87b26ebf39a6638f74bc
+    excerpt: 'suggestion : "email": "", # This user is already created in the setUp() function without an email. If the user already exists it is returned without being updated. }, Je suis un peu pénible 😬 tous …'
+    after_ship: false
+  - comment_id: 2731348764
+    pr: 817
+    author: fchabouis
+    created_at: '2026-01-27T10:35:30Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/817#discussion_r2731348764
+    path: app/batid/tests/test_report_arcep.py
+    commit: 09b4da5d464cb8520dc9cd52681b2efd8daff980
+    excerpt: il y a un mélange de Français et d'Anglais dans les commentaires
+    after_ship: false
+  - comment_id: 3666427417
+    pr: 973
+    author: fchabouis
+    created_at: '2026-07-28T14:32:44Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/973#discussion_r3666427417
+    path: app/api_alpha/tests/buildings/test_intersect.py
+    commit: 0803b6e525d8d3a6117b4b5fa2577206e8550e32
+    excerpt: il y a des commentaires en Français et en Anglais dans cette PR, on a l'habitude de tous les écrire en Anglais.
+    after_ship: false
+  - comment_id: 3674806940
+    pr: 976
+    author: fchabouis
+    created_at: '2026-07-29T13:41:43Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/976#discussion_r3674806940
+    path: app/batid/services/data_fix/fill_empty_event_id.py
+    commit: da3d7c3402096b6e07298ff166d73c0c50f39e14
+    excerpt: commentaires en français à traduire
+    after_ship: false
+  - comment_id: 4013889086
+    pr: 1026
+    author: pauletienney
+    created_at: '2026-09-15T09:04:26Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/1026#discussion_r4013889086
+    path: app/batid/models/others.py
+    commit: d05976465d04f13885b18f2118b25c4d46b6dc6e
+    excerpt: 'suggestion : # non-unique. The uniqueness is real and enforced at the DB level. # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code.'
+    after_ship: false
+- id: typo-in-code-text
+  title: Faute d'orthographe dans un commentaire ou un message du code
+  description: Un commentaire, une docstring ou un message d'erreur contient une faute de frappe (lettre en trop, mot répété).
+  suggested_check: codespell en pre-commit et en CI.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1361703420
+    pr: 215
+    author: fchabouis
+    created_at: '2023-10-17T08:12:48Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/215#discussion_r1361703420
+    path: app/batid/tests/test_village.py
+    commit: 7091c11bfacd97efb5305e65c8c470dc04ebc190
+    excerpt: petite typo ici (and and)
+    after_ship: false
+  - comment_id: 2348903054
+    pr: 709
+    author: leonkenneth
+    created_at: '2025-09-15T12:52:57Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/709#discussion_r2348903054
+    path: app/api_alpha/tests/buildings/test_pagination.py
+    commit: 65a486d219db875bff1cb489ae218dee8170f1e5
+    excerpt: 'suggestion : # Since the data as no explicit ORDER BY we want to check the results have a consistent order'
+    after_ship: false
+  - comment_id: 2348903432
+    pr: 709
+    author: leonkenneth
+    created_at: '2025-09-15T12:53:06Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/709#discussion_r2348903432
+    path: app/api_alpha/tests/buildings/test_pagination.py
+    commit: 65a486d219db875bff1cb489ae218dee8170f1e5
+    excerpt: 'suggestion : # Since the data as no explicit ORDER BY we want to check the results have a consistent order'
+    after_ship: false
+  - comment_id: 2348904212
+    pr: 709
+    author: leonkenneth
+    created_at: '2025-09-15T12:53:24Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/709#discussion_r2348904212
+    path: app/api_alpha/tests/buildings/test_pagination.py
+    commit: 65a486d219db875bff1cb489ae218dee8170f1e5
+    excerpt: 'suggestion : # Since the data as no explicit ORDER BY we want to check the results have a consistent order'
+    after_ship: false
+  - comment_id: 2571152062
+    pr: 744
+    author: leonkenneth
+    created_at: '2025-11-28T10:17:55Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/744#discussion_r2571152062
+    path: app/batid/models/building.py
+    commit: 2387f4b9eba8f4c46fe64c10ae308cf1158b43f2
+    excerpt: 'suggestion : "A building deactivation involves exactly one building."'
+    after_ship: false
+  - comment_id: 2661411230
+    pr: 800
+    author: leonkenneth
+    created_at: '2026-01-05T12:57:34Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/800#discussion_r2661411230
+    path: app/api_alpha/serializers/serializers.py
+    commit: ee7b2a412c5214c4dcae862e82762acf412bbe91
+    excerpt: 'suggestion : # virtual user to compare with the password for similarity checks'
+    after_ship: false
+  - comment_id: 2708475230
+    pr: 812
+    author: fchabouis
+    created_at: '2026-01-20T13:57:56Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/812#discussion_r2708475230
+    path: app/batid/services/guess_bdg_new.py
+    commit: 7249b32588177c05be883d022a2ead3e379d3715
+    excerpt: 'suggestion : # Transform any multiple space into single space'
+    after_ship: false
+- id: docker-compose-local-change
+  title: Modification locale de docker-compose embarquée
+  description: Une PR embarque une modification des fichiers docker-compose (port, mot de passe, lignes commentées) qui relève de la configuration locale du développeur.
+  suggested_check: Contrôle de CI qui signale toute modification des fichiers docker-compose dans une PR, à valider explicitement.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1521500899
+    pr: 328
+    author: fchabouis
+    created_at: '2024-03-12T13:49:34Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/328#discussion_r1521500899
+    path: docker-compose.yml
+    commit: a3ddd6a5ee8dd0def29487a7a3080adcacb17279
+    excerpt: on enlève ça ?
+    after_ship: false
+  - comment_id: 1544336726
+    pr: 357
+    author: fchabouis
+    created_at: '2024-03-29T10:27:16Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/357#discussion_r1544336726
+    path: docker-compose.yml
+    commit: 16ed6577ad3bc342105e65852e4bc5214e01c6c6
+    excerpt: 'suggestion :'
+    after_ship: false
+  - comment_id: 1567417018
+    pr: 377
+    author: fchabouis
+    created_at: '2024-04-16T13:59:00Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/377#discussion_r1567417018
+    path: docker-compose.test.yml
+    commit: a7a6e421fcf8ca3c9618504a130a7675699ac986
+    excerpt: ça sert à quelque chose de modifier le mot de passe pour la base de test ?
+    after_ship: false
+  - comment_id: 1567417869
+    pr: 377
+    author: fchabouis
+    created_at: '2024-04-16T13:59:27Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/377#discussion_r1567417869
+    path: docker-compose.test.yml
+    commit: a7a6e421fcf8ca3c9618504a130a7675699ac986
+    excerpt: tu veux enlever ces lignes qui sont commentées ?
+    after_ship: false
+  - comment_id: 1567423800
+    pr: 377
+    author: fchabouis
+    created_at: '2024-04-16T14:03:07Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/377#discussion_r1567423800
+    path: docker-compose.yml
+    commit: a7a6e421fcf8ca3c9618504a130a7675699ac986
+    excerpt: on veut changer de port expres ?
+    after_ship: false
+  - comment_id: 1619024114
+    pr: 393
+    author: fchabouis
+    created_at: '2024-05-29T14:45:06Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/393#discussion_r1619024114
+    path: docker-compose.yml
+    commit: 1f1c4782ef6363c6e2884ffe04f2742694c65c4f
+    excerpt: on n'est pas sensé toucher à ce fichier dans cette PR
+    after_ship: false
+  - comment_id: 1939250387
+    pr: 544
+    author: fchabouis
+    created_at: '2025-02-03T11:51:10Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/544#discussion_r1939250387
+    path: docker-compose.yml
+    commit: 71e54ca5f7542e3c14c433cb0b3ce28e3166b455
+    excerpt: 'on dirait que #541 s''est fait embarquer dedans'
+    after_ship: false
+- id: building-direct-write
+  title: Écriture directe d'un Building
+  description: Un Building est écrit directement (bulk_update, update, save) au lieu de passer par ses méthodes métier, ce qui contourne les événements et l'historique.
+  suggested_check: Règle semgrep interdisant bulk_update/update/save sur Building hors de models.py et des tests.
+  automatable: true
+  status: pending
+  issue: 1254
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1973686247
+    pr: 470
+    author: fchabouis
+    created_at: '2025-02-27T14:25:56Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/470#discussion_r1973686247
+    path: app/batid/services/imports/import_bal.py
+    commit: 3e4ea9a8a34a92f26a81b9a892c071a014a73a11
+    excerpt: ⚠️ Il est très important de ne jamais "toucher" un bâtiment à la main dans le RNB et de toujours passer par les fonctions qui sont définies dans `models.py`. Pour mettre un jour un bâtiment, il fau…
+    after_ship: false
+  - comment_id: 1998989290
+    pr: 565
+    author: fchabouis
+    created_at: '2025-03-17T15:15:08Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/565#discussion_r1998989290
+    path: app/batid/services/imports/import_bal.py
+    commit: 43c07d88670a9987cb81669e7143f54511cd8a67
+    excerpt: Il n'est pas possible de faire des bulk updates de building, comme je l'expliquais il y a quelques semaines [ici](https://github.com/fab-geocommuns/RNB-coeur/pull/470#discussion_r1973686247). Direc…
+    after_ship: false
+  - comment_id: 2941211458
+    pr: 858
+    author: pauletienney
+    created_at: '2026-03-16T15:40:52Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/858#discussion_r2941211458
+    path: app/batid/tests/test_leaderboard.py
+    commit: cad923b800d884d0763a9fa3f58a01da082dd34f
+    excerpt: two building creation can not have the same event_id. use function avaiables in the class model Building to create, update, merge, split, deactivate, etc. Change all tests in this file to use those…
+    after_ship: false
+- id: sandbox-command-committed
+  title: Commande sandbox.py embarquée dans une PR
+  description: La commande de brouillon app/batid/management/commands/sandbox.py, censée rester vide, est committée avec du code d'essai.
+  suggested_check: Contrôle pre-commit ou CI qui refuse toute modification de sandbox.py par rapport à sa version vide.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1714839995
+    pr: 451
+    author: bbaret
+    created_at: '2024-08-13T07:52:58Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/451#discussion_r1714839995
+    path: app/batid/management/commands/sandbox.py
+    commit: 0363630d1d27f5eb54a388c8f27504a40edac80d
+    excerpt: A supprimer car cela ressemble à ton fichier de test pour notre soucis de GEOS :)
+    after_ship: false
+  - comment_id: 1995725871
+    pr: 566
+    author: bbaret
+    created_at: '2025-03-14T14:52:45Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/566#discussion_r1995725871
+    path: app/batid/management/commands/sandbox.py
+    commit: 45223e09a49a62c5198da3be46fc9ae59a7bd586
+    excerpt: A supprimer
+    after_ship: false
+  - comment_id: 2794323812
+    pr: 829
+    author: fchabouis
+    created_at: '2026-02-11T16:40:57Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/829#discussion_r2794323812
+    path: app/batid/management/commands/sandbox.py
+    commit: 7a146330274dfed50178c365ae0201ea7d08f856
+    excerpt: changement à supprimer
+    after_ship: false
+- id: print-in-app-code
+  title: print dans le code applicatif
+  description: Un print reste dans le code applicatif (debug oublié ou sortie au lieu du module logging).
+  suggested_check: Règle ruff T201 (print interdit hors scripts et notebooks).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1361722928
+    pr: 218
+    author: pauletienney
+    created_at: '2023-10-17T08:26:01Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/218#discussion_r1361722928
+    path: app/batid/services/search_bdg.py
+    commit: 7e5469da68a93453e4d71cf9242a436afd08005c
+    excerpt: Besoin de retirer le `print` pour déploiement
+    after_ship: false
+  - comment_id: 1608451480
+    pr: 393
+    author: pauletienney
+    created_at: '2024-05-21T14:37:40Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/393#discussion_r1608451480
+    path: app/batid/services/data_gouv_publication.py
+    commit: 24bb8aed81773cb09f021cb92d58378e191da8f4
+    excerpt: Ca ressemble à des `print` de debug non ? On peut les retirer je pense.
+    after_ship: false
+  - comment_id: 2731325732
+    pr: 817
+    author: fchabouis
+    created_at: '2026-01-27T10:30:44Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/817#discussion_r2731325732
+    path: app/batid/services/reports/arcep.py
+    commit: 09b4da5d464cb8520dc9cd52681b2efd8daff980
+    excerpt: '`logging.info("- closing irrelevant ARCEP reports")` plutôt que `print` ?'
+    after_ship: false
+  - comment_id: 2731345442
+    pr: 817
+    author: fchabouis
+    created_at: '2026-01-27T10:34:49Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/817#discussion_r2731345442
+    path: app/batid/services/reports/arcep.py
+    commit: 09b4da5d464cb8520dc9cd52681b2efd8daff980
+    excerpt: '`logging`'
+    after_ship: false
+- id: migration-not-zero-downtime
+  title: Migration bloquante pour le déploiement sans interruption
+  description: Une migration crée un index (ici GIN) de façon non concurrente et verrouille la table pendant longtemps.
+  suggested_check: Contrôle CI des migrations interdisant AddIndex/CreateIndex non concurrent sur les grosses tables.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1627314552
+    pr: 397
+    author: fchabouis
+    created_at: '2024-06-05T09:04:19Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/397#discussion_r1627314552
+    path: app/batid/migrations/0085_building_bdg_ext_ids_idx.py
+    commit: e3a28b4311f176d72c92a6999d7da22d018d8ac0
+    excerpt: La création d'index GIN est très longue il me semble, peut etre que l'option concurrently est préférable pour ne pas bloquer le site pendant plusieurs heures
+    after_ship: false
+  - comment_id: 2213487175
+    pr: 644
+    author: leonkenneth
+    created_at: '2025-07-17T14:18:08Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/644#discussion_r2213487175
+    path: app/batid/migrations/0107_add_event_id_idx.py
+    commit: e1068d208e65acc45eb784c5a4aaa97cfe254fbd
+    excerpt: On a j'imagine un max en tête ? Car en attendant je pense qu'on est en downtime vu qu'on lance pas le serveur en parallèle ?
+    after_ship: false
+  - comment_id: 2426863274
+    pr: 722
+    author: pauletienney
+    created_at: '2025-10-13T16:56:33Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/722#discussion_r2426863274
+    path: app/batid/migrations/0109_create_multi_column_gist_index.py
+    commit: 54d5195a6a404f8a70253498c0f4c0dbf226ca0e
+    excerpt: L'indexation va bloquer le déploiement et rendre le service indisponible pendant ce temps. Est-ce qu'on ne voudrait pas utiliser `AddIndexConcurrently`?
+    after_ship: false
+- id: commented-out-code
+  title: Code Python laissé en commentaire
+  description: Des lignes de code Python sont laissées commentées dans la PR au lieu d'être supprimées ou réactivées.
+  suggested_check: Règle ruff ERA001 (code commenté).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1608466623
+    pr: 393
+    author: pauletienney
+    created_at: '2024-05-21T14:46:56Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/393#discussion_r1608466623
+    path: app/batid/services/data_gouv_publication.py
+    commit: 24bb8aed81773cb09f021cb92d58378e191da8f4
+    excerpt: A décommenter ainsi que la ligne au dessus.
+    after_ship: false
+  - comment_id: 1842335607
+    pr: 498
+    author: fchabouis
+    created_at: '2024-11-14T14:37:58Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/498#discussion_r1842335607
+    path: app/batid/tests/test_data_gouv_publication.py
+    commit: 58097972efbcf81e7bec29e8529c58d7c09381c3
+    excerpt: c'est exprès que tu laisses des lignes commentées ?
+    after_ship: false
+  - comment_id: 1886864132
+    pr: 512
+    author: fchabouis
+    created_at: '2024-12-16T13:57:22Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/512#discussion_r1886864132
+    path: app/batid/services/imports/import_plots.py
+    commit: 1893b959f8c8c0a7b4b65abaea5195c9f01f5e3e
+    excerpt: c'est exprès que c'est commenté ?
+    after_ship: false
+- id: test-real-datetime
+  title: Test dépendant de la date courante
+  description: Un test dépend de la date courante au lieu de la figer (freezegun).
+  suggested_check: Règle semgrep signalant datetime.now ou timestamp dynamique dans un test sans freezegun.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2387953251
+    pr: 726
+    author: fchabouis
+    created_at: '2025-09-29T13:26:01Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/726#discussion_r2387953251
+    path: app/api_alpha/tests/buildings/test_ogc.py
+    commit: 9e2e6984b1f68a681387268b4e16570327419e9e
+    excerpt: on a la librairie freezgun qui sert à ça justement. Tu peux lui dire avec un décorateur ce que doit renvoyer datetime.now() dans ton test. https://github.com/fab-geocommuns/RNB-coeur/blob/9b356e0dc…
+    after_ship: false
+  - comment_id: 2946777492
+    pr: 858
+    author: fchabouis
+    created_at: '2026-03-17T13:28:57Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/858#discussion_r2946777492
+    path: app/batid/tests/test_date_utils.py
+    commit: 81f78c8cb6229d4935c86e153d0ad036cbcebd81
+    excerpt: Je ne sais pas d'ou vient le commentaire, mais il a surement un peu raison. On a le package freezgun qui permet de fixer le datetime utilisé dans un test si tu veux.
+    after_ship: false
+  - comment_id: 2946887529
+    pr: 858
+    author: fchabouis
+    created_at: '2026-03-17T13:45:04Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/858#discussion_r2946887529
+    path: app/batid/tests/test_leaderboard.py
+    commit: 81f78c8cb6229d4935c86e153d0ad036cbcebd81
+    excerpt: pareil on peut utiliser freezgun pour avoir des tests avec des dates fixes
+    after_ship: false
+  - comment_id: 2946912430
+    pr: 858
+    author: fchabouis
+    created_at: '2026-03-17T13:49:01Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/858#discussion_r2946912430
+    path: app/batid/tests/test_leaderboard.py
+    commit: 81f78c8cb6229d4935c86e153d0ad036cbcebd81
+    excerpt: idem freezgun
+    after_ship: false
+- id: imprecise-type-annotation
+  title: Annotation de type absente ou imprécise
+  description: Un paramètre ou retour est non annoté ou typé par un conteneur nu (list) au lieu d'un type précis.
+  suggested_check: Vérification mypy en mode strict ou ruff ANN.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1963182425
+    pr: 547
+    author: leonkenneth
+    created_at: '2025-02-20T09:34:17Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963182425
+    path: app/batid/models.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: Peut-être spécifier `list[str]`?
+    after_ship: false
+  - comment_id: 1971540316
+    pr: 470
+    author: leonkenneth
+    created_at: '2025-02-26T12:56:57Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/470#discussion_r1971540316
+    path: app/batid/services/imports/import_bal.py
+    commit: 7808f483ba6e040771e7902c2f74c8acd71e2b23
+    excerpt: 'Commentaire général : que dirait-on de rajouter un peu de static typing ? Pas forcément un 100% coverage ; mais en l''occurrence, j''ai vraiment du mal à appréhender les paramètres et le retour de ce…'
+    after_ship: false
+- id: env-var-not-in-example
+  title: Variable d'environnement absente du fichier d'exemple
+  description: Une variable d'environnement lue par le code n'est déclarée dans aucun fichier .env d'exemple.
+  suggested_check: Script CI comparant les os.environ.get du code avec les clés des fichiers .env.*.example.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1457273954
+    pr: 313
+    author: pauletienney
+    created_at: '2024-01-18T10:56:27Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/313#discussion_r1457273954
+    path: app/batid/services/s3_backup/backup_task.py
+    commit: f3658013825fa87be34a43fdba92fbbf069e9eb5
+    excerpt: Il me semble qu'il manque la variable `MATTERMOST_WEBHOOK_URL` dans un fichier d'environnement d'exemple. Aussi, je lui donnerais un nom un peu plus spécifique du genre `TECH_ALERT_MATTERMOST_WEBHO…
+    after_ship: false
+  - comment_id: 1883710066
+    pr: 517
+    author: fchabouis
+    created_at: '2024-12-13T10:26:03Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/517#discussion_r1883710066
+    path: app/batid/views.py
+    commit: 65eb37497e3dd878dc05a5e86a36ff90b3913a47
+    excerpt: je ne vois pas cette variable d'environnement dans le fichier d'exemple, est-ce que tu veux la rajouter ? Est-ce que le port par défaut risque d'entrer en conflit avec Flower qui est sur le même ?
+    after_ship: false
+- id: unused-code
+  title: Fonction ou code inutilisé
+  description: Une fonction ajoutée ou conservée n'est appelée nulle part dans le code.
+  suggested_check: Détection de code mort avec vulture ou ruff (règles F841, F401) en CI.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1544332943
+    pr: 357
+    author: fchabouis
+    created_at: '2024-03-29T10:21:58Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/357#discussion_r1544332943
+    path: app/batid/services/guess_bdg_new.py
+    commit: 16ed6577ad3bc342105e65852e4bc5214e01c6c6
+    excerpt: j'ai l'impression que cette fonction n'est pas utilisée.
+    after_ship: false
+  - comment_id: 1572045376
+    pr: 382
+    author: fchabouis
+    created_at: '2024-04-19T08:47:03Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/382#discussion_r1572045376
+    path: app/batid/signals/receivers.py
+    commit: 5e3b079739aeea5dc84a6e6cd9700c47a6090ac7
+    excerpt: J'ai l'impression que cette fonction est inutilisée
+    after_ship: false
+- id: hardcoded-literal-instead-of-constant
+  title: Littéral en dur au lieu de la constante
+  description: Une chaîne littérale est écrite en dur alors qu'une constante nommée existe déjà dans le code (ex. ARCEP_TAG_NAME).
+  suggested_check: Semgrep ou script CI repérant les littéraux égaux à la valeur d'une constante existante.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2731354416
+    pr: 817
+    author: fchabouis
+    created_at: '2026-01-27T10:36:44Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/817#discussion_r2731354416
+    path: app/batid/tests/test_report_arcep.py
+    commit: 09b4da5d464cb8520dc9cd52681b2efd8daff980
+    excerpt: utiliser `ARCEP_TAG_NAME` ?
+    after_ship: false
+  - comment_id: 2731361236
+    pr: 817
+    author: fchabouis
+    created_at: '2026-01-27T10:38:07Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/817#discussion_r2731361236
+    path: app/batid/tests/test_report_arcep.py
+    commit: 09b4da5d464cb8520dc9cd52681b2efd8daff980
+    excerpt: '`ARCEP_TAG_NAME`'
+    after_ship: false
+- id: unnecessary-else-after-return
+  title: else inutile après return
+  description: Un bloc else suit un if qui se termine par return ou raise, ce qui alourdit le code.
+  suggested_check: Règle ruff RET505 (superfluous else after return).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2571242394
+    pr: 744
+    author: leonkenneth
+    created_at: '2025-11-28T10:48:29Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/744#discussion_r2571242394
+    path: app/batid/models/building.py
+    commit: 2387f4b9eba8f4c46fe64c10ae308cf1158b43f2
+    excerpt: J'avoue que ces `else` inutiles me grattent, mais j'ai l'impression que c'est assez répandu dans la codebase
+    after_ship: false
+- id: test-real-network-call
+  title: Test faisant un vrai appel réseau
+  description: Un test appelle un service externe réel au lieu d'un mock.
+  suggested_check: Blocage des sockets sortants pendant les tests (pytest-socket ou équivalent).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2428619561
+    pr: 730
+    author: fchabouis
+    created_at: '2025-10-14T10:10:10Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/730#discussion_r2428619561
+    path: app/api_alpha/tests/test_log.py
+    commit: 1ced1a0a03f30013ea367dada9b2dc40abceb4aa
+    excerpt: Ces tests n'étaient pas mockés et faisaient de vrais appels aux API. Nous avons fini par nous faire bloquer la requête `whatever` car nous l'avons trop demandée.
+    after_ship: false
+- id: test-not-collected
+  title: Test jamais exécuté (nom non collecté)
+  description: Une méthode de test n'est pas préfixée par test_ et n'est donc jamais exécutée par le runner.
+  suggested_check: Script CI ou règle de lint repérant dans les classes de test des méthodes d'assertion non préfixées par test_.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2137746320
+    pr: 638
+    author: fchabouis
+    created_at: '2025-06-10T12:19:30Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/638#discussion_r2137746320
+    path: app/batid/services/data_fix/fill_empty_event_type.py
+    commit: c1804fe9d71b19b4dd7e25a91289ef2259834fa2
+    excerpt: Ne faut il pas dire quelque part que `row.event_type = "creation"` ? Je ne comprends pas bien comment ça marche du coup...une valeur par défaut peut-être ?
+    after_ship: false
+- id: sql-string-interpolation
+  title: Requête SQL construite par interpolation de chaîne
+  description: Une requête SQL est assemblée par interpolation directe de chaînes au lieu de paramètres liés.
+  suggested_check: Règle semgrep interdisant f-strings et format dans les appels cursor.execute et raw.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2086322291
+    pr: 620
+    author: leonkenneth
+    created_at: '2025-05-13T09:10:50Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/620#discussion_r2086322291
+    path: app/batid/services/vector_tiles.py
+    commit: bf68dfa1d99c8d8ef36504494757b19a340a5dab
+    excerpt: Ne pose pas de problème car il n'y a pas d'user-input, mais je reste pas tout à fait content d'interpoler en string directement. Je ne connais pas bien les idiomes Django là-dessus et je n'ai pas t…
+    after_ship: false
+- id: migration-per-change-not-squashed
+  title: Migrations multiples non regroupées
+  description: Une PR ajoute plusieurs migrations successives là où une seule, regénérée, suffirait, ce qui alourdit le jeu de migrations rejoué par les tests.
+  suggested_check: Script CI comptant les migrations ajoutées par PR sur une même app et signalant plusieurs fichiers.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2041985828
+    pr: 605
+    author: fchabouis
+    created_at: '2025-04-14T11:52:41Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/605#discussion_r2041985828
+    path: app/batid/migrations/0105_alter_kpi_unique_together.py
+    commit: 64a9db82d1301082955ed6ba3876aa82c3408967
+    excerpt: il y a 4 migrations différentes, si tu les supprimes et que tu les regénères, tu devrais avoir toutes les modifs en une seule migration (c'est bien d'éviter les migrations dont on peut se passer, q…
+    after_ship: false
+- id: yaml-indentation-error
+  title: Indentation YAML incohérente
+  description: Une entrée d'un fichier YAML est mal indentée par rapport à ses voisines.
+  suggested_check: yamllint en CI.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2022399037
+    pr: 593
+    author: leonkenneth
+    created_at: '2025-04-01T08:29:51Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/593#discussion_r2022399037
+    path: docker-compose.yml
+    commit: 15df1184d41cc802d24dd3149662fc823061e7a6
+    excerpt: 'suggestion : certs:'
+    after_ship: false
+- id: redundant-boolean-ternary
+  title: Ternaire booléen redondant
+  description: Une expression `True if cond else False` remplace directement la condition booléenne.
+  suggested_check: Règle ruff SIM210.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 2012089532
+    pr: 576
+    author: fchabouis
+    created_at: '2025-03-25T13:22:41Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/576#discussion_r2012089532
+    path: app/app/settings.py
+    commit: 657a94d9610312d23276048188b286feaf4166e2
+    excerpt: 'suggestion : EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS") == "1" EMAIL_USE_SSL = os.environ.get("DJANGO_EMAIL_USE_SSL") == "1"'
+    after_ship: false
+- id: invalid-html-markup
+  title: HTML invalide dans un template
+  description: Un template contient une balise mal fermée ou orpheline.
+  suggested_check: Linter HTML (djlint) en CI sur les templates.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1995734715
+    pr: 566
+    author: bbaret
+    created_at: '2025-03-14T14:57:45Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/566#discussion_r1995734715
+    path: app/batid/templates/emails/reset_password.html
+    commit: 45223e09a49a62c5198da3be46fc9ae59a7bd586
+    excerpt: 'suggestion : </p> <p> Pour tout renseignement, vous pouvez nous contacter par email: <a href="mailto:rnb@beta.gouv.fr">rnb@beta.gouv.fr</a> </p>'
+    after_ship: false
+  - comment_id: 2000838296
+    pr: 566
+    author: leonkenneth
+    created_at: '2025-03-18T11:32:35Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/566#discussion_r2000838296
+    path: app/batid/templates/emails/reset_password.html
+    commit: 3f4ebbf19d39d7f818547651cce81be84f100b3c
+    excerpt: Il y a un petit soucis HTML ici non ?
+    after_ship: false
+- id: redundant-queryset-all
+  title: Appel .all() inutile sur un queryset
+  description: Un .all() est ajouté à la fin d'une chaîne de filtres alors qu'il est superflu.
+  suggested_check: Règle semgrep sur .filter(...).all().
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1963629002
+    pr: 558
+    author: pauletienney
+    created_at: '2025-02-20T14:05:24Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/558#discussion_r1963629002
+    path: app/batid/services/contribution_fix/fix_methods.py
+    commit: 3baeead114f3d4b9f8b9ca38a1af4e894edc4c12
+    excerpt: Il me semble que le `.all()` n'est pas nécessaire ici.
+    after_ship: false
+- id: test-error-without-message-assertion
+  title: Test d'erreur sans vérification du message
+  description: Un test d'erreur (4xx/5xx) vérifie seulement le code de statut et pas le message d'erreur renvoyé.
+  suggested_check: Règle de lint sur les tests qui assertent un statut d'erreur sans asserter le corps de la réponse.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1963234579
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:50:23Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963234579
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+  - comment_id: 1963234795
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:50:32Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963234795
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+  - comment_id: 1963234997
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:50:40Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963234997
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+  - comment_id: 1963235265
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:50:51Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963235265
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+  - comment_id: 1963235651
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:51:08Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963235651
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+  - comment_id: 1963239421
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:53:29Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963239421
+    path: app/api_alpha/tests/test_buildings.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait vérifier qu'on donne un message d'erreur explicite
+    after_ship: false
+- id: missing-transaction-atomic
+  title: Méthode d'écriture sans transaction atomique
+  description: Une méthode publique qui effectue plusieurs écritures en base n'est pas protégée par transaction.atomic, d'où un risque d'état à moitié écrit.
+  suggested_check: Règle semgrep exigeant @transaction.atomic sur les méthodes métier de Building qui écrivent.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1963125864
+    pr: 547
+    author: pauletienney
+    created_at: '2025-02-20T09:04:44Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963125864
+    path: app/batid/models.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: On devrait décorer la fonction avec` `@transaction`.atomic`comme pour `merge` non ?
+    after_ship: false
+  - comment_id: 1963191131
+    pr: 547
+    author: leonkenneth
+    created_at: '2025-02-20T09:36:36Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963191131
+    path: app/batid/models.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: '`atomic` est appelé plus haut dans le controller, et c''est bien car le controller créé une `Contribution` associée, mais je me demande si la méthode `split` du modèle ne devrait pas elle-même garan…'
+    after_ship: false
+- id: redundant-is-valid-condition
+  title: Condition redondante autour de is_valid(raise_exception=True)
+  description: Un if enveloppe serializer.is_valid(raise_exception=True), qui lève déjà l'exception et rend la condition inutile.
+  suggested_check: Règle semgrep sur if x.is_valid(raise_exception=True).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1963165233
+    pr: 547
+    author: leonkenneth
+    created_at: '2025-02-20T09:27:01Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/547#discussion_r1963165233
+    path: app/api_alpha/views.py
+    commit: 2077a9f37777f377bcaa81c417be1b7a6a3e0544
+    excerpt: J'imaginais que `raise_exception` ferait que le `if` est redondant ?
+    after_ship: false
+- id: function-level-import
+  title: Import à l'intérieur d'une fonction
+  description: Un import est placé dans le corps d'une fonction au lieu d'être en tête de fichier.
+  suggested_check: Règle ruff PLC0415 (import-outside-top-level).
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1961804129
+    pr: 557
+    author: leonkenneth
+    created_at: '2025-02-19T14:38:25Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/557#discussion_r1961804129
+    path: app/api_alpha/views.py
+    commit: d06f5b3791f30a6d41ae1734c14d2c45636e0d43
+    excerpt: Je me demande si c'est voulu de lazy-import. J'ai l'impression que c'est l'un des seuls endroits où on a des imports dans une fonction et que le style-guide officiel est plutôt favorable à un top-f…
+    after_ship: false
+- id: git-dependency-in-pyproject
+  title: Dépendance Git non voulue
+  description: Une dépendance est déclarée depuis un dépôt Git au lieu d'une version publiée.
+  suggested_check: Script CI refusant les dépendances git dans pyproject.toml.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1939249827
+    pr: 544
+    author: fchabouis
+    created_at: '2025-02-03T11:50:41Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/544#discussion_r1939249827
+    path: app/pyproject.toml
+    commit: 71e54ca5f7542e3c14c433cb0b3ce28e3166b455
+    excerpt: il y a une raison particulière pour aller prendre la version de github ?
+    after_ship: false
+- id: missing-migration
+  title: Migration manquante
+  description: Un champ de modèle est ajouté ou modifié sans la migration correspondante.
+  suggested_check: Étape CI exécutant makemigrations --check.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1939126222
+    pr: 544
+    author: leonkenneth
+    created_at: '2025-02-03T10:16:22Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/544#discussion_r1939126222
+    path: app/batid/models.py
+    commit: 281721f8541cc6fbd216bb2702c46b49ba3e0559
+    excerpt: Doesn't look like `default=list` works on database level?
+    after_ship: false
+- id: migration-stale-dependency
+  title: Migration avec dépendance obsolète
+  description: Une migration dépend d'une migration qui n'est plus la dernière, car d'autres migrations ont été fusionnées entre-temps, ce qui crée des conflits de graphe.
+  suggested_check: Vérification CI avec makemigrations --check et détection de plusieurs noeuds feuilles dans le graphe de migrations.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1618968825
+    pr: 393
+    author: fchabouis
+    created_at: '2024-05-29T14:12:42Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/393#discussion_r1618968825
+    path: app/batid/migrations/0084_create_opendata_schema.py
+    commit: 1f1c4782ef6363c6e2884ffe04f2742694c65c4f
+    excerpt: il va falloir mettre cette dépendance à jour car d'autres migrations ont eu lieu depuis.
+    after_ship: false
+- id: orm-get-unhandled-does-not-exist
+  title: Appel .get() de l'ORM sans gestion de DoesNotExist
+  description: Une vue appelle Model.objects.get() sans gérer l'absence de résultat, ce qui provoque une erreur 500 au lieu d'un 404.
+  suggested_check: Règle semgrep signalant objects.get() hors try/except DoesNotExist ou get_object_or_404 dans les vues.
+  automatable: true
+  status: pending
+  issue: null
+  adopted: false
+  rejection_reason: null
+  occurrences:
+  - comment_id: 1537365396
+    pr: 349
+    author: pauletienney
+    created_at: '2024-03-25T10:26:50Z'
+    url: https://github.com/fab-geocommuns/RNB-coeur/pull/349#discussion_r1537365396
+    path: app/batid/views.py
+    commit: 7b3e5cc26f4ef42baeda7359ce3b665cab814aa2
+    excerpt: 'Un appel `.get()` ne retournant pas de résultat fait crasher django. On peut faire : suggestion : try: contribution = Contribution.objects.get(id=contribution_id) except Contribution.DoesNotExist: …'
+    after_ship: false
+processed:
+- comment_id: 1335876533
+  reason: explication de l'auteur
+- comment_id: 1335877308
+  reason: explication de l'auteur
+- comment_id: 1335901038
+  reason: question de conception
+- comment_id: 1342884391
+  reason: explication de l'auteur
+- comment_id: 1350336298
+  reason: explication de l'auteur
+- comment_id: 1350337425
+  reason: remarque positive
+- comment_id: 1350354037
+  reason: explication de l'auteur
+- comment_id: 1350354918
+  reason: explication de l'auteur
+- comment_id: 1360730558
+  reason: question de conception
+- comment_id: 1361625588
+  reason: question de conception
+- comment_id: 1361707259
+  reason: question de conception
+- comment_id: 1361710234
+  reason: explication de l'auteur
+- comment_id: 1361721056
+  reason: question de conception
+- comment_id: 1361732523
+  reason: règle métier
+- comment_id: 1361734788
+  reason: question de conception
+- comment_id: 1362025124
+  reason: question de conception
+- comment_id: 1362025357
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1362049308
+  reason: bug propre à la fonctionnalité
+- comment_id: 1363807426
+  reason: question de conception
+- comment_id: 1376422015
+  reason: question de conception
+- comment_id: 1386473171
+  reason: explication de l'auteur
+- comment_id: 1388003328
+  reason: explication de l'auteur
+- comment_id: 1388004606
+  reason: explication de l'auteur
+- comment_id: 1388005245
+  reason: bug propre à la fonctionnalité
+- comment_id: 1388006532
+  reason: explication de l'auteur
+- comment_id: 1392678042
+  reason: question de conception
+- comment_id: 1392682543
+  reason: question de conception
+- comment_id: 1400640567
+  reason: explication de l'auteur
+- comment_id: 1400641914
+  reason: explication de l'auteur
+- comment_id: 1400647757
+  reason: explication de l'auteur
+- comment_id: 1400649174
+  reason: explication de l'auteur
+- comment_id: 1400651329
+  reason: explication de l'auteur
+- comment_id: 1403116875
+  reason: préférence de nommage
+- comment_id: 1406427322
+  reason: suggestion de conception
+- comment_id: 1407422715
+  reason: suggestion de conception
+- comment_id: 1407427022
+  reason: question de conception
+- comment_id: 1407438119
+  reason: suggestion de wording
+- comment_id: 1407442614
+  reason: suggestion de conception
+- comment_id: 1407769339
+  reason: simplification de code
+- comment_id: 1407784774
+  reason: explication de l'auteur
+- comment_id: 1407785932
+  reason: question de conception
+- comment_id: 1407787195
+  reason: question de conception
+- comment_id: 1408112588
+  reason: suggestion de conception
+- comment_id: 1408116073
+  reason: question de conception
+- comment_id: 1408121533
+  reason: question de conception
+- comment_id: 1408129182
+  reason: suggestion de conception
+- comment_id: 1408132722
+  reason: suggestion de conception
+- comment_id: 1408139099
+  reason: suggestion de conception
+- comment_id: 1413876052
+  reason: préférence de nommage
+- comment_id: 1413878518
+  reason: question de conception
+- comment_id: 1413881790
+  reason: suggestion de test
+- comment_id: 1413883312
+  reason: remarque positive
+- comment_id: 1413893637
+  reason: préférence de nommage
+- comment_id: 1413895733
+  reason: suggestion de wording
+- comment_id: 1413902936
+  reason: préférence de nommage
+- comment_id: 1413905300
+  reason: suggestion de wording
+- comment_id: 1413946363
+  reason: question de conception
+- comment_id: 1417282884
+  reason: remarque positive
+- comment_id: 1417472643
+  reason: explication de l'auteur
+- comment_id: 1418719535
+  reason: champ en double
+- comment_id: 1426811854
+  reason: bug propre à la fonctionnalité
+- comment_id: 1426816149
+  reason: explication de l'auteur
+- comment_id: 1426818279
+  reason: simplification de code
+- comment_id: 1426821880
+  reason: question de conception
+- comment_id: 1426833644
+  reason: explication de l'auteur
+- comment_id: 1452436801
+  reason: explication de l'auteur
+- comment_id: 1452439031
+  reason: explication de l'auteur
+- comment_id: 1457261804
+  reason: choix de configuration
+- comment_id: 1457265459
+  reason: choix de configuration
+- comment_id: 1457270418
+  reason: suggestion de conception
+- comment_id: 1457276609
+  reason: préférence de nommage
+- comment_id: 1457617388
+  reason: règle métier
+- comment_id: 1457621107
+  reason: suggestion de conception
+- comment_id: 1457627311
+  reason: suggestion de wording
+- comment_id: 1461847096
+  reason: règle métier
+- comment_id: 1473048863
+  reason: explication de l'auteur
+- comment_id: 1473050273
+  reason: explication de l'auteur
+- comment_id: 1473050811
+  reason: suggestion de wording
+- comment_id: 1504426141
+  reason: explication de l'auteur
+- comment_id: 1504427113
+  reason: explication de l'auteur
+- comment_id: 1511011120
+  reason: explication de l'auteur
+- comment_id: 1511012258
+  reason: explication de l'auteur
+- comment_id: 1516338355
+  reason: question de conception
+- comment_id: 1516343947
+  reason: question de conception
+- comment_id: 1516351801
+  reason: question de conception
+- comment_id: 1516495904
+  reason: règle métier
+- comment_id: 1516496530
+  reason: règle métier
+- comment_id: 1516505243
+  reason: test devenu inutile
+- comment_id: 1516515450
+  reason: simplification de code
+- comment_id: 1516521565
+  reason: bug propre à la fonctionnalité
+- comment_id: 1519819860
+  reason: explication de l'auteur
+- comment_id: 1519825805
+  reason: explication de l'auteur
+- comment_id: 1519955383
+  reason: explication de l'auteur
+- comment_id: 1519956957
+  reason: explication de l'auteur
+- comment_id: 1521275537
+  reason: préférence de nommage
+- comment_id: 1521284260
+  reason: suggestion de conception
+- comment_id: 1521290974
+  reason: suggestion de conception
+- comment_id: 1521299450
+  reason: règle métier
+- comment_id: 1521499170
+  reason: question de conception
+- comment_id: 1521505322
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1521538880
+  reason: question de conception
+- comment_id: 1521547764
+  reason: question de conception
+- comment_id: 1523229477
+  reason: règle métier
+- comment_id: 1523547266
+  reason: explication de l'auteur
+- comment_id: 1523548769
+  reason: explication de l'auteur
+- comment_id: 1523550431
+  reason: explication de l'auteur
+- comment_id: 1530478817
+  reason: préférence de nommage
+- comment_id: 1530484900
+  reason: question de conception
+- comment_id: 1537355608
+  reason: suggestion de wording
+- comment_id: 1542966762
+  reason: préférence de nommage
+- comment_id: 1544324905
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1544327003
+  reason: question sur le code
+- comment_id: 1544328654
+  reason: correction de wording
+- comment_id: 1567403050
+  reason: question de conception
+- comment_id: 1567405078
+  reason: question de conception
+- comment_id: 1567413988
+  reason: question de conception
+- comment_id: 1567415760
+  reason: question de conception
+- comment_id: 1571113027
+  reason: question de conception
+- comment_id: 1572042344
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1572110889
+  reason: question de conception
+- comment_id: 1572116933
+  reason: question de conception
+- comment_id: 1572322661
+  reason: question de conception
+- comment_id: 1591021301
+  reason: suggestion de wording
+- comment_id: 1592442338
+  reason: question de conception
+- comment_id: 1592451350
+  reason: question de conception
+- comment_id: 1592466341
+  reason: question de conception
+- comment_id: 1592482270
+  reason: règle métier
+- comment_id: 1592482974
+  reason: règle métier
+- comment_id: 1599673122
+  reason: question de conception
+- comment_id: 1603190830
+  reason: explication de l'auteur
+- comment_id: 1608396089
+  reason: question de conception
+- comment_id: 1608400023
+  reason: question de conception
+- comment_id: 1608436984
+  reason: préférence de nommage
+- comment_id: 1608442500
+  reason: règle métier
+- comment_id: 1608449689
+  reason: question de conception
+- comment_id: 1608460168
+  reason: bug propre à la fonctionnalité
+- comment_id: 1608469685
+  reason: question de conception
+- comment_id: 1608487384
+  reason: question de conception
+- comment_id: 1608493090
+  reason: règle métier
+- comment_id: 1608495625
+  reason: préférence de nommage
+- comment_id: 1618966977
+  reason: question de conception
+- comment_id: 1618973575
+  reason: préférence de nommage
+- comment_id: 1618980435
+  reason: question de conception
+- comment_id: 1618984532
+  reason: question de conception
+- comment_id: 1618988750
+  reason: question de conception
+- comment_id: 1619030993
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1620195210
+  reason: question de conception
+- comment_id: 1620205119
+  reason: question de conception
+- comment_id: 1624496950
+  reason: question de conception
+- comment_id: 1624499417
+  reason: commentaire explicatif demandé
+- comment_id: 1624506868
+  reason: question de conception
+- comment_id: 1624508749
+  reason: remarque positive
+- comment_id: 1627324572
+  reason: question de conception
+- comment_id: 1633014623
+  reason: question de conception
+- comment_id: 1633169905
+  reason: question de conception
+- comment_id: 1633171205
+  reason: remarque positive
+- comment_id: 1633175390
+  reason: question de conception
+- comment_id: 1636697071
+  reason: règle métier
+- comment_id: 1647556200
+  reason: question de conception
+- comment_id: 1647636061
+  reason: bug propre à la fonctionnalité
+- comment_id: 1649087954
+  reason: suggestion de wording
+- comment_id: 1652501556
+  reason: donnée personnelle dans un test
+- comment_id: 1652512155
+  reason: bug propre à la fonctionnalité
+- comment_id: 1652519795
+  reason: question de conception
+- comment_id: 1653011097
+  reason: question de conception
+- comment_id: 1653046332
+  reason: question de conception
+- comment_id: 1654850250
+  reason: question de conception
+- comment_id: 1656708975
+  reason: préférence de nommage
+- comment_id: 1656720270
+  reason: préférence de nommage
+- comment_id: 1656726028
+  reason: question de conception
+- comment_id: 1664166117
+  reason: question de conception
+- comment_id: 1692833673
+  reason: explication de l'auteur
+- comment_id: 1693055776
+  reason: explication de l'auteur
+- comment_id: 1693056602
+  reason: explication de l'auteur
+- comment_id: 1694928275
+  reason: question de conception
+- comment_id: 1697022557
+  reason: commentaire explicatif demandé
+- comment_id: 1705726413
+  reason: question de conception
+- comment_id: 1705728658
+  reason: question de conception
+- comment_id: 1705737461
+  reason: question de conception
+- comment_id: 1706707491
+  reason: question de conception
+- comment_id: 1706737040
+  reason: question de conception
+- comment_id: 1706745907
+  reason: question de conception
+- comment_id: 1706821465
+  reason: bug propre à la fonctionnalité
+- comment_id: 1706824282
+  reason: question de conception
+- comment_id: 1708816481
+  reason: question de conception
+- comment_id: 1708942329
+  reason: préférence de nommage
+- comment_id: 1708951516
+  reason: bug propre à la fonctionnalité
+- comment_id: 1708955034
+  reason: préférence de nommage
+- comment_id: 1708966572
+  reason: question de conception
+- comment_id: 1708968387
+  reason: bug propre à la fonctionnalité
+- comment_id: 1708986179
+  reason: remarque positive
+- comment_id: 1714838691
+  reason: préférence de nommage
+- comment_id: 1715581924
+  reason: suggestion de wording
+- comment_id: 1746733974
+  reason: explication de l'auteur
+- comment_id: 1750406023
+  reason: suggestion de wording
+- comment_id: 1750406440
+  reason: suggestion de wording
+- comment_id: 1750406959
+  reason: suggestion de wording
+- comment_id: 1750408327
+  reason: suggestion de wording
+- comment_id: 1750411258
+  reason: suggestion de wording
+- comment_id: 1772871231
+  reason: suggestion de wording
+- comment_id: 1772880218
+  reason: idée d'optimisation future
+- comment_id: 1776813598
+  reason: idée d'optimisation future
+- comment_id: 1778343807
+  reason: idée d'optimisation future
+- comment_id: 1783044911
+  reason: préférence de nommage
+- comment_id: 1784116547
+  reason: suggestion de wording
+- comment_id: 1784131218
+  reason: suggestion de wording
+- comment_id: 1800606477
+  reason: question de conception
+- comment_id: 1808768070
+  reason: doc OpenAPI non prouvée
+- comment_id: 1810348600
+  reason: question de conception
+- comment_id: 1810997114
+  reason: question de conception
+- comment_id: 1811007832
+  reason: préférence de nommage
+- comment_id: 1811014340
+  reason: question de conception
+- comment_id: 1812984350
+  reason: question de conception
+- comment_id: 1816858442
+  reason: explication de l'auteur
+- comment_id: 1816867134
+  reason: explication de l'auteur
+- comment_id: 1816871338
+  reason: explication de l'auteur
+- comment_id: 1816876093
+  reason: préférence de nommage
+- comment_id: 1839721567
+  reason: préférence de nommage
+- comment_id: 1841825173
+  reason: explication de l'auteur
+- comment_id: 1841827134
+  reason: explication de l'auteur
+- comment_id: 1841982102
+  reason: explication de l'auteur
+- comment_id: 1841982742
+  reason: explication de l'auteur
+- comment_id: 1841985298
+  reason: explication de l'auteur
+- comment_id: 1841986212
+  reason: explication de l'auteur
+- comment_id: 1841986899
+  reason: explication de l'auteur
+- comment_id: 1842333219
+  reason: idée d'optimisation future
+- comment_id: 1842422889
+  reason: bug propre à la fonctionnalité
+- comment_id: 1842426432
+  reason: question de conception
+- comment_id: 1842434020
+  reason: cas de test manquant
+- comment_id: 1847982493
+  reason: question de conception
+- comment_id: 1851635524
+  reason: bug propre à la fonctionnalité
+- comment_id: 1851641863
+  reason: préférence de nommage
+- comment_id: 1851651698
+  reason: question de conception
+- comment_id: 1856258390
+  reason: question de conception
+- comment_id: 1856718608
+  reason: suggestion de wording
+- comment_id: 1856722894
+  reason: question de conception
+- comment_id: 1858101844
+  reason: question de conception
+- comment_id: 1860338540
+  reason: idée d'optimisation future
+- comment_id: 1860362574
+  reason: explication de l'auteur
+- comment_id: 1862333213
+  reason: explication de l'auteur
+- comment_id: 1865913052
+  reason: suggestion de wording
+- comment_id: 1882508724
+  reason: explication de l'auteur
+- comment_id: 1882509298
+  reason: explication de l'auteur
+- comment_id: 1886807760
+  reason: préférence de nommage
+- comment_id: 1886834424
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 1886835663
+  reason: doc OpenAPI non prouvée
+- comment_id: 1888269105
+  reason: doc OpenAPI non prouvée
+- comment_id: 1888277319
+  reason: fichier sans rapport embarqué
+- comment_id: 1888278491
+  reason: rappel de l'auteur
+- comment_id: 1888282825
+  reason: idée d'optimisation future
+- comment_id: 1888284480
+  reason: suggestion de wording
+- comment_id: 1888483567
+  reason: suggestion de wording
+- comment_id: 1890476483
+  reason: explication de l'auteur
+- comment_id: 1899988371
+  reason: cas de test manquant
+- comment_id: 1899992096
+  reason: suggestion de wording
+- comment_id: 1899994180
+  reason: question de conception
+- comment_id: 1899998457
+  reason: question de conception
+- comment_id: 1900000268
+  reason: question de conception
+- comment_id: 1905304788
+  reason: question de conception
+- comment_id: 1916754264
+  reason: question de conception
+- comment_id: 1916756681
+  reason: préférence de nommage
+- comment_id: 1925071610
+  reason: suggestion de wording
+- comment_id: 1930567477
+  reason: suggestion de wording
+- comment_id: 1930638648
+  reason: bug propre à la fonctionnalité
+- comment_id: 1938991189
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1938991691
+  reason: préférence de nommage
+- comment_id: 1938992209
+  reason: rappel de l'auteur
+- comment_id: 1939247583
+  reason: remarque positive
+- comment_id: 1943245381
+  reason: cas de test manquant
+- comment_id: 1949159451
+  reason: question de conception
+- comment_id: 1949172618
+  reason: question sur le modèle de données
+- comment_id: 1949175212
+  reason: question sur le modèle de données
+- comment_id: 1949179970
+  reason: question sur le modèle de données
+- comment_id: 1949181598
+  reason: question sur le modèle de données
+- comment_id: 1949206121
+  reason: question sur le modèle de données
+- comment_id: 1949212146
+  reason: bug propre à la fonctionnalité
+- comment_id: 1950561236
+  reason: suggestion de suppression
+- comment_id: 1954451388
+  reason: erreur de configuration nginx
+- comment_id: 1954460538
+  reason: format de header
+- comment_id: 1954618760
+  reason: explication de l'auteur
+- comment_id: 1954828775
+  reason: question de conception
+- comment_id: 1960129621
+  reason: explication de l'auteur
+- comment_id: 1963120370
+  reason: remarque sans contenu
+- comment_id: 1963146098
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 1963150951
+  reason: règle métier
+- comment_id: 1963171326
+  reason: suggestion de TypedDict
+- comment_id: 1963202280
+  reason: conception d'URL
+- comment_id: 1963202321
+  reason: règle métier
+- comment_id: 1963236722
+  reason: cas de test manquant
+- comment_id: 1963240584
+  reason: cas de test manquant
+- comment_id: 1963247921
+  reason: règle métier
+- comment_id: 1963261188
+  reason: cas de test manquant
+- comment_id: 1963706910
+  reason: suggestion de données de test
+- comment_id: 1963710040
+  reason: suggestion de données de test
+- comment_id: 1963710541
+  reason: suggestion de données de test
+- comment_id: 1963710926
+  reason: suggestion de données de test
+- comment_id: 1963711358
+  reason: suggestion de données de test
+- comment_id: 1971515962
+  reason: question de planification
+- comment_id: 1971521149
+  reason: question de conception
+- comment_id: 1971532300
+  reason: question de conception
+- comment_id: 1971534696
+  reason: question sur un notebook
+- comment_id: 1971557040
+  reason: question de conception
+- comment_id: 1971562698
+  reason: suggestion de TypedDict
+- comment_id: 1971593272
+  reason: question de conception
+- comment_id: 1971600859
+  reason: question de conception
+- comment_id: 1971655819
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 1971675104
+  reason: question technique
+- comment_id: 1971676425
+  reason: explication de l'auteur
+- comment_id: 1971680946
+  reason: suggestion de découpage
+- comment_id: 1971689533
+  reason: question de compréhension
+- comment_id: 1971703854
+  reason: question de conception
+- comment_id: 1971714265
+  reason: suggestion de refactoring
+- comment_id: 1971729554
+  reason: question sur un test
+- comment_id: 1973266589
+  reason: suggestion de wording
+- comment_id: 1973268038
+  reason: question de compréhension
+- comment_id: 1973273886
+  reason: question de conception
+- comment_id: 1973623427
+  reason: convention de nommage
+- comment_id: 1973640203
+  reason: règle métier
+- comment_id: 1973657162
+  reason: question de conception
+- comment_id: 1973843127
+  reason: correction orthographique
+- comment_id: 1975126117
+  reason: question de conception
+- comment_id: 1993582811
+  reason: préférence de nommage
+- comment_id: 1993584695
+  reason: configuration de rate limit
+- comment_id: 1993585971
+  reason: question de configuration
+- comment_id: 1993587000
+  reason: commentaire obsolète
+- comment_id: 1993601060
+  reason: préférence de nommage
+- comment_id: 1993621859
+  reason: question de configuration
+- comment_id: 1995682910
+  reason: remarque positive
+- comment_id: 1995720073
+  reason: isolation de test
+- comment_id: 1995728883
+  reason: valeur provisoire assumée
+- comment_id: 1998809713
+  reason: optimisation de calcul
+- comment_id: 1998859683
+  reason: couverture de tests
+- comment_id: 2000798498
+  reason: question de sécurité
+- comment_id: 2000810842
+  reason: suggestion de wording
+- comment_id: 2000811547
+  reason: question de conception
+- comment_id: 2000819418
+  reason: optimisation de test
+- comment_id: 2000826867
+  reason: question de conception
+- comment_id: 2000840927
+  reason: vérification manuelle
+- comment_id: 2012068472
+  reason: question de conception
+- comment_id: 2012111543
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2012162240
+  reason: bug propre à la fonctionnalité
+- comment_id: 2016312268
+  reason: question de périmètre
+- comment_id: 2016562522
+  reason: règle métier
+- comment_id: 2016564739
+  reason: suggestion de style
+- comment_id: 2016569069
+  reason: question de nommage
+- comment_id: 2016680122
+  reason: ajout de test
+- comment_id: 2016682319
+  reason: ajout de test
+- comment_id: 2016896398
+  reason: préférence de nommage
+- comment_id: 2021258919
+  reason: question de conception
+- comment_id: 2022402332
+  reason: question de configuration
+- comment_id: 2023055472
+  reason: remarque positive
+- comment_id: 2023056992
+  reason: remarque positive
+- comment_id: 2024316912
+  reason: question de conception
+- comment_id: 2025194614
+  reason: précision de fonctionnement
+- comment_id: 2027084225
+  reason: règle métier sur username
+- comment_id: 2027092897
+  reason: suggestion de sécurité spécifique
+- comment_id: 2027097360
+  reason: question de conception
+- comment_id: 2032594008
+  reason: question sur changements docker
+- comment_id: 2033335223
+  reason: préférence constante vs setting
+- comment_id: 2037193957
+  reason: accord sans contenu
+- comment_id: 2037711275
+  reason: question de conception
+- comment_id: 2037714857
+  reason: doute sur le typage
+- comment_id: 2037730192
+  reason: remarque de redondance
+- comment_id: 2038959256
+  reason: suggestion de wording
+- comment_id: 2039055306
+  reason: suggestion de style fonctionnel
+- comment_id: 2041809936
+  reason: suggestion de nommage
+- comment_id: 2041849188
+  reason: suggestion de code
+- comment_id: 2041856513
+  reason: bug propre à la fonctionnalité
+- comment_id: 2041859713
+  reason: suggestion de wording
+- comment_id: 2041976949
+  reason: suggestion de wording
+- comment_id: 2041977355
+  reason: suggestion de wording
+- comment_id: 2041988723
+  reason: question de conception
+- comment_id: 2054190208
+  reason: code d'une autre PR
+- comment_id: 2054192426
+  reason: préférence de nommage
+- comment_id: 2054195757
+  reason: suggestion de wording
+- comment_id: 2054197989
+  reason: question sur le typage
+- comment_id: 2058081628
+  reason: question de conception
+- comment_id: 2058082585
+  reason: remarque de conception
+- comment_id: 2058383456
+  reason: remarque cosmétique
+- comment_id: 2058392372
+  reason: suggestion de conception
+- comment_id: 2058432586
+  reason: question de conception
+- comment_id: 2058460408
+  reason: demande de test supplémentaire
+- comment_id: 2065964462
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2065969617
+  reason: demande de commentaire explicatif
+- comment_id: 2086319040
+  reason: remarque positive
+- comment_id: 2091041799
+  reason: règle métier
+- comment_id: 2111408388
+  reason: remarque positive
+- comment_id: 2137357137
+  reason: règle métier signalement
+- comment_id: 2137366046
+  reason: règle métier signalement
+- comment_id: 2137734126
+  reason: question de logique
+- comment_id: 2137765646
+  reason: suggestion de wording
+- comment_id: 2137773629
+  reason: préférence d'organisation du code
+- comment_id: 2144297480
+  reason: question de conception
+- comment_id: 2144299584
+  reason: renvoi à un autre commentaire
+- comment_id: 2144300343
+  reason: question de compréhension
+- comment_id: 2145561198
+  reason: question de conception
+- comment_id: 2152409921
+  reason: question de conception
+- comment_id: 2152414050
+  reason: question sur la config worker
+- comment_id: 2154845260
+  reason: valeur de timeout à discuter
+- comment_id: 2156410673
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2157070808
+  reason: choix de journalisation des requêtes
+- comment_id: 2166208973
+  reason: question sur l'outil Bandit
+- comment_id: 2166209743
+  reason: question sur l'outil Bandit
+- comment_id: 2166301469
+  reason: question sur les index supprimés
+- comment_id: 2166328461
+  reason: réglage autovacuum à discuter
+- comment_id: 2179310087
+  reason: règle métier du statut
+- comment_id: 2179318013
+  reason: règle métier du score shape
+- comment_id: 2179325391
+  reason: préférence de nommage
+- comment_id: 2179483305
+  reason: organisation des fichiers de test
+- comment_id: 2206988509
+  reason: valeur de zoom maximal discutée
+- comment_id: 2207012129
+  reason: langue des messages d'erreur
+- comment_id: 2207326121
+  reason: orthotypographie du message
+- comment_id: 2207326931
+  reason: orthotypographie du message
+- comment_id: 2207327477
+  reason: orthotypographie du message
+- comment_id: 2207328063
+  reason: orthotypographie du test
+- comment_id: 2207329315
+  reason: orthotypographie du message
+- comment_id: 2213472269
+  reason: suggestion de conception endpoint
+- comment_id: 2213481359
+  reason: découpage des serializers
+- comment_id: 2213482559
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2213502660
+  reason: champ is_active à inclure
+- comment_id: 2213508313
+  reason: préférence de conception pure
+- comment_id: 2213509374
+  reason: comparaison des ext_ids
+- comment_id: 2213528056
+  reason: question de conception identifiants
+- comment_id: 2213531977
+  reason: gestion des cas d'erreur
+- comment_id: 2213536501
+  reason: programmation défensive du SQL
+- comment_id: 2213543619
+  reason: demande de relecture en pairing
+- comment_id: 2213549844
+  reason: note de relecture partielle
+- comment_id: 2213574537
+  reason: question sur la logique d'historique
+- comment_id: 2213580699
+  reason: question d'utilité
+- comment_id: 2213583745
+  reason: jointure sur bornes de période
+- comment_id: 2213602249
+  reason: demande d'explication SQL
+- comment_id: 2219054035
+  reason: faute de frappe en commentaire
+- comment_id: 2219071206
+  reason: suggestion de cas de test
+- comment_id: 2222517412
+  reason: cas is_active manquant
+- comment_id: 2230597250
+  reason: question sur ignore mypy
+- comment_id: 2260260366
+  reason: question sur code inutile
+- comment_id: 2266221610
+  reason: explication de l'auteur
+- comment_id: 2266225422
+  reason: choix de lancement migration
+- comment_id: 2272742500
+  reason: suggestion d'outil de typage
+- comment_id: 2272790125
+  reason: vérification en staging
+- comment_id: 2272794553
+  reason: demande de commentaires Dockerfile
+- comment_id: 2272795162
+  reason: vérification de l'uid
+- comment_id: 2272953202
+  reason: doublon de type ignore
+- comment_id: 2273492168
+  reason: question de compréhension géométrie
+- comment_id: 2273492485
+  reason: remarque positive
+- comment_id: 2273512606
+  reason: explication de l'auteur
+- comment_id: 2275735158
+  reason: règle métier de mise à jour
+- comment_id: 2275736784
+  reason: idée d'évolution future
+- comment_id: 2275971620
+  reason: explication de l'auteur
+- comment_id: 2276632485
+  reason: question de conception
+- comment_id: 2291503449
+  reason: suggestion de configuration
+- comment_id: 2291529989
+  reason: suggestion d'optimisation Dockerfile
+- comment_id: 2291534928
+  reason: remarque sur COPY redondant
+- comment_id: 2291554126
+  reason: suggestion de robustesse
+- comment_id: 2306640581
+  reason: explication de l'auteur
+- comment_id: 2315549829
+  reason: nom de contrainte incohérent
+- comment_id: 2315558161
+  reason: nom de test incohérent
+- comment_id: 2315559002
+  reason: commentaire de test périmé
+- comment_id: 2315560497
+  reason: nom de contrainte en migration
+- comment_id: 2348899983
+  reason: texte de doc abîmé
+- comment_id: 2349051289
+  reason: vérification en staging
+- comment_id: 2349208496
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 2349217491
+  reason: suggestion de wording
+- comment_id: 2349231857
+  reason: amélioration de la spec
+- comment_id: 2349236597
+  reason: amélioration de la spec
+- comment_id: 2355305688
+  reason: question sur dependabot
+- comment_id: 2387890191
+  reason: question sur les tags OpenAPI
+- comment_id: 2387893209
+  reason: suggestion de wording
+- comment_id: 2387908726
+  reason: suggestion de wording
+- comment_id: 2387917330
+  reason: suggestion de wording
+- comment_id: 2414202862
+  reason: suggestion de wording
+- comment_id: 2426443141
+  reason: question de conception
+- comment_id: 2426445935
+  reason: question sur modification de test
+- comment_id: 2426448293
+  reason: question sur couverture de test
+- comment_id: 2426866480
+  reason: correction de commentaire
+- comment_id: 2426869745
+  reason: question sur le shell
+- comment_id: 2426874905
+  reason: demande de tests supplémentaires
+- comment_id: 2431630937
+  reason: discussion de configuration BDD
+- comment_id: 2431633561
+  reason: robustesse de requête
+- comment_id: 2431638544
+  reason: question de compréhension
+- comment_id: 2434809182
+  reason: préférence de style
+- comment_id: 2434814005
+  reason: question de conception
+- comment_id: 2434816271
+  reason: question de convention API
+- comment_id: 2434820980
+  reason: préférence de nommage
+- comment_id: 2434826248
+  reason: préférence de nommage de test
+- comment_id: 2434943338
+  reason: discussion à l'oral
+- comment_id: 2435194876
+  reason: bug propre à la fonctionnalité
+- comment_id: 2447944380
+  reason: question de conception de test
+- comment_id: 2454214838
+  reason: secret potentiel dans la doc
+- comment_id: 2454222746
+  reason: suggestion de wording
+- comment_id: 2454227419
+  reason: simplification de la documentation
+- comment_id: 2476905702
+  reason: explication de l'auteur
+- comment_id: 2477046005
+  reason: choix de configuration nginx
+- comment_id: 2486550411
+  reason: règle métier signalements anonymes
+- comment_id: 2486594348
+  reason: champ manquant propre au modèle
+- comment_id: 2487119154
+  reason: remarque positive
+- comment_id: 2487126551
+  reason: question de périmètre migration
+- comment_id: 2489962464
+  reason: suggestion de typage et commentaire
+- comment_id: 2490683028
+  reason: remarque de nettoyage vague
+- comment_id: 2490685552
+  reason: préférence de lisibilité
+- comment_id: 2490693134
+  reason: demande de découpage de commit
+- comment_id: 2490982021
+  reason: règle métier points du challenge
+- comment_id: 2498300186
+  reason: bug propre à la fonctionnalité
+- comment_id: 2509361226
+  reason: question de conception d'index
+- comment_id: 2509423220
+  reason: question de conception contrainte
+- comment_id: 2509427425
+  reason: question de conception null/blank
+- comment_id: 2509428403
+  reason: question de conception null/blank
+- comment_id: 2509433156
+  reason: règle métier champs nullables
+- comment_id: 2509460710
+  reason: question de curiosité
+- comment_id: 2509534411
+  reason: question de conception du modèle
+- comment_id: 2509537771
+  reason: donnée de migration à reprendre
+- comment_id: 2518161555
+  reason: question sur les données migrées
+- comment_id: 2534313197
+  reason: suggestion de wording
+- comment_id: 2534324492
+  reason: question de conception relation
+- comment_id: 2534375411
+  reason: règle métier tags des signalements
+- comment_id: 2534509712
+  reason: test manquant propre à la fonctionnalité
+- comment_id: 2534683038
+  reason: emplacement d'un fichier d'exemple
+- comment_id: 2538175322
+  reason: explication de l'auteur sur rebase
+- comment_id: 2538176021
+  reason: explication de l'auteur sur rebase
+- comment_id: 2538176244
+  reason: explication de l'auteur sur rebase
+- comment_id: 2538176479
+  reason: explication de l'auteur sur rebase
+- comment_id: 2538176801
+  reason: explication de l'auteur sur rebase
+- comment_id: 2545503388
+  reason: explication de l'auteur
+- comment_id: 2545505097
+  reason: discussion de sécurité sur captcha
+- comment_id: 2545508471
+  reason: explication de réglage de test
+- comment_id: 2549920262
+  reason: explication de refactorisation
+- comment_id: 2556661498
+  reason: explication de l'auteur
+- comment_id: 2559275604
+  reason: choix du code de statut
+- comment_id: 2559296605
+  reason: question sur le contenu
+- comment_id: 2559962170
+  reason: explication de l'auteur
+- comment_id: 2559963886
+  reason: explication de l'auteur
+- comment_id: 2559969265
+  reason: règle métier de comptage
+- comment_id: 2559974469
+  reason: règle métier équipe RNB
+- comment_id: 2559986358
+  reason: validation d'entrée propre à la fonctionnalité
+- comment_id: 2559990759
+  reason: préférence de nommage de variable
+- comment_id: 2560054140
+  reason: test manquant propre à la fonctionnalité
+- comment_id: 2568093557
+  reason: explication de l'auteur
+- comment_id: 2568096458
+  reason: explication de l'auteur
+- comment_id: 2568100102
+  reason: explication de l'auteur
+- comment_id: 2568101600
+  reason: explication de l'auteur
+- comment_id: 2571051512
+  reason: question de conception
+- comment_id: 2571060207
+  reason: question de conception
+- comment_id: 2571134943
+  reason: observation sur l'ordre des vérifications
+- comment_id: 2571141621
+  reason: préférence de nommage
+- comment_id: 2571192769
+  reason: préférence de nommage
+- comment_id: 2571194681
+  reason: question sur l'API
+- comment_id: 2571199480
+  reason: question de conception
+- comment_id: 2571202842
+  reason: question de conception
+- comment_id: 2571211509
+  reason: remarque de lecture
+- comment_id: 2571234272
+  reason: question de conception
+- comment_id: 2571238402
+  reason: question de conception
+- comment_id: 2571268932
+  reason: question de conception
+- comment_id: 2571273701
+  reason: question de conception
+- comment_id: 2571658394
+  reason: docstring imprécise propre à la fonction
+- comment_id: 2571664721
+  reason: suggestion de conception
+- comment_id: 2571799286
+  reason: question de conception
+- comment_id: 2571801107
+  reason: suggestion de conception
+- comment_id: 2571804739
+  reason: préférence de nommage
+- comment_id: 2571806194
+  reason: suggestion de typage
+- comment_id: 2571813151
+  reason: règle métier
+- comment_id: 2571816578
+  reason: remarque de revue
+- comment_id: 2571938981
+  reason: question sur le test
+- comment_id: 2571942433
+  reason: suggestion de test
+- comment_id: 2571955572
+  reason: suggestion de test
+- comment_id: 2571959686
+  reason: suggestion de test
+- comment_id: 2571968722
+  reason: question de conception
+- comment_id: 2571984964
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2577793714
+  reason: suggestion de test
+- comment_id: 2581619485
+  reason: suggestion de wording
+- comment_id: 2584434382
+  reason: question de conception
+- comment_id: 2584558338
+  reason: suggestion de simplification
+- comment_id: 2584650269
+  reason: choix de conception
+- comment_id: 2585495873
+  reason: remarque positive
+- comment_id: 2597710665
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2599424552
+  reason: explication de l'auteur
+- comment_id: 2602690959
+  reason: règle métier
+- comment_id: 2602692869
+  reason: remarque sans contenu
+- comment_id: 2613566898
+  reason: question de conception
+- comment_id: 2623806083
+  reason: explication de l'auteur
+- comment_id: 2623868567
+  reason: bug propre à la fonctionnalité
+- comment_id: 2623876754
+  reason: question de conception
+- comment_id: 2626257514
+  reason: préférence de nommage
+- comment_id: 2626314140
+  reason: question de conception
+- comment_id: 2630165195
+  reason: suggestion de structure
+- comment_id: 2661201034
+  reason: question de conception
+- comment_id: 2661398634
+  reason: question sur le test
+- comment_id: 2672851290
+  reason: suggestion de simplification
+- comment_id: 2672859716
+  reason: règle métier
+- comment_id: 2672867568
+  reason: suggestion de simplification
+- comment_id: 2698998955
+  reason: question de conception
+- comment_id: 2705032953
+  reason: explication de l'auteur
+- comment_id: 2708465279
+  reason: question de conception
+- comment_id: 2716992366
+  reason: explication de l'auteur
+- comment_id: 2716995609
+  reason: explication de l'auteur
+- comment_id: 2717736430
+  reason: explication de l'auteur
+- comment_id: 2717739977
+  reason: explication de l'auteur
+- comment_id: 2720426699
+  reason: test redondant
+- comment_id: 2720433361
+  reason: test redondant
+- comment_id: 2720435100
+  reason: test redondant
+- comment_id: 2720454593
+  reason: test redondant
+- comment_id: 2720462949
+  reason: test redondant
+- comment_id: 2720465037
+  reason: test redondant
+- comment_id: 2731342739
+  reason: suggestion de wording
+- comment_id: 2732099041
+  reason: explication de l'auteur
+- comment_id: 2732103312
+  reason: explication de l'auteur
+- comment_id: 2732106073
+  reason: explication de l'auteur
+- comment_id: 2732108164
+  reason: explication de l'auteur
+- comment_id: 2732109265
+  reason: explication de l'auteur
+- comment_id: 2732115184
+  reason: explication de l'auteur
+- comment_id: 2746172379
+  reason: explication de l'auteur
+- comment_id: 2746174173
+  reason: explication de l'auteur
+- comment_id: 2759020141
+  reason: suggestion de wording
+- comment_id: 2759418449
+  reason: explication de l'auteur
+- comment_id: 2783045419
+  reason: explication de l'auteur
+- comment_id: 2783051906
+  reason: explication de l'auteur
+- comment_id: 2794301085
+  reason: suggestion de simplification
+- comment_id: 2794312001
+  reason: remarque de style
+- comment_id: 2794325382
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 2812511801
+  reason: suggestion de simplification
+- comment_id: 2812516644
+  reason: suggestion de simplification
+- comment_id: 2812518974
+  reason: suggestion de simplification
+- comment_id: 2812540206
+  reason: remarque d'évolution
+- comment_id: 2812551041
+  reason: préférence de nommage
+- comment_id: 2812571871
+  reason: suggestion de test
+- comment_id: 2812759351
+  reason: préférence de nommage
+- comment_id: 2812769556
+  reason: organisation des documents
+- comment_id: 2812784176
+  reason: question de conception
+- comment_id: 2812851532
+  reason: suggestion de refactorisation
+- comment_id: 2853651388
+  reason: question de conception
+- comment_id: 2871121681
+  reason: suppression de fonction obsolète
+- comment_id: 2871135163
+  reason: règle métier sur les statuts
+- comment_id: 2871135930
+  reason: règle métier sur les statuts
+- comment_id: 2871139135
+  reason: conséquence d'une règle métier
+- comment_id: 2931939559
+  reason: suggestion de test supplémentaire
+- comment_id: 2931952131
+  reason: suggestion de test supplémentaire
+- comment_id: 2931963406
+  reason: suggestion de test supplémentaire
+- comment_id: 2932011918
+  reason: question de conception
+- comment_id: 2932023961
+  reason: préférence de style SQL
+- comment_id: 2932063904
+  reason: question sur un cast
+- comment_id: 2932112359
+  reason: validation d'un ordre de routes
+- comment_id: 2932154928
+  reason: suggestion d'assertion plus stricte
+- comment_id: 2940981842
+  reason: vérification des tests demandée
+- comment_id: 2940985952
+  reason: vérification des tests demandée
+- comment_id: 2940993398
+  reason: déplacement de code demandé
+- comment_id: 2941010076
+  reason: évolution fonctionnelle annoncée
+- comment_id: 2941022997
+  reason: question de conception
+- comment_id: 2941027676
+  reason: demande de fonctionnalité
+- comment_id: 2941154239
+  reason: demande de structure du code
+- comment_id: 2941175242
+  reason: question de conception
+- comment_id: 2941178862
+  reason: demande de tests
+- comment_id: 2941180204
+  reason: demande de tests
+- comment_id: 2941219792
+  reason: format de données demandé
+- comment_id: 2941232569
+  reason: réorganisation des tests
+- comment_id: 2946918920
+  reason: suggestion de wording
+- comment_id: 2946945149
+  reason: suggestion de wording
+- comment_id: 2975020911
+  reason: préférence de nommage
+- comment_id: 2975041392
+  reason: remarque humoristique
+- comment_id: 2982758650
+  reason: risque de performance spécifique
+- comment_id: 2982760071
+  reason: risque de performance spécifique
+- comment_id: 2982805461
+  reason: information sur un utilitaire
+- comment_id: 2982831962
+  reason: question de conception
+- comment_id: 2982848947
+  reason: suggestion de test supplémentaire
+- comment_id: 2982880143
+  reason: suggestion de test plus clair
+- comment_id: 3000141711
+  reason: préférence de nommage
+- comment_id: 3000153466
+  reason: question sur le code
+- comment_id: 3000200140
+  reason: nommage de variable trompeur
+- comment_id: 3000201959
+  reason: préférence de nommage
+- comment_id: 3009457272
+  reason: suppression de code inutilisé
+- comment_id: 3009463443
+  reason: information sur un utilitaire
+- comment_id: 3032035866
+  reason: correction de typo
+- comment_id: 3032036943
+  reason: correction de typo
+- comment_id: 3032151812
+  reason: question sur un changement
+- comment_id: 3032155744
+  reason: question sur un choix
+- comment_id: 3032228250
+  reason: modifications hors périmètre de la PR
+- comment_id: 3116385111
+  reason: demande de documentation de champs
+- comment_id: 3116387345
+  reason: fusion de deux migrations demandée
+- comment_id: 3116403500
+  reason: suggestion de wording Dockerfile
+- comment_id: 3116406375
+  reason: suggestion de simplification Dockerfile
+- comment_id: 3116535069
+  reason: préférence de format username
+- comment_id: 3116702971
+  reason: question de sécurité métier
+- comment_id: 3130795715
+  reason: préférence de nommage related_name
+- comment_id: 3130910796
+  reason: remarque sur réversibilité migration
+- comment_id: 3138651800
+  reason: demande de vérification vague
+- comment_id: 3138652602
+  reason: demande de vérification vague
+- comment_id: 3201749029
+  reason: retrait demandé, nature non caractérisée
+- comment_id: 3201755080
+  reason: suggestion de code except
+- comment_id: 3202034850
+  reason: suggestion d'envoi vers Sentry
+- comment_id: 3220021418
+  reason: test redondant signalé
+- comment_id: 3220042778
+  reason: explication de l'auteur
+- comment_id: 3227432339
+  reason: explication de l'auteur
+- comment_id: 3227439028
+  reason: explication de l'auteur
+- comment_id: 3227442724
+  reason: explication de l'auteur
+- comment_id: 3227561446
+  reason: explication de l'auteur
+- comment_id: 3227568438
+  reason: explication de la correction
+- comment_id: 3341152289
+  reason: scénario de test discuté
+- comment_id: 3363217387
+  reason: explication typage mypy
+- comment_id: 3363223633
+  reason: explication ignore mypy
+- comment_id: 3363229514
+  reason: explication de l'auteur
+- comment_id: 3363232251
+  reason: explication suppression ignores
+- comment_id: 3396484761
+  reason: suggestion de wording doc
+- comment_id: 3396501625
+  reason: question sur espace
+- comment_id: 3396568306
+  reason: explication OpenAPI 3.1
+- comment_id: 3396591204
+  reason: question résolue sur type
+- comment_id: 3401979459
+  reason: préférence de nommage champ
+- comment_id: 3421308686
+  reason: question sur cast
+- comment_id: 3421401134
+  reason: choix de format export
+- comment_id: 3421430877
+  reason: question de conception requête
+- comment_id: 3428503048
+  reason: question sur champs dupliqués
+- comment_id: 3436533736
+  reason: explication de l'auteur
+- comment_id: 3511715932
+  reason: demande fonctionnelle shortname
+- comment_id: 3511753436
+  reason: remarque sur trophée unique
+- comment_id: 3513021823
+  reason: demande de retrait trophées
+- comment_id: 3541436252
+  reason: préférence de nommage modèle
+- comment_id: 3542507842
+  reason: paramètre inutilisé signalé
+- comment_id: 3666412146
+  reason: question sur fichier généré
+- comment_id: 3666419846
+  reason: question sur langue lexique
+- comment_id: 3666454670
+  reason: politique géométries 3D
+- comment_id: 3666502187
+  reason: suggestion de wording doc
+- comment_id: 3666527484
+  reason: suggestion de wording doc
+- comment_id: 3666566444
+  reason: suggestion de wording doc
+- comment_id: 3666578485
+  reason: suggestion de wording doc
+- comment_id: 3666622133
+  reason: préférence de nommage fonction
+- comment_id: 3674314869
+  reason: remarque positive
+- comment_id: 3674336548
+  reason: remarque sur bypass delete
+- comment_id: 3674451654
+  reason: code inutile signalé
+- comment_id: 3951042747
+  reason: préférence de pattern
+- comment_id: 4005273836
+  reason: préférence de nommage
+- comment_id: 4005285024
+  reason: remarque positive
+- comment_id: 4005332472
+  reason: pertinence d'un test
+- comment_id: 4005362794
+  reason: explication de l'auteur
+- comment_id: 4013809884
+  reason: demande de test supplémentaire
+- comment_id: 4013979907
+  reason: demande de test supplémentaire
+- comment_id: 4014361283
+  reason: demande de test supplémentaire
+- comment_id: 4062096623
+  reason: lien de documentation
+- comment_id: 4103543762
+  reason: explication de l'auteur
+- comment_id: 4103553312
+  reason: explication de l'auteur
+- comment_id: 4154534108
+  reason: préférence de gestion d'erreur
+- comment_id: 4154547104
+  reason: décision de conception
+- comment_id: 4154565054
+  reason: suggestion de wording
+- comment_id: 4154574530
+  reason: préférence de style
+- comment_id: 4281414852
+  reason: simplification de conception
+- comment_id: 4281441108
+  reason: préférence de nommage
+- comment_id: 4281455268
+  reason: préférence de nommage
+- comment_id: 4281514342
+  reason: demande de test supplémentaire
+- comment_id: 4283625405
+  reason: règle métier
+- comment_id: 4292613359
+  reason: organisation des tests
+- comment_id: 4292986072
+  reason: question de performance
+- comment_id: 4294825064
+  reason: question de conception
+- comment_id: 4294867290
+  reason: bug propre à la fonctionnalité
+- comment_id: 4295571260
+  reason: préférence de nommage
+- comment_id: 4295653567
+  reason: question de conception
+- comment_id: 4295693720
+  reason: préférence de nommage
+- comment_id: 4295731619
+  reason: préférence de conception
+- comment_id: 4296094563
+  reason: bug propre à la fonctionnalité
+- comment_id: 4398916286
+  reason: bug propre à la fonctionnalité
+- comment_id: 4467819157
+  reason: suggestion de wording
+- comment_id: 4467875342
+  reason: suggestion de présentation
+- comment_id: 4478793260
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4478793308
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4479178111
+  reason: périmètre du ticket
+- comment_id: 4479178122
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4479784503
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4483431186
+  reason: demande de test supplémentaire
+- comment_id: 4483981852
+  reason: bug propre à la fonctionnalité
+- comment_id: 4548677852
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4548677868
+  reason: optimisation de performance
+- comment_id: 4548681590
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4549670341
+  reason: préférence de nommage
+- comment_id: 4549747773
+  reason: suggestion de wording
+- comment_id: 4551920567
+  reason: préférence de nommage
+- comment_id: 4552159460
+  reason: question de conception
+- comment_id: 4567133661
+  reason: faille de sécurité spécifique
+- comment_id: 4567133672
+  reason: faille de sécurité spécifique
+- comment_id: 4616865873
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4617099150
+  reason: question de conception
+- comment_id: 4617099163
+  reason: question de conception
+- comment_id: 4617118993
+  reason: description de doc inexacte, vérification humaine
+- comment_id: 4617119010
+  reason: description de doc inexacte, vérification humaine
