@@ -654,6 +654,23 @@ def send_report_activity_notification(
     )
 
 
+# Same retry policy as send_report_activity_notification.
+@shared_task(
+    name="batid.tasks.send_mfa_change_notification",
+    autoretry_for=(requests.ConnectionError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_mfa_change_notification(*, user_id: int, change: str, changed_at: str):
+    from batid.services.mfa import MFAChange, notify_mfa_change
+
+    notify_mfa_change(
+        user_id=user_id,
+        change=MFAChange(change),
+        changed_at=datetime.fromisoformat(changed_at),
+    )
+
+
 @shared_task(
     base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
 )

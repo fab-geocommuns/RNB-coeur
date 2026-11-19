@@ -1,8 +1,8 @@
 from datetime import timedelta
 from unittest import mock
 
-from batid.services.mfa import reset_mfa
-from batid.tests.helpers import current_code, wrong_code
+from batid.services.mfa import MFAChange, reset_mfa
+from batid.tests.helpers import assert_notified, current_code, wrong_code
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import connection
@@ -22,6 +22,7 @@ BACKUP_CODES = ["k3m7qz2a", "p4n8rx5b"]
 REPLACE_SETUP = "/api/alpha/auth/mfa/replace/setup/"
 REPLACE_CONFIRM = "/api/alpha/auth/mfa/replace/confirm/"
 BACKUP_CODES_PATH = "/api/alpha/auth/mfa/backup_codes/"
+NOTIFY_PATH = "batid.tasks.send_mfa_change_notification.delay"
 
 
 @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OPTIONAL)
@@ -272,6 +273,63 @@ class MFAReplacementTest(APITestCase):
         self.app.refresh_from_db()
         self.assertTrue(self.app.confirmed)
         self.assertEqual(self.app.throttling_failure_count, 0)
+
+    def test_replacement_notifies_the_owner(self):
+        """Replacement started with a backup code, then confirmed: nothing queued at
+        setup, one notification queued after commit at confirmation, for the owner,
+        as an app replacement, with the time of the confirmation."""
+        with mock.patch(NOTIFY_PATH) as notify:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.post(REPLACE_SETUP, otp=BACKUP_CODES[0])
+            notify.assert_not_called()
+
+            before = timezone.now()
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.post(
+                    REPLACE_CONFIRM, otp=current_code(self.pending_app())
+                )
+
+        self.assertEqual(response.status_code, 200)
+        assert_notified(
+            test=self,
+            notify=notify,
+            user=self.user,
+            change=MFAChange.APP_REPLACED,
+            between=(before, timezone.now()),
+        )
+
+    def test_regeneration_notifies_the_owner(self):
+        """Regeneration with the current app code: one notification queued after
+        commit, for the owner, as a backup codes regeneration, with the time of the
+        request."""
+        before = timezone.now()
+        with mock.patch(NOTIFY_PATH) as notify:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.post(BACKUP_CODES_PATH, otp=current_code(self.app))
+
+        self.assertEqual(response.status_code, 200)
+        assert_notified(
+            test=self,
+            notify=notify,
+            user=self.user,
+            change=MFAChange.BACKUP_CODES_REGENERATED,
+            between=(before, timezone.now()),
+        )
+
+    def test_refused_changes_notify_no_one(self):
+        """Regeneration and replacement confirmation with a wrong code: 401 each,
+        no notification queued."""
+        self.post(REPLACE_SETUP, otp=BACKUP_CODES[0])
+        pending = self.pending_app()
+
+        with mock.patch(NOTIFY_PATH) as notify:
+            with self.captureOnCommitCallbacks(execute=True):
+                regenerate = self.post(BACKUP_CODES_PATH, otp=wrong_code(self.app))
+                confirm = self.post(REPLACE_CONFIRM, otp=wrong_code(pending))
+
+        self.assertEqual(regenerate.status_code, 401)
+        self.assertEqual(confirm.status_code, 401)
+        notify.assert_not_called()
 
     def test_enrollment_endpoints_stay_refused_during_a_replacement(self):
         """Replacement started: /auth/mfa/setup/ and /auth/mfa/confirm/ (with the

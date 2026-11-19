@@ -1,11 +1,15 @@
 import re
+from datetime import datetime
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
 import django_otp
+from batid.services.brevo import BrevoTemplate, send_transactional_email
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework.authtoken.models import Token
@@ -17,6 +21,8 @@ BACKUP_DEVICE_NAME = "Codes de secours"
 BACKUP_CODES_COUNT = 10
 
 NUMERIC_CODE_PATTERN = re.compile(r"[0-9]+")
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 
 class MFAError(StrEnum):
@@ -32,6 +38,33 @@ class LoginMFAOutcome(StrEnum):
 
     GRANTED = "granted"
     SETUP_SUGGESTED = "setup_suggested"
+
+
+class MFAChange(StrEnum):
+    """Changes of the second factor emailed to the account owner."""
+
+    APP_ACTIVATED = "app_activated"
+    APP_REPLACED = "app_replaced"
+    BACKUP_CODES_REGENERATED = "backup_codes_regenerated"
+
+
+_CHANGE_SUBJECTS = {
+    MFAChange.APP_ACTIVATED: "Double authentification activée sur votre compte RNB",
+    MFAChange.APP_REPLACED: "Application d'authentification changée sur votre compte RNB",
+    MFAChange.BACKUP_CODES_REGENERATED: "Codes de secours régénérés sur votre compte RNB",
+}
+
+_CHANGE_TEXTS = {
+    MFAChange.APP_ACTIVATED: "La double authentification a été activée sur votre compte.",
+    MFAChange.APP_REPLACED: (
+        "L'application d'authentification de votre compte a été remplacée. "
+        "Vos anciens codes de secours ne fonctionnent plus."
+    ),
+    MFAChange.BACKUP_CODES_REGENERATED: (
+        "De nouveaux codes de secours ont été générés pour votre compte. "
+        "Les anciens ne fonctionnent plus."
+    ),
+}
 
 
 def has_confirmed_app(user: User) -> bool:
@@ -130,6 +163,7 @@ def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
         return device
     codes = _issue_backup_codes(user)
     Token.objects.filter(user=user).delete()
+    _notify_owner_after_commit(user=user, change=MFAChange.APP_ACTIVATED)
     return codes
 
 
@@ -161,6 +195,7 @@ def confirm_replacement(*, user: User, otp) -> list[str] | MFAError:
     if isinstance(device, MFAError):
         return device
     TOTPDevice.objects.filter(user=user).exclude(pk=device.pk).delete()
+    _notify_owner_after_commit(user=user, change=MFAChange.APP_REPLACED)
     return _issue_backup_codes(user)
 
 
@@ -169,7 +204,52 @@ def regenerate_backup_codes(*, user: User, otp) -> list[str] | MFAError:
     """Replace the backup codes once the current second factor is proven."""
     _lock_enrollment(user)
     refusal = _current_factor_refusal(user=user, otp=otp)
-    return refusal or _issue_backup_codes(user)
+    if refusal:
+        return refusal
+    _notify_owner_after_commit(user=user, change=MFAChange.BACKUP_CODES_REGENERATED)
+    return _issue_backup_codes(user)
+
+
+def _notify_owner_after_commit(*, user: User, change: MFAChange) -> None:
+    """Queue the email to the owner once the change is saved: a change they did not
+    make is noticed now, not at their next login."""
+    from batid.tasks import send_mfa_change_notification
+
+    user_id = user.pk
+    # Taken now: a delayed or retried task must still show when the change happened.
+    changed_at = timezone.now().isoformat()
+    # robust: a broker outage must not turn an already saved change into a 500.
+    transaction.on_commit(
+        lambda: send_mfa_change_notification.delay(
+            user_id=user_id, change=change, changed_at=changed_at
+        ),
+        robust=True,
+    )
+
+
+def notify_mfa_change(*, user_id: int, change: MFAChange, changed_at: datetime) -> None:
+    """Email the account owner about the change through Brevo, with the account and
+    the time of the change so they can tell whether it was them. Security email: no
+    opt-out. Skipped for an account without email."""
+    user = User.objects.get(pk=user_id)
+    if not user.email:
+        return
+    send_transactional_email(
+        template=BrevoTemplate.MFA_CHANGE,
+        to=user.email,
+        params={
+            "SUBJECT": _CHANGE_SUBJECTS[change],
+            "CHANGE_TEXT": _CHANGE_TEXTS[change],
+            "ACCOUNT": user.username,
+            "CHANGED_AT": _paris_time(changed_at),
+            "PASSWORD_RESET_URL": f"{settings.FRONTEND_URL}/auth/mdp-oublie",
+        },
+    )
+
+
+def _paris_time(moment: datetime) -> str:
+    local = moment.astimezone(PARIS_TZ)
+    return f"{local:%d/%m/%Y} à {local:%H} h {local:%M} (heure de Paris)"
 
 
 def _current_factor_refusal(*, user: User, otp) -> MFAError | None:

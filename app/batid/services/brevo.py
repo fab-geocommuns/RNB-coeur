@@ -14,6 +14,7 @@ class BrevoTemplate(IntEnum):
     """Ids of the transactional templates defined in the Brevo account."""
 
     REPORT_ACTIVITY = 75
+    MFA_CHANGE = 77
 
 
 class BrevoError(Exception):
