@@ -1,6 +1,6 @@
 # PR review loop
 
-Every week, this loop reads the new PR review comments of `fab-geocommuns/RNB-coeur`, groups the recurring mistakes into **families**, and opens a GitHub issue when a family keeps coming back. Humans review the issues; turning a family into an actual check (lint rule, test, CI script) is outside the loop.
+Every week, this loop reads the new PR review comments of `fab-geocommuns/RNB-coeur`, groups the recurring mistakes into **families**, and opens a GitHub issue when a family keeps coming back. Humans review the issues; turning a family into an actual check (lint rule, test, CI script) is outside the loop, and follows the `implement-review-rule` skill (`.claude/skills/implement-review-rule/SKILL.md`).
 
 This file is the routine's prompt. Run the steps in order, in one session. Settings live in [`config.yml`](config.yml), read from `main`.
 
