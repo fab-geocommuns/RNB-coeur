@@ -13,6 +13,10 @@
 - when working on a feature, execute only tests concerning this feature during developpemnt phase
 - write an explicit (concise input description, expected results) docstring when you create or update a test
 
+# Pull requests
+
+- right after opening a PR, and after each push to a branch with an open PR, run the `pr-risk` skill to label it by risk
+
 # Migrations
 
 - deploys have no downtime: the previous code runs ~1 min 30 on the new schema, so every migration must work with it (see "Déploiement et migrations" in readme.md)
