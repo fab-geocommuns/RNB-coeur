@@ -5,8 +5,10 @@ from batid.services.contribution_summary import (
     ALL_PERIOD,
     DEFAULT_WINDOW_DAYS,
     NEWCOMERS_LIMIT,
+    RANKED_CITIES_LIMIT,
     TOP_LIMIT,
     WINDOWS_DAYS,
+    get_all_contribution_rankings,
     get_all_contribution_summaries,
     get_contribution_summary,
 )
@@ -118,3 +120,40 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
     )
     def get(self, request: Request) -> Response:
         return Response({"summaries": get_all_contribution_summaries()})
+
+
+class ContributionRankingsView(RNBLoggingMixin, APIView):
+    """
+    GET /api/alpha/contributions/rankings/
+    Long rankings of every period, for the details page of the summary.
+    """
+
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Classements complets des contributions, toutes périodes",
+                "description": (
+                    "Retourne, pour chaque période ("
+                    + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
+                    + ", puis depuis toujours) : tous les contributeurs et "
+                    "toutes les organisations ayant contribué, et les "
+                    f"{RANKED_CITIES_LIMIT} communes les plus éditées, les plus "
+                    "actifs d'abord. Ce sont les versions longues de top dans "
+                    "GET /api/alpha/contributions/summaries/, calculées au même "
+                    "instant (même updated_at). Les données sont mises à jour "
+                    "environ toutes les heures."
+                ),
+                "operationId": "getContributionRankings",
+                "responses": {
+                    "200": {
+                        "description": (
+                            "Les classements, de la période la plus courte à "
+                            "la plus longue."
+                        ),
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request: Request) -> Response:
+        return Response({"rankings": get_all_contribution_rankings()})

@@ -19,6 +19,7 @@ from api_alpha.endpoints.buildings.single_building import (
     SingleBuildingHistory,
 )
 from api_alpha.endpoints.contributions.summary import (
+    ContributionRankingsView,
     ContributionSummariesView,
     ContributionSummaryView,
 )
@@ -166,6 +167,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("contributions/summary/", ContributionSummaryView.as_view()),
     path("contributions/summaries/", ContributionSummariesView.as_view()),
+    path("contributions/rankings/", ContributionRankingsView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
     path("validation/ranking/", ValidationRankingView.as_view()),
     path("feves/", FevesView.as_view()),

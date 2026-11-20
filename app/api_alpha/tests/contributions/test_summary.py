@@ -49,6 +49,7 @@ PARIS = ZoneInfo("Europe/Paris")
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=PARIS)
 SUMMARIES_CACHE_KEY = summaries_cache_key()
 SUMMARIES_URL = "/api/alpha/contributions/summaries/"
+RANKINGS_URL = "/api/alpha/contributions/rankings/"
 IN_WINDOW = datetime(2026, 10, 5, tzinfo=PARIS)
 BEFORE_WINDOW = datetime(2026, 9, 1, tzinfo=PARIS)
 
@@ -500,6 +501,64 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(data["contributions"], {"total": 2})
+
+    def test_rankings_list_every_contributor_and_organization(self):
+        """
+        Input: 6 contributors in the window, each in their own organization,
+        user0 with 1 contribution up to user5 with 6.
+        Expected: the long rankings list the 6 contributors and the 6
+        organizations, the most active first; the top of the summary is
+        their 5 first rows.
+        """
+        for i in range(6):
+            org = Organization.objects.create(name=f"Org {i}")
+            user = member_of(ContributorUserFactory(username=f"user{i}"), org)
+            for _ in range(i + 1):
+                contribution(user, IN_WINDOW)
+
+        summary = compute_all_summaries(now=NOW)["30"]
+
+        users = summary["rankings"]["users"]
+        self.assertEqual(
+            [(u["username"], u["count"]) for u in users],
+            [(f"user{i}", i + 1) for i in reversed(range(6))],
+        )
+        self.assertEqual(
+            [o["name"] for o in summary["rankings"]["organizations"]],
+            [f"Org {i}" for i in reversed(range(6))],
+        )
+        for name in ["users", "organizations", "cities"]:
+            self.assertEqual(summary["top"][name], summary["rankings"][name][:5])
+
+    def test_ranked_cities_are_capped(self):
+        """
+        Input: RANKED_CITIES_LIMIT set to 2, contributions in Talence (3),
+        Mérignac (2) and Verrens-Arvey (1) in the window.
+        Expected: the long ranking of the cities stops at Talence and
+        Mérignac; the 3 cities are still counted.
+        """
+        for city, n in [(self.talence, 3), (self.merignac, 2), (self.verrens, 1)]:
+            for _ in range(n):
+                edition(self.alice, IN_WINDOW, city)
+
+        with patch.object(contribution_summary, "RANKED_CITIES_LIMIT", 2):
+            summary = compute_all_summaries(now=NOW)["30"]
+
+        self.assertEqual(
+            [c["name"] for c in summary["rankings"]["cities"]],
+            ["Talence", "Mérignac"],
+        )
+        self.assertEqual(summary["cities"]["total"], 3)
+
+    def test_summary_has_no_long_rankings(self):
+        """
+        Input: one contribution.
+        Expected: compute_contribution_summary leaves the long rankings out,
+        as the summary endpoints do.
+        """
+        contribution(self.alice, IN_WINDOW)
+
+        self.assertNotIn("rankings", compute_contribution_summary(now=NOW))
 
     def test_contributions_of_the_whole_period(self):
         """
@@ -961,6 +1020,40 @@ class ContributionSummaryApiTest(APITestCase):
                 ]
             },
         )
+
+    def test_rankings_return_every_period_shortest_first(self):
+        """
+        Input: a contribution, then calls to the rankings and the summaries
+        endpoints.
+        Expected: 200 with the long rankings of the 7-day, 30-day and whole
+        periods, in that order, from the same computation as the summaries
+        (same updated_at, and top is their start); the summaries carry no long
+        rankings.
+        """
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+
+        with patch.object(
+            contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
+        ) as compute:
+            response = self.client.get(RANKINGS_URL)
+            summaries = self.client.get(SUMMARIES_URL).json()["summaries"]
+
+        self.assertEqual(response.status_code, 200)
+        rankings = response.json()["rankings"]
+        self.assertEqual([r["window_days"] for r in rankings], [7, 30, None])
+        self.assertEqual(compute.call_count, 1)
+        for ranking, summary in zip(rankings, summaries):
+            self.assertNotIn("rankings", summary)
+            self.assertEqual(ranking["updated_at"], summary["updated_at"])
+            self.assertEqual(ranking["since"], summary["since"])
+            self.assertEqual(
+                ranking["users"],
+                [{"username": "alice", "organization": None, "count": 1}],
+            )
+            for name in ["users", "organizations", "cities"]:
+                self.assertEqual(summary["top"][name], ranking[name][:5])
 
     def test_summaries_and_summary_share_the_cache(self):
         """

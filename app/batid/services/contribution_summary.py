@@ -45,13 +45,17 @@ DEFAULT_WINDOW_DAYS = 30
 # counted, as in the internal Metabase dashboard
 ALL_PERIOD = "all"
 TOP_LIMIT = 5
+# cities in the long rankings of the details page (GET .../rankings/): every
+# contributor and organization is listed, but up to 20 000 cities have
+# contributions over the whole period
+RANKED_CITIES_LIMIT = 100
 # contributors listed as newcomers
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
 # version of the response format, in the cache key: an entry cached by the
-# previous code (v2: whole period from 1 April 2025) is never read
-CACHE_FORMAT_VERSION = "v3"
+# previous code (v3: without the long rankings) is never read
+CACHE_FORMAT_VERSION = "v4"
 # days parameter of every period, all cached in a single entry
 PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
 # An entry is recomputed after an hour, but kept a day: while one request
@@ -173,7 +177,7 @@ def _user_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[di
         LEFT JOIN auth_user u ON u.id = stats.user_id
         LEFT JOIN batid_userprofile p ON p.user_id = stats.user_id
         LEFT JOIN batid_organization o ON o.id = p.organization_id
-    """
+    """  # nosec B608: only the period keys ("7", "30", "all") are formatted in, the dates are query parameters
     params = {"now": now, "technical": RNB_TEAM_USERNAME} | {
         f"since_{key}": since for key, since in starts.items() if since is not None
     }
@@ -274,13 +278,61 @@ def _period_counts(stats: list[dict], key: str, since: Optional[datetime]) -> di
     }
 
 
-def _ranked(stats: list[dict], key: str, id_field: str) -> list[dict]:
+def _ranked(
+    stats: list[dict], key: str, id_field: str, limit: Optional[int] = None
+) -> list[dict]:
     """
-    The TOP_LIMIT rows of `stats` with the most contributions in the period.
-    Ties are broken by id, so that the order is stable.
+    The rows of `stats` with contributions in the period, the most active
+    first, the `limit` first ones only if given. Ties are broken by id, so
+    that the order is stable.
     """
     active = [s for s in stats if s[f"n_{key}"] and s[id_field] is not None]
-    return sorted(active, key=lambda s: (-s[f"n_{key}"], s[id_field]))[:TOP_LIMIT]
+    return sorted(active, key=lambda s: (-s[f"n_{key}"], s[id_field]))[:limit]
+
+
+def _ranked_lists(
+    users: list[dict],
+    organizations: list[dict],
+    cities: list[dict],
+    city_details: dict[int, dict],
+    key: str,
+) -> dict:
+    """
+    Every contributor and organization of the period, and its
+    RANKED_CITIES_LIMIT most edited cities, the most active first. The top of
+    the summary is the start of these lists.
+    """
+    return {
+        "users": [
+            {
+                "username": public_username(u["username"]),
+                "organization": (
+                    organization_label(
+                        u["organization_short_name"], u["organization_name"]
+                    )
+                    if u["organization_name"]
+                    else None
+                ),
+                "count": u[f"n_{key}"],
+            }
+            for u in _ranked(users, key, "user_id")
+        ],
+        # by the contributions of their current members. No department: a
+        # national organization contributes everywhere
+        "organizations": [
+            {"name": o["name"], "count": o[f"n_{key}"]}
+            for o in _ranked(organizations, key, "id")
+        ],
+        "cities": [
+            {
+                "insee_code": city_details[c["city_id"]]["code_insee"],
+                "name": city_details[c["city_id"]]["name"],
+                "department": _department(city_details[c["city_id"]]),
+                "count": c[f"n_{key}"],
+            }
+            for c in _ranked(cities, key, "city_id", RANKED_CITIES_LIMIT)
+        ],
+    }
 
 
 def _newcomers(users: list[dict], key: str, since: Optional[datetime]) -> list[dict]:
@@ -312,10 +364,17 @@ def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, di
     users = _user_stats(now, starts)
     cities = _city_stats(now, starts)
     organizations = _organization_stats(users, list(periods))
-    top_cities = {key: _ranked(cities, key, "city_id") for key in periods}
     city_details = _city_details(
-        {c["city_id"] for ranked in top_cities.values() for c in ranked}
+        {
+            c["city_id"]
+            for key in periods
+            for c in _ranked(cities, key, "city_id", RANKED_CITIES_LIMIT)
+        }
     )
+    rankings = {
+        key: _ranked_lists(users, organizations, cities, city_details, key)
+        for key in periods
+    }
 
     return {
         key: {
@@ -330,37 +389,10 @@ def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, di
             # edition requests of the period, one per request: the imports
             # (BD TOPO, BAL) write no Contribution row and are left out
             "contributions": {"total": sum(u[f"n_{key}"] for u in users)},
-            "top": {
-                "users": [
-                    {
-                        "username": public_username(u["username"]),
-                        "organization": (
-                            organization_label(
-                                u["organization_short_name"], u["organization_name"]
-                            )
-                            if u["organization_name"]
-                            else None
-                        ),
-                        "count": u[f"n_{key}"],
-                    }
-                    for u in _ranked(users, key, "user_id")
-                ],
-                # by the contributions of their current members. No department:
-                # a national organization contributes everywhere
-                "organizations": [
-                    {"name": o["name"], "count": o[f"n_{key}"]}
-                    for o in _ranked(organizations, key, "id")
-                ],
-                "cities": [
-                    {
-                        "insee_code": city_details[c["city_id"]]["code_insee"],
-                        "name": city_details[c["city_id"]]["name"],
-                        "department": _department(city_details[c["city_id"]]),
-                        "count": c[f"n_{key}"],
-                    }
-                    for c in top_cities[key]
-                ],
-            },
+            "top": {name: ranked[:TOP_LIMIT] for name, ranked in rankings[key].items()},
+            # long version of "top", left out of the summary (see
+            # _without_rankings), served by get_all_contribution_rankings
+            "rankings": rankings[key],
             "newcomers": {
                 "users": [
                     {"username": public_username(u["username"])}
@@ -377,11 +409,11 @@ def compute_contribution_summary(
     days: Optional[int] = DEFAULT_WINDOW_DAYS,
 ) -> dict:
     """
-    Summary of the last `days` days, or of every contribution if None. See the GET /api/alpha/contributions/summary/
-    documentation for the format.
+    Summary of the last `days` days, or of every contribution if None. See
+    the GET /api/alpha/contributions/summary/ documentation for the format.
     """
     key = str(days or ALL_PERIOD)
-    return _summaries(now or timezone.now(), {key: days})[key]
+    return _without_rankings(_summaries(now or timezone.now(), {key: days})[key])
 
 
 def _cached(key: str, compute: Callable[[], dict]) -> dict:
@@ -458,14 +490,19 @@ def summaries_cache_key() -> str:
     return f"{CACHE_KEY}:{CACHE_FORMAT_VERSION}:{','.join(PERIOD_KEYS)}"
 
 
+def _without_rankings(summary: dict) -> dict:
+    """A cached summary without its long rankings, served apart"""
+    return {k: v for k, v in summary.items() if k != "rankings"}
+
+
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:
     """
     Cached version of compute_contribution_summary. All the periods share a
     single entry and are recomputed together, so that they stay consistent.
     """
-    return _cached(summaries_cache_key(), compute_all_summaries)[
-        str(days or ALL_PERIOD)
-    ]
+    return _without_rankings(
+        _cached(summaries_cache_key(), compute_all_summaries)[str(days or ALL_PERIOD)]
+    )
 
 
 def get_all_contribution_summaries() -> list[dict]:
@@ -476,4 +513,22 @@ def get_all_contribution_summaries() -> list[dict]:
     during a refresh, the next the new one).
     """
     summaries = _cached(summaries_cache_key(), compute_all_summaries)
-    return [summaries[key] for key in PERIOD_KEYS]
+    return [_without_rankings(summaries[key]) for key in PERIOD_KEYS]
+
+
+def get_all_contribution_rankings() -> list[dict]:
+    """
+    Long rankings of every period, shortest first: every contributor and
+    organization, and the RANKED_CITIES_LIMIT most edited cities. They come
+    from the same cached computation as the summaries.
+    """
+    summaries = _cached(summaries_cache_key(), compute_all_summaries)
+    return [
+        {
+            "updated_at": summaries[key]["updated_at"],
+            "window_days": summaries[key]["window_days"],
+            "since": summaries[key]["since"],
+        }
+        | summaries[key]["rankings"]
+        for key in PERIOD_KEYS
+    ]
