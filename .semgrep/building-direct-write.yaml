@@ -1,0 +1,28 @@
+rules:
+  - id: building-direct-write
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A Building is written with a Django native function. Write buildings through
+      the RNB business functions (Building.create_new(), building.update(),
+      Building.merge(), building.split(), building.deactivate()...): native writes
+      skip events and history, and raise ForbiddenDjangoNativeFunction outside tests.
+      Issue: https://github.com/fab-geocommuns/RNB-coeur/issues/1254
+    patterns:
+      - pattern-either:
+          - pattern: $QS.update(...)
+          - pattern: $QS.bulk_update(...)
+          - pattern: $QS.bulk_create(...)
+          - pattern: $QS.create(...)
+          - pattern: $QS.get_or_create(...)
+          - pattern: $QS.update_or_create(...)
+      - metavariable-pattern:
+          metavariable: $QS
+          pattern: <... Building.objects ...>
+    paths:
+      exclude:
+        # Tests may write buildings directly: the RNB test runner allows it (PR #976).
+        - "**/tests/**"
+        - "**/migrations/**"
+        # The business functions themselves.
+        - "**/batid/models/building.py"
