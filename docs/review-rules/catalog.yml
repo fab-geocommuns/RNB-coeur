@@ -10,7 +10,7 @@ families:
   suggested_check: 'Tests de contrat en CI : chaque exemple de requête de la doc doit être accepté, et un outil comme schemathesis signale les codes de statut non documentés et les erreurs 500.'
   automatable: true
   status: pending
-  issue: null
+  issue: 1259
   adopted: false
   rejection_reason: null
   occurrences:
@@ -263,7 +263,7 @@ families:
   suggested_check: Script CI détectant les commentaires et docstrings contenant des mots français ou des caractères accentués.
   automatable: true
   status: pending
-  issue: null
+  issue: 1260
   adopted: false
   rejection_reason: null
   occurrences:
@@ -327,7 +327,7 @@ families:
   suggested_check: codespell en pre-commit et en CI.
   automatable: true
   status: pending
-  issue: null
+  issue: 1261
   adopted: false
   rejection_reason: null
   occurrences:
@@ -510,7 +510,7 @@ families:
   suggested_check: Contrôle pre-commit ou CI qui refuse toute modification de sandbox.py par rapport à sa version vide.
   automatable: true
   status: pending
-  issue: null
+  issue: 1262
   adopted: false
   rejection_reason: null
   occurrences:
@@ -547,7 +547,7 @@ families:
   suggested_check: Règle ruff T201 (print interdit hors scripts et notebooks).
   automatable: true
   status: pending
-  issue: null
+  issue: 1263
   adopted: false
   rejection_reason: null
   occurrences:
@@ -667,7 +667,7 @@ families:
   suggested_check: Règle semgrep signalant datetime.now ou timestamp dynamique dans un test sans freezegun.
   automatable: true
   status: pending
-  issue: null
+  issue: 1264
   adopted: false
   rejection_reason: null
   occurrences:
