@@ -17,8 +17,10 @@ from django.db import migrations
 # rollout, the previous version keeps running, and the migration is replayed
 # later. An index already switched stays off, which is harmless.
 #
-# The pending lists already filled are not flushed by this migration: run
-# gin_clean_pending_list on each index by hand after the deploy.
+# ALTER INDEX does not flush the pending lists already filled, so the migration
+# then empties them with gin_clean_pending_list, which does not block writes.
+# The app statement_timeout, which migrate runs with, would cut the cleaning of
+# bdg_ext_ids_idx (57 s on staging): it is lifted for the cleaning only.
 
 GIN_INDEXES = [
     # (model_name, index name, fields as declared in the model)
@@ -72,5 +74,16 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             "RESET lock_timeout;",
             reverse_sql="SET lock_timeout = '5s';",
+        ),
+        migrations.RunSQL(
+            [
+                "SET statement_timeout = 0;",
+                *(
+                    f"SELECT gin_clean_pending_list('{name}'::regclass);"
+                    for _, name, _ in GIN_INDEXES
+                ),
+                "RESET statement_timeout;",
+            ],
+            reverse_sql=migrations.RunSQL.noop,
         ),
     ]
