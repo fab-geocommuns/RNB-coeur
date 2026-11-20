@@ -4,7 +4,6 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.services.contribution_summary import (
     ALL_PERIOD,
     DEFAULT_WINDOW_DAYS,
-    EDITION_OPENING,
     NEWCOMERS_LIMIT,
     TOP_LIMIT,
     WINDOWS_DAYS,
@@ -29,8 +28,8 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                 "summary": "Synthèse des contributions de la communauté",
                 "description": (
                     "Retourne en une seule réponse, pour une période (paramètre "
-                    "days : les N derniers jours glissants, ou depuis "
-                    "l'ouverture de l'édition collaborative) : le nombre de "
+                    "days : les N derniers jours glissants, ou toutes les "
+                    "contributions depuis toujours) : le nombre de "
                     "communes et d'organisations ayant contribué sur la période "
                     "(et celles dont c'est la toute première contribution), le "
                     "nombre de contributions de la période (contributions.total, "
@@ -56,10 +55,9 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                         "description": (
                             "Période : les "
                             + " ou ".join(str(d) for d in WINDOWS_DAYS)
-                            + f" derniers jours, ou {ALL_PERIOD} depuis "
-                            "l'ouverture de l'édition collaborative ("
-                            + EDITION_OPENING.date().isoformat()
-                            + ")."
+                            + f" derniers jours, ou {ALL_PERIOD} pour toutes les "
+                            "contributions depuis toujours (since vaut alors "
+                            "null)."
                         ),
                         "required": False,
                         "schema": {
@@ -100,7 +98,7 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
                     "Retourne en une seule réponse la synthèse de chaque "
                     "période ("
                     + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
-                    + ", puis depuis l'ouverture de l'édition collaborative), "
+                    + ", puis depuis toujours), "
                     "au même format que GET /api/alpha/contributions/summary/. "
                     "Les périodes sont toujours calculées au même instant "
                     "(même updated_at). Les données sont mises à jour environ "

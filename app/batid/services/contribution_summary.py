@@ -4,7 +4,7 @@ Summary of the community contributions shown on the home page of the website
 GET /api/alpha/contributions/summaries/ for all of them).
 
 Everything is computed during the request, for every period at once (the last
-7 or 30 days, and since the opening of the collaborative edition), then cached
+7 or 30 days, and every contribution ever made), then cached
 for an hour.
 """
 
@@ -41,18 +41,17 @@ PARIS_TZ = ZoneInfo("Europe/Paris")
 # 1st of the month: the last 7 or 30 days
 WINDOWS_DAYS = [7, 30]
 DEFAULT_WINDOW_DAYS = 30
-# The whole period, asked with days=all, starts at the opening of the
-# collaborative edition: the contributions of the 2024 summer game are left out
+# The whole period, asked with days=all, has no start: every contribution is
+# counted, as in the internal Metabase dashboard
 ALL_PERIOD = "all"
-EDITION_OPENING = datetime(2025, 4, 1, tzinfo=PARIS_TZ)
 TOP_LIMIT = 5
 # contributors listed as newcomers
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
 # version of the response format, in the cache key: an entry cached by the
-# previous code (without the contributions field) is never read
-CACHE_FORMAT_VERSION = "v2"
+# previous code (v2: whole period from 1 April 2025) is never read
+CACHE_FORMAT_VERSION = "v3"
 # days parameter of every period, all cached in a single entry
 PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
 # An entry is recomputed after an hour, but kept a day: while one request
@@ -112,21 +111,27 @@ def organization_label(short_name: Optional[str], name: str) -> str:
     return short_name or name
 
 
-def _period_start(now: datetime, days: Optional[int]) -> datetime:
-    """Start of the last `days` days, or the opening of the edition if None"""
-    return EDITION_OPENING if days is None else now - timedelta(days=days)
+def _period_start(now: datetime, days: Optional[int]) -> Optional[datetime]:
+    """Start of the last `days` days, or None (no start) for the whole period"""
+    return None if days is None else now - timedelta(days=days)
+
+
+def _is_in(first_at: datetime, since: Optional[datetime]) -> bool:
+    """Whether a date is in the period starting at `since` (None: no start)"""
+    return since is None or first_at >= since
 
 
 def _period_counts_annotations(
-    starts: dict[str, datetime], count: Callable[[Q], Count]
+    starts: dict[str, Optional[datetime]], count: Callable[[Q], Count]
 ) -> dict[str, Count]:
     """{"n_<period key>": number of contributions since the start of the period}"""
     return {
-        f"n_{key}": count(Q(created_at__gte=since)) for key, since in starts.items()
+        f"n_{key}": count(Q() if since is None else Q(created_at__gte=since))
+        for key, since in starts.items()
     }
 
 
-def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
+def _user_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[dict]:
     """
     Query 1/3, one pass over the Contribution rows for every period at once.
     Per contributor (user_id None for a contribution without user): the date
@@ -141,8 +146,12 @@ def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
     """
     # the period keys are ours ("7", "30", "all"), never a user input
     counts = ",\n".join(
-        f'count(*) FILTER (WHERE created_at >= %(since_{key})s) AS "n_{key}"'
-        for key in starts
+        (
+            f'count(*) AS "n_{key}"'
+            if since is None
+            else f'count(*) FILTER (WHERE created_at >= %(since_{key})s) AS "n_{key}"'
+        )
+        for key, since in starts.items()
     )
     sql = f"""
         WITH stats AS (
@@ -166,13 +175,13 @@ def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
         LEFT JOIN batid_organization o ON o.id = p.organization_id
     """
     params = {"now": now, "technical": RNB_TEAM_USERNAME} | {
-        f"since_{key}": since for key, since in starts.items()
+        f"since_{key}": since for key, since in starts.items() if since is not None
     }
     with connection.cursor() as cursor:
         return dictfetchall(cursor, sql, params)
 
 
-def _city_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
+def _city_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[dict]:
     """
     Query 2/3, one pass over the SummerChallenge rows for every period at
     once. Per city: the date of its very first contribution ("first_at") and
@@ -253,7 +262,7 @@ def _organization_stats(users: list[dict], keys: list[str]) -> list[dict]:
     return list(organizations.values())
 
 
-def _period_counts(stats: list[dict], key: str, since: datetime) -> dict:
+def _period_counts(stats: list[dict], key: str, since: Optional[datetime]) -> dict:
     """
     Number of cities or organizations that contributed in the period, and of
     those whose very first contribution is in it
@@ -261,7 +270,7 @@ def _period_counts(stats: list[dict], key: str, since: datetime) -> dict:
     active = [s for s in stats if s[f"n_{key}"]]
     return {
         "total": len(active),
-        "new": sum(1 for s in active if s["first_at"] >= since),
+        "new": sum(1 for s in active if _is_in(s["first_at"], since)),
     }
 
 
@@ -274,7 +283,7 @@ def _ranked(stats: list[dict], key: str, id_field: str) -> list[dict]:
     return sorted(active, key=lambda s: (-s[f"n_{key}"], s[id_field]))[:TOP_LIMIT]
 
 
-def _newcomers(users: list[dict], key: str, since: datetime) -> list[dict]:
+def _newcomers(users: list[dict], key: str, since: Optional[datetime]) -> list[dict]:
     """
     Contributors whose very first contribution is in the period, the latest
     first
@@ -283,7 +292,9 @@ def _newcomers(users: list[dict], key: str, since: datetime) -> list[dict]:
         (
             u
             for u in users
-            if u[f"n_{key}"] and u["user_id"] is not None and u["first_at"] >= since
+            if u[f"n_{key}"]
+            and u["user_id"] is not None
+            and _is_in(u["first_at"], since)
         ),
         key=lambda u: (u["first_at"], u["user_id"]),
         reverse=True,
@@ -309,9 +320,9 @@ def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, di
     return {
         key: {
             "updated_at": now.isoformat(),
-            # null for the whole period
+            # null for the whole period, which has no start
             "window_days": days,
-            "since": starts[key].isoformat(),
+            "since": starts[key] and starts[key].isoformat(),
             # cities and organizations that contributed in the period, and those
             # whose very first contribution is in it
             "cities": _period_counts(cities, key, starts[key]),
@@ -366,8 +377,7 @@ def compute_contribution_summary(
     days: Optional[int] = DEFAULT_WINDOW_DAYS,
 ) -> dict:
     """
-    Summary of the last `days` days, or since the opening of the collaborative
-    edition if None. See the GET /api/alpha/contributions/summary/
+    Summary of the last `days` days, or of every contribution if None. See the GET /api/alpha/contributions/summary/
     documentation for the format.
     """
     key = str(days or ALL_PERIOD)

@@ -259,14 +259,14 @@ class ContributionSummaryTest(TestCase):
             [("alice", 1), ("bob", 1)],
         )
 
-    def test_whole_period_starts_at_the_edition_opening(self):
+    def test_whole_period_has_no_start(self):
         """
         Input: bob contributes in Verrens-Arvey during the 2024 summer game,
         alice in Talence in June 2025, bob in Mérignac in the window.
-        Expected: with days=None, the period starts on 1 April 2025: alice and
-        bob are ranked with 1 contribution each, Talence and Mérignac are the
-        cities of the period, both new; alice is the only newcomer, bob
-        contributed before.
+        Expected: with days=None, every contribution is counted, as in
+        Metabase: since is null, bob is ranked with 2 contributions and alice
+        with 1, the 3 cities are counted and new; both are newcomers, the
+        latest arrived first.
         """
         edition(self.bob, datetime(2024, 7, 1, tzinfo=PARIS), self.verrens)
         edition(self.alice, datetime(2025, 6, 1, tzinfo=PARIS), self.talence)
@@ -275,17 +275,19 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW, days=None)
 
         self.assertIsNone(data["window_days"])
-        self.assertEqual(data["since"], "2025-04-01T00:00:00+02:00")
+        self.assertIsNone(data["since"])
         self.assertEqual(
             sorted((u["username"], u["count"]) for u in data["top"]["users"]),
-            [("alice", 1), ("bob", 1)],
+            [("alice", 1), ("bob", 2)],
         )
         self.assertEqual(
             sorted(c["name"] for c in data["top"]["cities"]),
-            ["Mérignac", "Talence"],
+            ["Mérignac", "Talence", "Verrens-Arvey"],
         )
-        self.assertEqual(data["cities"], {"total": 2, "new": 2})
-        self.assertEqual(data["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(data["cities"], {"total": 3, "new": 3})
+        self.assertEqual(
+            data["newcomers"]["users"], [{"username": "alice"}, {"username": "bob"}]
+        )
 
     def test_periods_computed_together_are_nested(self):
         """
@@ -311,7 +313,7 @@ class ContributionSummaryTest(TestCase):
             {
                 "7": {"total": 1, "new": 0},
                 "30": {"total": 2, "new": 0},
-                "all": {"total": 3, "new": 2},
+                "all": {"total": 3, "new": 3},
             },
         )
         self.assertEqual(
@@ -502,15 +504,15 @@ class ContributionSummaryTest(TestCase):
     def test_contributions_of_the_whole_period(self):
         """
         Input: contributions on 31 March 2025 and 1 April 2025.
-        Expected: with days=None, only the one from 1 April 2025 (opening of
-        the edition) is counted.
+        Expected: with days=None, both are counted: the whole period has no
+        start, as in Metabase.
         """
         contribution(self.alice, datetime(2025, 3, 31, 12, tzinfo=PARIS))
         contribution(self.alice, datetime(2025, 4, 1, 12, tzinfo=PARIS))
 
         data = compute_contribution_summary(now=NOW, days=None)
 
-        self.assertEqual(data["contributions"], {"total": 1})
+        self.assertEqual(data["contributions"], {"total": 2})
 
     def test_contributions_leave_the_imports_out(self):
         """
