@@ -51,6 +51,10 @@ TOP_LIMIT = 5
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
+# Raised when the format of a summary changes, so that an entry cached in the
+# previous format (by the previous code during a deploy, or until it expires)
+# is never read. 2: full and short names of the organizations
+CACHE_FORMAT_VERSION = 2
 # days parameter of every period, all cached in a single entry
 PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
 # An entry is recomputed after an hour, but kept a day: while one request
@@ -85,12 +89,9 @@ def public_username(username: str) -> str:
     return username.split("@")[0]
 
 
-def organization_label(short_name: Optional[str], name: str) -> str:
-    """
-    Name under which an organization is shown, the same in every ranking: its
-    short name if any, else its name
-    """
-    return short_name or name
+def short_name_or_none(short_name: Optional[str]) -> Optional[str]:
+    """Short name of an organization, None when it has none (null or "")"""
+    return short_name or None
 
 
 def _departments(ids: set[Optional[int]]) -> dict[int, dict]:
@@ -197,13 +198,9 @@ def _top_users(in_window: QuerySet) -> list[dict]:
     return [
         {
             "username": public_username(details[u["id"]]["username"]),
-            "organization": (
-                organization_label(
-                    details[u["id"]]["profile__organization__short_name"],
-                    details[u["id"]]["profile__organization__name"],
-                )
-                if details[u["id"]]["profile__organization__name"]
-                else None
+            "organization": details[u["id"]]["profile__organization__name"],
+            "organization_short_name": short_name_or_none(
+                details[u["id"]]["profile__organization__short_name"]
             ),
             "count": u["count"],
         }
@@ -217,13 +214,20 @@ def _top_organizations(in_window: QuerySet) -> list[dict]:
     department: a national organization contributes everywhere.
     """
     organizations = _ranked(in_window, "user__profile__organization_id")
-    names = {
-        o["id"]: organization_label(o["short_name"], o["name"])
+    details = {
+        o["id"]: o
         for o in Organization.objects.filter(
             id__in=[o["id"] for o in organizations]
         ).values("id", "name", "short_name")
     }
-    return [{"name": names[o["id"]], "count": o["count"]} for o in organizations]
+    return [
+        {
+            "name": details[o["id"]]["name"],
+            "short_name": short_name_or_none(details[o["id"]]["short_name"]),
+            "count": o["count"],
+        }
+        for o in organizations
+    ]
 
 
 def _top_cities(in_window: QuerySet) -> list[dict]:
@@ -382,11 +386,12 @@ def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
 
 def summaries_cache_key() -> str:
     """
-    Key of the single entry holding every period. It names the periods: an
-    entry cached before a period was added (by the previous code during a
-    deploy, or until it expires) is never read.
+    Key of the single entry holding every period. It names the format version
+    and the periods: an entry cached in a previous format or before a period
+    was added (by the previous code during a deploy, or until it expires) is
+    never read.
     """
-    return f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+    return f"{CACHE_KEY}:v{CACHE_FORMAT_VERSION}:{','.join(PERIOD_KEYS)}"
 
 
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:

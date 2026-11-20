@@ -149,7 +149,7 @@ class ContributionSummaryTest(TestCase):
         )
         self.assertEqual(
             sorted(o["name"] for o in data["top"]["organizations"]),
-            sorted(["Talence", settings.RNB_TEAM_ORG_NAME]),
+            sorted(["Commune de Talence", settings.RNB_TEAM_ORG_NAME]),
         )
         self.assertEqual(
             sorted(c["name"] for c in data["top"]["cities"]),
@@ -172,7 +172,14 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(
             data["top"]["users"],
-            [{"username": "alice", "organization": "Talence", "count": 1}],
+            [
+                {
+                    "username": "alice",
+                    "organization": "Commune de Talence",
+                    "organization_short_name": "Talence",
+                    "count": 1,
+                }
+            ],
         )
         self.assertEqual(
             data["top"]["cities"],
@@ -330,8 +337,8 @@ class ContributionSummaryTest(TestCase):
         """
         Input: alice (Commune de Talence) contributes twice in Gironde and once
         in Savoie.
-        Expected: the organization is shown under its short name, without
-        department.
+        Expected: the organization is ranked with its name and short name,
+        without department.
         """
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
@@ -341,7 +348,7 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(
             data["top"]["organizations"],
-            [{"name": "Talence", "count": 3}],
+            [{"name": "Commune de Talence", "short_name": "Talence", "count": 3}],
         )
 
     def test_data_fix_updates_are_not_contributions(self):
@@ -377,19 +384,76 @@ class ContributionSummaryTest(TestCase):
         self.assertEqual([u["username"] for u in data["top"]["users"]], ["alice"])
         self.assertNotIn("paul", [u["username"] for u in data["newcomers"]["users"]])
 
-    def test_organization_has_the_same_name_in_every_ranking(self):
+    def test_organization_has_its_name_and_short_name_in_every_ranking(self):
         """
         Input: alice, member of "Commune de Talence" (short name "Talence"),
         contributes in the window.
-        Expected: the organization is "Talence" both next to alice and in the
-        organizations ranking.
+        Expected: both the name and the short name are returned, next to alice
+        and in the organizations ranking.
         """
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["top"]["users"][0]["organization"], "Talence")
-        self.assertEqual(data["top"]["organizations"][0]["name"], "Talence")
+        user = data["top"]["users"][0]
+        self.assertEqual(user["organization"], "Commune de Talence")
+        self.assertEqual(user["organization_short_name"], "Talence")
+        organization = data["top"]["organizations"][0]
+        self.assertEqual(organization["name"], "Commune de Talence")
+        self.assertEqual(organization["short_name"], "Talence")
+
+    def test_organization_without_short_name(self):
+        """
+        Input: carole, member of an organization whose short name is empty
+        (""), contributes in the window.
+        Expected: its short name is null, next to carole and in the
+        organizations ranking; its name is returned as is.
+        """
+        departement = Organization.objects.create(
+            name="Département de la Gironde", short_name=""
+        )
+        carole = member_of(ContributorUserFactory(username="carole"), departement)
+        edition(carole, IN_WINDOW, self.talence, self.gironde)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["top"]["users"],
+            [
+                {
+                    "username": "carole",
+                    "organization": "Département de la Gironde",
+                    "organization_short_name": None,
+                    "count": 1,
+                }
+            ],
+        )
+        self.assertEqual(
+            data["top"]["organizations"],
+            [{"name": "Département de la Gironde", "short_name": None, "count": 1}],
+        )
+
+    def test_user_without_organization(self):
+        """
+        Input: bob, member of no organization, contributes in the window.
+        Expected: their organization and its short name are both null.
+        """
+        edition(self.bob, IN_WINDOW, self.talence, self.gironde)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["top"]["users"],
+            [
+                {
+                    "username": "bob",
+                    "organization": None,
+                    "organization_short_name": None,
+                    "count": 1,
+                }
+            ],
+        )
+        self.assertEqual(data["top"]["organizations"], [])
 
     def test_email_usernames_are_not_published(self):
         """
@@ -765,6 +829,25 @@ class ContributionSummaryApiTest(APITestCase):
 
         self.assertEqual(response.json()["window_days"], 30)
         self.assertEqual(cache.get_many(list(old_entries)), old_entries)
+
+    def test_entry_in_the_previous_format_is_not_read(self):
+        """
+        Input: a fresh entry under the key of the previous format (organizations
+        under a single merged label), as cached before the deploy.
+        Expected: the summary is computed again instead of the entry being
+        served; the entry is left alone.
+        """
+        old_key = f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+        old = {
+            "data": {key: {"from_previous_format": True} for key in PERIOD_KEYS},
+            "fresh_until": time.time() + 600,
+        }
+        cache.set(old_key, old, 600)
+
+        response = self.client.get(f"{self.URL}?days=30")
+
+        self.assertEqual(response.json()["window_days"], 30)
+        self.assertEqual(cache.get(old_key), old)
 
     def test_entry_without_a_new_period_is_not_read(self):
         """
