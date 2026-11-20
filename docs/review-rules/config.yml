@@ -1,0 +1,35 @@
+# Settings of the PR review loop. The loop reads this file from main: see LOOP.md.
+
+# dry_run: the loop only pushes the catalog branch and writes preview.md.
+# live: the loop also opens and comments GitHub issues.
+mode: dry_run
+
+# Label carried by every issue the loop opens (it already exists on the repository).
+label: PR review loop
+
+# The loop opens a new issue only while fewer than this many labelled issues are open.
+max_open_issues: 5
+
+# A family becomes eligible for an issue at this many occurrences, spread over this many distinct PRs.
+# Age does not matter: reviews that stop flagging a mistake may mean a prose rule or careful reviewers
+# now prevent it, not that it is gone. Old families wait behind frequent and recent ones (LOOP.md
+# step 5), and the team closes an issue as not planned when its family no longer applies.
+min_occurrences: 2
+min_prs: 2
+
+# Branch holding catalog.yml and preview.md. Routines may push only to claude/ branches.
+catalog_branch: claude/review-catalog
+
+# GitHub logins whose PR review comments the loop collects. Comments from anyone else are ignored.
+reviewers:
+  - CarloPerennes
+  - ThomasDos
+  - am-beta
+  - bbaret
+  - fchabouis
+  - fe51
+  - haubourg
+  - jbouhadoun
+  - leonkenneth
+  - pauletienney
+  - tangimds
