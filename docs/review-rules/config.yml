@@ -10,11 +10,12 @@ label: PR review loop
 # The loop opens a new issue only while fewer than this many labelled issues are open.
 max_open_issues: 5
 
-# A family becomes eligible for an issue at this many occurrences, spread over this many distinct PRs,
+# A family becomes eligible for an issue at this many occurrences, spread over this many distinct PRs.
+# Age does not matter: reviews that stop flagging a mistake may mean a prose rule or careful reviewers
+# now prevent it, not that it is gone. Old families wait behind frequent and recent ones (LOOP.md
+# step 5), and the team closes an issue as not planned when its family no longer applies.
 min_occurrences: 2
 min_prs: 2
-# with its newest occurrence younger than this many months.
-window_months: 12
 
 # Branch holding catalog.yml and preview.md. Routines may push only to claude/ branches.
 catalog_branch: claude/review-catalog

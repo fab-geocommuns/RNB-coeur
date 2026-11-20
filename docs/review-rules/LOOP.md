@@ -72,8 +72,7 @@ Done when every occurrence has exactly one place.
 
 A family is **eligible** when all hold:
 - `automatable` is true, `status` is `pending` and `issue` is null;
-- at least `min_occurrences` occurrences, over at least `min_prs` distinct PRs;
-- its newest occurrence is younger than `window_months` months.
+- at least `min_occurrences` occurrences, over at least `min_prs` distinct PRs.
 
 **Slots** = `max_open_issues` − the number of open issues carrying `config.label`:
 
