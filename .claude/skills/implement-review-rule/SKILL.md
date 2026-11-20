@@ -19,10 +19,12 @@ Done when every occurrence has its commit, path, commented line range and the re
 
 ### 2. Choose the check
 
-Pick the first home that can express the check, in this order:
+First look for a guard the codebase already has against this mistake (a locked method, a type, a database constraint) and find when it fires. A guard that already fails the PR (in the tests or the type check) makes a new check redundant: comment on the issue and stop. A guard that fires only in production, or that the tests lift, is the reason the check exists: say so in the PR. (`building-direct-write`: the model locks Django's native writes, but the test runner lifts the lock for the whole suite.)
+
+Then pick the first home that can express the check, in this order:
 
 1. **A rule of a tool already in the suite** ([the suite](#the-suite)): a mypy setting, a bandit test, a hook option.
-2. **A new pre-commit hook**: semgrep for project-specific code patterns, ruff for a known Python rule code, codespell for spelling. pre-commit.ci runs every hook on each PR, so a hook is in CI the moment it is in `.pre-commit-config.yaml`.
+2. **A pre-commit hook**: semgrep for project-specific code patterns, ruff for a known Python rule code, codespell for spelling. Each hook runs in CI, through pre-commit.ci or, for a heavy one, a `sast.yml` job ([the suite](#the-suite)).
 3. **A Django test**, when deciding needs the application running (API behaviour, documented responses, database state). The `tests.yml` workflow runs it.
 4. **A step in a workflow**, for a check that needs the CI environment and fits none of the above.
 
@@ -58,10 +60,12 @@ Done when every catchable occurrence is red. An occurrence that stays green mean
 Run the check over the whole repository at your branch head and handle every finding, one of three ways:
 
 - **fix the code** in this PR, when the fix is mechanical and safe;
-- **suppress inline with a reason** (`# nosemgrep: <rule-id>  <why this case is legitimate>`, `# noqa: <code>  <why>`), for a legitimate case such as a data fix;
+- **suppress inline**, for a legitimate case such as a data fix: a comment line saying why, then the suppression on its own line right above the flagged statement (`# nosemgrep: <rule-id>`, nothing after the id). black reformats long calls and drags trailing comments away from the flagged line;
 - **narrow the scope** of the check, when a whole area legitimately differs (for example tests), and write that choice in the PR.
 
 Run the rest of the suite too (`pre-commit run --all-files`, and the Django tests the change touches): the new check slots in beside the existing ones.
+
+Then prove the check can fail inside the suite: write a probe file holding the mistake, run the hook or step on it, watch it fail, delete the probe. A hook that loads no rule passes too.
 
 Done when the check reports zero findings on your branch and the suite is green.
 
@@ -73,7 +77,7 @@ Open a PR whose body holds:
 - the occurrences you marked not catchable, with their reason;
 - how you handled each finding of step 5.
 
-Read the PR's checks with `gh api repos/fab-geocommuns/RNB-coeur/commits/<head sha>/check-runs --jq '.check_runs[] | {name, conclusion}'`.
+Read the PR's checks with `gh api repos/fab-geocommuns/RNB-coeur/commits/<head sha>/check-runs --jq '.check_runs[] | {name, conclusion}'` (GitHub Actions), and `gh api repos/fab-geocommuns/RNB-coeur/commits/<head sha>/status --jq '.statuses[] | {context, state}'` (pre-commit.ci posts a commit status, not a check run).
 
 Done when the PR's checks show the new check ran and passed.
 
@@ -85,13 +89,13 @@ Done when the PR's checks show the new check ran and passed.
 |---|---|---|
 | `.pre-commit-config.yaml`, run locally and by pre-commit.ci on every PR | trailing-whitespace, end-of-file-fixer, autoflake, isort, black | adding a hook |
 | `.github/workflows/tests.yml` | `mypy .`, `makemigrations --check`, Django tests with coverage | a mypy setting in `app/pyproject.toml`, a test, or a step |
-| `.github/workflows/sast.yml` | bandit on `app/` | a bandit setting in `app/pyproject.toml` |
+| `.github/workflows/sast.yml` | bandit on `app/`; the pre-commit hooks too heavy for pre-commit.ci (semgrep) | a bandit setting in `app/pyproject.toml`, or a hook listed in `ci: skip` |
 
-pre-commit.ci installs hook environments itself: use hooks from a hook repository, or `language: python` with `additional_dependencies`. A hook with `language: system` or `docker` cannot run there.
+pre-commit.ci installs hook environments itself: use hooks from a hook repository, or `language: python` with `additional_dependencies`. A hook with `language: system` or `docker` cannot run there, nor one whose environment exceeds 250 MiB: list such a hook in the `ci: skip` section of `.pre-commit-config.yaml` and run it from a `sast.yml` job with `pre-commit run <hook id> --all-files`, so its settings stay in one place.
 
 ### Tool notes
 
-- **semgrep**: all project rules live in `.semgrep/`, one `<rule-id>.yaml` per rule with its fixtures beside it in `<rule-id>.py`, annotated `# ruleid: <rule-id>` above red lines and `# ok: <rule-id>` above green ones; `semgrep --test .semgrep/` runs them. One single pre-commit hook runs every rule of the folder: the first semgrep rule adds it (`--config .semgrep/ --error --metrics=off --disable-version-check`, fixtures excluded from the scan), later rules only add files.
+- **semgrep**: all project rules live in `.semgrep/`, one `<rule-id>.yaml` per rule with its fixtures beside it in `<rule-id>.py`, annotated `# ruleid: <rule-id>` above red lines and `# ok: <rule-id>` above green ones. Run them rule by rule: `for r in .semgrep/*.yaml; do semgrep --test --config "$r" "${r%.yaml}.py"; done` (given the folder alone, `semgrep --test` finds no test). One single pre-commit hook, from `https://github.com/semgrep/pre-commit`, runs every rule of the folder with `--config .semgrep/ --error --metrics=off --disable-version-check --quiet`, `types: [python]` and `exclude: ^\.semgrep/` (the fixtures hold the mistake on purpose). Its environment is too big for pre-commit.ci, so pre-commit.ci skips it (`ci: skip`) and the `semgrep` job of `sast.yml` runs it. Hook and job came with `building-direct-write`; when they are missing, add them that way. Later rules only add files.
 - **ruff**: it is not in the suite yet. The first ruff rule adds the `ruff` hook (lint only, no formatter: black formats) with `[tool.ruff.lint] select` in `app/pyproject.toml` holding exactly the selected codes; later rules extend `select`. Its fixtures are the step 4 backtest itself.
 - **codespell**: one hook; project words it must accept go in its `ignore-words-list`.
 - **Django test**: place it beside the tests of the area it guards, under the existing `tests/` folders.
