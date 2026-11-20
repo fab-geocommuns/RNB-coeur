@@ -4,10 +4,11 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.services.contribution_summary import (
     ALL_PERIOD,
     DEFAULT_WINDOW_DAYS,
-    EDITION_OPENING,
     NEWCOMERS_LIMIT,
+    RANKED_CITIES_LIMIT,
     TOP_LIMIT,
     WINDOWS_DAYS,
+    get_all_contribution_rankings,
     get_all_contribution_summaries,
     get_contribution_summary,
 )
@@ -29,17 +30,19 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                 "summary": "Synthèse des contributions de la communauté",
                 "description": (
                     "Retourne en une seule réponse, pour une période (paramètre "
-                    "days : les N derniers jours glissants, ou depuis "
-                    "l'ouverture de l'édition collaborative) : le nombre de "
+                    "days : les N derniers jours glissants, ou toutes les "
+                    "contributions depuis toujours) : le nombre de "
                     "communes et d'organisations ayant contribué sur la période "
-                    "(et celles dont c'est la toute première contribution), les "
-                    "modifications de bâtiments des jours complets de la période "
-                    f"(toutes sources, dont les contributions), les {TOP_LIMIT} "
+                    "(et celles dont c'est la toute première contribution), le "
+                    "nombre de contributions de la période (contributions.total, "
+                    f"imports exclus), les {TOP_LIMIT} "
                     "contributeurs, organisations et communes les plus actifs, et "
                     f"jusqu'à {NEWCOMERS_LIMIT} contributeurs ayant fait leur "
                     "toute première contribution sur la période, les derniers "
                     "arrivés d'abord. Les imports ne sont pas comptés comme des "
-                    "contributions. Les données sont mises à jour environ "
+                    "contributions. Une contribution est une demande d'édition : "
+                    "une fusion ou une scission compte une fois, quel que soit "
+                    "le nombre de bâtiments concernés. Les données sont mises à jour environ "
                     "toutes les heures. Pour afficher plusieurs périodes "
                     "côte à côte, utilisez plutôt "
                     "GET /api/alpha/contributions/summaries/ : des appels "
@@ -54,10 +57,9 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                         "description": (
                             "Période : les "
                             + " ou ".join(str(d) for d in WINDOWS_DAYS)
-                            + f" derniers jours, ou {ALL_PERIOD} depuis "
-                            "l'ouverture de l'édition collaborative ("
-                            + EDITION_OPENING.date().isoformat()
-                            + ")."
+                            + f" derniers jours, ou {ALL_PERIOD} pour toutes les "
+                            "contributions depuis toujours (since vaut alors "
+                            "null)."
                         ),
                         "required": False,
                         "schema": {
@@ -98,7 +100,7 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
                     "Retourne en une seule réponse la synthèse de chaque "
                     "période ("
                     + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
-                    + ", puis depuis l'ouverture de l'édition collaborative), "
+                    + ", puis depuis toujours), "
                     "au même format que GET /api/alpha/contributions/summary/. "
                     "Les périodes sont toujours calculées au même instant "
                     "(même updated_at). Les données sont mises à jour environ "
@@ -118,3 +120,40 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
     )
     def get(self, request: Request) -> Response:
         return Response({"summaries": get_all_contribution_summaries()})
+
+
+class ContributionRankingsView(RNBLoggingMixin, APIView):
+    """
+    GET /api/alpha/contributions/rankings/
+    Long rankings of every period, for the details page of the summary.
+    """
+
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Classements complets des contributions, toutes périodes",
+                "description": (
+                    "Retourne, pour chaque période ("
+                    + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
+                    + ", puis depuis toujours) : tous les contributeurs et "
+                    "toutes les organisations ayant contribué, et les "
+                    f"{RANKED_CITIES_LIMIT} communes les plus éditées, les plus "
+                    "actifs d'abord. Ce sont les versions longues de top dans "
+                    "GET /api/alpha/contributions/summaries/, calculées au même "
+                    "instant (même updated_at). Les données sont mises à jour "
+                    "environ toutes les heures."
+                ),
+                "operationId": "getContributionRankings",
+                "responses": {
+                    "200": {
+                        "description": (
+                            "Les classements, de la période la plus courte à "
+                            "la plus longue."
+                        ),
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request: Request) -> Response:
+        return Response({"rankings": get_all_contribution_rankings()})
