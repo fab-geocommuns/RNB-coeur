@@ -60,7 +60,9 @@ def fill_empty_event_id(batch_size: int = 50_000) -> int:
                 for row in current_rows:
                     row.event_id = uuid.uuid4()
 
-                # Save in bulk to avoid multiple queries
+                # Save in bulk to avoid multiple queries.
+                # Historical data fix, kept for the record: the Building lock now makes it fail (see the file header).
+                # nosemgrep: building-direct-write
                 updated_rows += Building.objects.bulk_update(current_rows, ["event_id"])
 
                 enable_trigger_sql = "ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;"
