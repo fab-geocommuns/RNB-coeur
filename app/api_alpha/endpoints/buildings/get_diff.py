@@ -123,25 +123,8 @@ def _build_copy_query(
             sys_period,
             ST_AsEWKT(point) as point,
             ST_AsEWKT(shape) as shape,
-            -- The public contract exposes BAN "clés d'interopérabilité", while the
-            -- link is read from addresses_internal_id (batid_address.internal_id
-            -- values): translate them back, keeping the array order.
-            -- to_json(array_agg()) rather than json_agg() to keep the exact former
-            -- formatting (json_agg adds a space after each comma), and a NULL
-            -- array stays NULL while an empty one gives [].
-            CASE
-                WHEN bb.addresses_internal_id IS NULL THEN NULL
-                ELSE (
-                    SELECT to_json(COALESCE(
-                        array_agg(addr.cle_interop ORDER BY link.ord),
-                        '{{}}'::varchar[]
-                    ))
-                    FROM unnest(bb.addresses_internal_id)
-                        WITH ORDINALITY AS link(internal_id, ord)
-                    LEFT JOIN batid_address addr
-                        ON addr.internal_id = link.internal_id
-                )
-            END as addresses_id,
+            -- Deprecated, replaced by addresses_cle_interop (same content).
+            addr_arrays.cle_interop as addresses_id,
             COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
             parent_buildings,
             event_id,
@@ -167,8 +150,34 @@ def _build_copy_query(
                     LIMIT 1
                 ) AS mu_org ON TRUE
                 WHERE mu.id = ANY(bb.validated_by)
-            ) as validated_by
+            ) as validated_by,
+            addr_arrays.cle_interop as addresses_cle_interop,
+            addr_arrays.ban_id as addresses_ban_id
             FROM batid_building_with_history bb
+            -- The building <-> address link is read from addresses_internal_id
+            -- (batid_address.internal_id values) and translated back to the
+            -- public identifiers, keeping the array order so that the two arrays
+            -- are aligned position by position (NULL for an address without
+            -- ban_id).
+            -- to_json(array_agg()) rather than json_agg() to keep the exact former
+            -- formatting (json_agg adds a space after each comma). The join
+            -- condition keeps both arrays NULL for a NULL addresses_internal_id,
+            -- while an empty one gives [].
+            LEFT JOIN LATERAL (
+                SELECT
+                    to_json(COALESCE(
+                        array_agg(addr.cle_interop ORDER BY link.ord),
+                        '{{}}'::varchar[]
+                    )) as cle_interop,
+                    to_json(COALESCE(
+                        array_agg(addr.ban_id ORDER BY link.ord),
+                        '{{}}'::uuid[]
+                    )) as ban_id
+                FROM unnest(bb.addresses_internal_id)
+                    WITH ORDINALITY AS link(internal_id, ord)
+                LEFT JOIN batid_address addr
+                    ON addr.internal_id = link.internal_id
+            ) AS addr_arrays ON bb.addresses_internal_id IS NOT NULL
             LEFT JOIN auth_user u on u.id = bb.event_user_id
             LEFT JOIN batid_userprofile up ON up.user_id = u.id
             LEFT JOIN batid_organization org ON org.id = up.organization_id
@@ -317,7 +326,7 @@ class DiffView(RNBLoggingMixin, APIView):
                     '<li>`sys_period` : période de validité de cette version, au format plage de dates PostgreSQL : `["début","fin")`, ou `["début",)` pour la version courante. La date de début est la date de la modification</li>'
                     "<li>`point` : point représentatif du bâtiment au format EWKT, en WGS84 (ex : `SRID=4326;POINT(2.35 48.85)`)</li>"
                     "<li>`shape` : géométrie du bâtiment au format EWKT, en WGS84 (point, polygone ou multipolygone)</li>"
-                    "<li>`addresses_id` : tableau JSON des clés d'interopérabilité BAN des adresses du bâtiment. Vide ou `[]` si le bâtiment n'a pas d'adresse</li>"
+                    "<li>`addresses_id` : <strong>sera prochainement dépréciée</strong>, utilisez `addresses_cle_interop`, qui a le même contenu</li>"
                     '<li>`ext_ids` : identifiants du bâtiment dans d\'autres bases (BD Topo, BDNB…), sous forme de tableau JSON d\'objets `{"id", "source", "source_version", "created_at"}`. Vaut `[]` s\'il n\'y en a pas</li>'
                     "<li>`parent_buildings` : tableau JSON des identifiants RNB des bâtiments dont est issu ce bâtiment (fusion, scission). Vide si le bâtiment n'est issu d'aucune fusion ou scission</li>"
                     "<li>`event_id` : identifiant (UUID) de l'opération</li>"
@@ -326,7 +335,13 @@ class DiffView(RNBLoggingMixin, APIView):
                     "<li>`user_organization_name` : nom de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
                     "<li>`user_organization_id` : identifiant de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
                     '<li>`validated_by` : tableau JSON des utilisateurs ayant validé le bâtiment, chacun sous la forme `{"id", "username", "organization_name", "organization_short_name"}`. Vaut `[]` s\'il n\'y en a pas</li>'
+                    "<li>`addresses_cle_interop` : tableau JSON des clés d'interopérabilité BAN des adresses du bâtiment. Vide ou `[]` si le bâtiment n'a pas d'adresse</li>"
+                    "<li>`addresses_ban_id` : tableau JSON des identifiants BAN (`ban_id`) des adresses du bâtiment, dans le même ordre que `addresses_cle_interop` : "
+                    "l'élément `i` est l'identifiant BAN de l'adresse dont la clé d'interopérabilité est l'élément `i` de `addresses_cle_interop`. "
+                    "Vaut `null` à la position d'une adresse sans identifiant BAN. Vide ou `[]` si le bâtiment n'a pas d'adresse</li>"
                     "</ul>"
+                    "Les adresses sont celles liées au bâtiment dans cette version, mais leurs identifiants sont ceux d'aujourd'hui. "
+                    "Une modification d'une adresse (par exemple l'attribution d'un identifiant BAN) ne fait pas apparaître le bâtiment dans le fichier.<br /><br />"
                     f"Exemple de requête : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={SINCE_EXAMPLE}`"
                 ),
                 "operationId": "getDiff",
@@ -365,7 +380,7 @@ class DiffView(RNBLoggingMixin, APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username,user_organization_name,user_organization_id,validated_by"
+                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username,user_organization_name,user_organization_id,validated_by,addresses_cle_interop,addresses_ban_id"
                                 ),
                             }
                         },
