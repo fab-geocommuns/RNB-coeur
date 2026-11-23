@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Checks the response headers set by the nginx image: HSTS, rate limit headers, hidden nginx version.
+# Checks the response headers set by the nginx image: HSTS, rate limit headers, hidden nginx version,
+# and that HTTP/2 is off on both ports (nginx2root).
 # Builds the image, runs it in front of a dummy backend with a self-signed certificate, then curls it.
-# Usage: nginx/test_headers.sh (needs docker and openssl; uses port 8443, override with PORT=...)
+# Usage: nginx/test_headers.sh (needs docker and openssl; uses ports 8443 and 8080, override with PORT=... HTTP_PORT=...)
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -9,6 +10,7 @@ cd "$(dirname "$0")"
 NAME=rnb-nginx-test
 HOST=rnb.test
 PORT=${PORT:-8443}
+HTTP_PORT=${HTTP_PORT:-8080}
 CERTS_DIR=$(mktemp -d)
 FAILURES=0
 
@@ -28,7 +30,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$HOST" \
 docker network create "$NAME" >/dev/null
 docker run --detach --name "$NAME-backend" --network "$NAME" \
     --env VIRTUAL_HOST="$HOST" --env VIRTUAL_PORT=80 traefik/whoami:v1.10 >/dev/null
-docker run --detach --name "$NAME-proxy" --network "$NAME" --publish "$PORT:443" \
+docker run --detach --name "$NAME-proxy" --network "$NAME" --publish "$PORT:443" --publish "$HTTP_PORT:80" \
     --volume "$CERTS_DIR:/etc/nginx/certs:ro" \
     --volume /var/run/docker.sock:/tmp/docker.sock:ro "$NAME" >/dev/null
 
@@ -71,6 +73,17 @@ rejected=$(request --request POST "https://$HOST:$PORT/admin/login/")
 check "admin login 429: status" "$rejected" '^HTTP/[0-9.]+ 429'
 check "admin login 429: HSTS" "$rejected" '^strict-transport-security: max-age=31536000'
 check "admin login 429: RateLimit-Limit" "$rejected" '^ratelimit-limit: 1'
+
+# HTTP/2 stays off until nginx-proxy ships nginx >= 1.31.9 (see Dockerfile).
+# Over TLS, ALPN must not pick h2; on port 80, an h2c prior-knowledge request must not get an HTTP/2 answer,
+# neither for the vhost nor for the fallback server (unknown Host).
+h2_tls=$(request --http2 --output /dev/null --write-out '%{http_version}' "https://$HOST:$PORT/" || true)
+check "HTTPS: no HTTP/2 via ALPN" "$h2_tls" '^2' absent
+for host in "$HOST" unknown.test; do
+    h2c=$(curl --silent --http2-prior-knowledge --output /dev/null --write-out '%{http_version}' \
+        --header "Host: $host" "http://127.0.0.1:$HTTP_PORT/" || true)
+    check "port 80, Host $host: no h2c" "$h2c" '^2' absent
+done
 
 if [ "$FAILURES" -gt 0 ]; then
     echo "$FAILURES check(s) failed"
