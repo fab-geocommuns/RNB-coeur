@@ -1,4 +1,3 @@
-import contextlib
 import glob
 import hashlib
 import logging
@@ -63,8 +62,8 @@ def publish_national(*, run_id: str | None) -> bool:
             cleanup_directory(directory_name)
     finally:
         # Missing when no department archive was built.
-        with contextlib.suppress(FileNotFoundError):
-            shutil.rmtree(run_directory(run_id))
+        if os.path.isdir(run_directory(run_id)):
+            cleanup_directory(run_directory(run_id))
 
 
 def send_archive(*, area: str, archive: tuple[str, int, str]) -> bool:
@@ -97,7 +96,7 @@ def remove_previous_run_directories() -> None:
     9 h, hence the idle delay."""
     for path in glob.glob(os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}*")):
         if time.time() - os.path.getmtime(path) > RUN_DIRECTORY_MAX_IDLE_S:
-            shutil.rmtree(path)
+            cleanup_directory(path)
 
 
 def department_archive_path(*, run_dir: str, dept: str) -> str:
@@ -736,7 +735,13 @@ def update_resource_metadata(
 
 
 def cleanup_directory(directory_name):
-    shutil.rmtree(directory_name)
+    """Remove a working directory once its area is sent or has failed. A removal
+    error must not replace that outcome (a published file reported as failed, an
+    export error hidden): it is logged, hence sent to Sentry."""
+    try:
+        shutil.rmtree(directory_name)
+    except OSError:
+        logging.exception(f"data.gouv.fr directory not removed: {directory_name}")
 
 
 def get_area_publish_task(area: str, *, run_id: str | None = None):

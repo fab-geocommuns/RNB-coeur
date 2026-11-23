@@ -1100,20 +1100,24 @@ class TestDataGouvPublication(TestCase):
         )
         self.assertEqual(data_dir_entries(), entries_before)
 
-    @mock.patch("batid.services.data_gouv_publication.send_archive", return_value=False)
+    @mock.patch("batid.services.data_gouv_publication.send_archive", return_value=True)
     @mock.patch(
         "batid.services.data_gouv_publication.create_national_archive",
-        return_value=("RNB_nat.csv.zip", 3, "sha1"),
+        side_effect=[
+            ("RNB_nat.csv.zip", 3, "sha1"),
+            NationalArchiveError("assembly failed"),
+            ("RNB_nat.csv.zip", 3, "sha1"),
+        ],
     )
-    def test_national_raises_when_its_run_directory_cannot_be_removed(
+    def test_failed_run_directory_removal_keeps_the_national_outcome(
         self, create_national_mock, send_mock
     ):
         """
-        Input: publish(area="nat", run_id=<run>) with the national archive built,
-        once with a run directory whose removal raises PermissionError, once with
-        no run directory at all.
-        Expected: the PermissionError is raised; the missing run directory raises
-        nothing.
+        Input: publish(area="nat", run_id=<run>) with a run directory whose removal
+        raises PermissionError, once after a successful publication, once after the
+        assembly raised; then once with no run directory at all.
+        Expected: True for the published file, the assembly error for the failed one,
+        the removal error logged each time; the missing run directory logs nothing.
         """
         data_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, data_dir)
@@ -1129,13 +1133,22 @@ class TestDataGouvPublication(TestCase):
             "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
         ):
             run_id = uuid.uuid4().hex
-            os.makedirs(run_directory(run_id))
+            run_dir = run_directory(run_id)
+            os.makedirs(run_dir)
             with mock.patch("os.rmdir", side_effect=rmdir_denied_on_runs):
-                with self.assertRaises(PermissionError) as raised:
-                    publish(area="nat", run_id=run_id)
-            self.assertEqual(raised.exception.filename, run_directory(run_id))
+                with self.assertLogs(level="ERROR") as published_logs:
+                    self.assertTrue(publish(area="nat", run_id=run_id))
+                with self.assertLogs(level="ERROR") as failed_logs:
+                    with self.assertRaisesRegex(
+                        NationalArchiveError, "assembly failed"
+                    ):
+                        publish(area="nat", run_id=run_id)
 
-            self.assertFalse(publish(area="nat", run_id=uuid.uuid4().hex))
+            with self.assertNoLogs(level="ERROR"):
+                self.assertTrue(publish(area="nat", run_id=uuid.uuid4().hex))
+
+        for logs in (published_logs, failed_logs):
+            self.assertIn(run_dir, "\n".join(logs.output))
 
     def test_working_directories_created_in_the_same_second_differ(self):
         """
