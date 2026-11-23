@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from unittest import mock
 
@@ -8,8 +9,10 @@ from batid.services.imports.import_plots import (
     etalab_recent_release_date,
     pick_release_date,
 )
-from batid.tasks import queue_full_plots_import
-from django.test import SimpleTestCase
+from batid.services.tchap import TchapLevel
+from batid.tasks import notify_import_end, queue_full_plots_import
+from batid.tests.helpers import TCHAP_ENV
+from django.test import SimpleTestCase, override_settings
 
 RELEASE_DATES = [
     date(2026, 9, 1),
@@ -139,8 +142,9 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
         Input: queue_full_plots_import over departements "01" to "02",
         released_before="2026-09-01", Etalab index mocked to list 2026-06-01
         and 2026-09-01.
-        Expected: 4 chained tasks (dl_source then import_plots per
-        departement), every one carrying "2026-06-01"; the Tchap message shows
+        Expected: 5 chained tasks: dl_source then import_plots per departement,
+        every one carrying "2026-06-01", then the end message task with the
+        release and the departement count; the launch message shows
         "Millésime : 01/06/2026".
         """
         queue_full_plots_import.run(
@@ -148,8 +152,18 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
         )
 
         tasks = chain_mock.call_args.args
+        self.assertEqual(len(tasks), 5)
+        self.assertEqual(tasks[4].task, "batid.tasks.notify_import_end")
+        self.assertTrue(tasks[4].immutable)
         self.assertEqual(
-            [t.args for t in tasks],
+            tasks[4].kwargs,
+            {
+                "title": "Import du cadastre terminé",
+                "details": [["Millésime", "01/06/2026"], ["Départements", "2"]],
+            },
+        )
+        self.assertEqual(
+            [t.args for t in tasks[:4]],
             [
                 ("plot", {"dpt": "01", "date": "2026-06-01"}),
                 ("01", "2026-06-01"),
@@ -161,3 +175,39 @@ class PlotsImportReleaseDateTestCase(SimpleTestCase):
         self.assertIn(
             ("Millésime", "01/06/2026"), notify_mock.call_args.kwargs["details"]
         )
+
+
+class NotifyImportEnd(SimpleTestCase):
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    def test_message(self, notify_mock):
+        """
+        Input: notify_import_end with a title and two details as JSON lists.
+        Expected: one success message with that title and the details as tuples.
+        """
+        notify_import_end.run(
+            title="Import du cadastre terminé",
+            details=[["Millésime", "01/06/2026"], ["Départements", "2"]],
+        )
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.SUCCESS,
+            title="Import du cadastre terminé",
+            details=[("Millésime", "01/06/2026"), ("Départements", "2")],
+        )
+
+    @override_settings(TCHAP_NOTIFICATIONS=True)
+    @mock.patch.dict(os.environ, TCHAP_ENV)
+    @mock.patch("batid.services.tchap.requests.put")
+    def test_tchap_error_does_not_fail_the_task(self, put_mock):
+        """
+        Input: notify_import_end while Tchap answers HTTP 500.
+        Expected: the task does not raise and one ERROR record is logged.
+        """
+        put_mock.return_value.status_code = 500
+
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            notify_import_end.run(
+                title="Import du cadastre terminé", details=[["Départements", "2"]]
+            )
+
+        self.assertEqual(len(logs.records), 1)

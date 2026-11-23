@@ -1,6 +1,7 @@
 from unittest import mock
 
 from batid.models import ADS, Contribution
+from batid.services.tchap import TchapLevel
 from batid.tests.helpers import current_code, login_with_otp
 from batid.views import FlowerProxyView, MetabaseProxyView
 from django.contrib.admin.models import CHANGE, LogEntry
@@ -77,6 +78,30 @@ class AdminOTPTest(TestCase):
             self.client.session[DEVICE_ID_SESSION_KEY], device.persistent_id
         )
         self.assertEqual(self.client.get("/admin/").status_code, 200)
+
+    def test_pending_app_is_refused_at_admin_login(self):
+        """Superuser with a confirmed app and a pending one, POST /admin/login/ with
+        the pending device forged in otp_device and its current code: /admin/ still
+        redirects to the login page and no device id is left in the session."""
+        TOTPDevice.objects.create(user=self.superuser, name="app", confirmed=True)
+        pending = TOTPDevice.objects.create(
+            user=self.superuser, name="new app", confirmed=False
+        )
+
+        self.client.post(
+            "/admin/login/",
+            {
+                "username": "admin",
+                "password": PASSWORD,
+                "otp_device": pending.persistent_id,
+                "otp_token": current_code(pending),
+            },
+        )
+
+        response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+        self.assertNotIn(DEVICE_ID_SESSION_KEY, self.client.session)
 
     def test_proxies_refuse_unverified_superuser(self):
         """Superuser logged in without a second factor: /flower/ and a non-public
@@ -278,6 +303,54 @@ class ResetMFAActionTest(TestCase):
         self.assertFalse(StaticDevice.objects.filter(user__in=selected).exists())
         self.assertTrue(TOTPDevice.objects.filter(user=other).exists())
         self.assertTrue(StaticToken.objects.filter(device__user=other).exists())
+
+    @mock.patch("batid.admin.notify_tech_or_log")
+    def test_reset_is_announced(self, notify_mock):
+        """
+        Input: admin action "reset_mfa" by admin on user0 and user1.
+        Expected: one ALERT "Double authentification réinitialisée" naming the
+        author and both accounts in pk order.
+        """
+        selected = [
+            User.objects.create_user(username=f"user{i}", email=f"user{i}@exemple.fr")
+            for i in range(2)
+        ]
+
+        self.client.post(
+            "/admin/auth/user/",
+            {"action": "reset_mfa", "_selected_action": [u.pk for u in selected]},
+        )
+
+        notify_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Double authentification réinitialisée",
+            details=[("Auteur", "admin"), ("Comptes", "user0, user1")],
+        )
+
+    @mock.patch("batid.services.tchap.notify_tech", side_effect=Exception("tchap down"))
+    def test_reset_with_tchap_down(self, notify_mock):
+        """
+        Input: admin action "reset_mfa" on one user with an app, the Tchap message
+        raising.
+        Expected: the success message is shown, the user's app is deleted, the
+        message was attempted once and one ERROR record is logged.
+        """
+        selected = User.objects.create_user(username="user", email="user@exemple.fr")
+        TOTPDevice.objects.create(user=selected, name="app", confirmed=True)
+
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            response = self.client.post(
+                "/admin/auth/user/",
+                {"action": "reset_mfa", "_selected_action": [selected.pk]},
+            )
+
+        self.assertEqual(
+            [str(m) for m in get_messages(response.wsgi_request)],
+            ["Double authentification réinitialisée pour 1 utilisateur(s)."],
+        )
+        self.assertFalse(TOTPDevice.objects.filter(user=selected).exists())
+        notify_mock.assert_called_once()
+        self.assertEqual(len(logs.records), 1)
 
     def test_reset_is_logged(self):
         """Admin action "reset_mfa" on one user: one CHANGE entry in the admin history

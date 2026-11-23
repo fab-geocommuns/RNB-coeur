@@ -1,7 +1,19 @@
 from unittest.mock import patch
 
-from batid.services.tchap import Code, TchapLevel, notify_if_error, notify_tech
-from batid.tasks import import_cities, import_plots, send_monthly_leaderboard_emails
+from batid.services.tchap import (
+    Code,
+    TchapLevel,
+    notify_if_error,
+    notify_tech,
+    notify_tech_or_log,
+)
+from batid.tasks import (
+    create_sandbox_user,
+    import_cities,
+    import_plots,
+    remove_light_buildings,
+    send_monthly_leaderboard_emails,
+)
 from django.test import TestCase, override_settings
 
 
@@ -53,23 +65,114 @@ class NotifyTaskFailure(TestCase):
         Input: import_plots (max_retries=3) raises on every attempt, run through
         Celery with its retries.
         Expected: 4 attempts, the task ends in FAILURE and one single failure
-        notification is sent: generic title, task name as "Tâche" and task id as
-        "Identifiant" details, both Code, "boom" as error.
+        notification is sent: generic title, task name as "Tâche", task id as
+        "Identifiant" and task arguments as "Arguments" details, all Code, "boom"
+        as error.
         """
         result = import_plots.apply(args=["75", "2026-01-01"])
 
         self.assertEqual(result.state, "FAILURE")
         self.assertEqual(job.call_count, 4)
-        notify.assert_called_once()
-        kwargs = notify.call_args.kwargs
-        self.assertEqual(kwargs["level"], TchapLevel.FAILURE)
-        self.assertEqual(kwargs["title"], "Échec de la tâche")
-        (task_label, task_name), (id_label, task_id) = kwargs["details"]
-        self.assertEqual((task_label, task_name), ("Tâche", "batid.tasks.import_plots"))
-        self.assertEqual((id_label, task_id), ("Identifiant", result.id))
-        self.assertIsInstance(task_name, Code)
-        self.assertIsInstance(task_id, Code)
-        self.assertEqual(kwargs["error"], "boom")
+        notify.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.import_plots"),
+                ("Identifiant", result.id),
+                ("Arguments", "'75', '2026-01-01'"),
+            ],
+            error="boom",
+        )
+        for _label, value in notify.call_args.kwargs["details"]:
+            self.assertIsInstance(value, Code)
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.import_etalab_cities", side_effect=Exception("boom"))
+    def test_failure_shows_the_department(self, job, notify):
+        """
+        Input: import_cities fails for good on department "2A".
+        Expected: one failure message whose "Arguments" detail is the Code "'2A'".
+        """
+        result = import_cities.apply(args=["2A"])
+
+        notify.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.import_cities"),
+                ("Identifiant", result.id),
+                ("Arguments", "'2A'"),
+            ],
+            error="boom",
+        )
+        self.assertIsInstance(notify.call_args.kwargs["details"][2][1], Code)
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.import_etalab_cities", side_effect=Exception("boom"))
+    def test_long_arguments_are_cut(self, job, notify):
+        """
+        Input: import_cities fails for good with a 600-character argument.
+        Expected: the "Arguments" detail is cut to 500 characters ending with "…".
+        """
+        result = import_cities.apply(args=["x" * 600])
+
+        notify.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.import_cities"),
+                ("Identifiant", result.id),
+                ("Arguments", "'" + "x" * 498 + "…"),
+            ],
+            error="boom",
+        )
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.SandboxClient")
+    def test_sandbox_user_arguments_are_masked(self, client, notify):
+        """
+        Input: create_sandbox_user fails for good on a user with the e-mail a@b.fr.
+        Expected: the "Arguments" detail is "masqués" and the e-mail is in no detail.
+        """
+        client.return_value.create_user.side_effect = Exception("boom")
+
+        result = create_sandbox_user.apply(args=[{"email": "a@b.fr"}])
+
+        notify.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.create_sandbox_user"),
+                ("Identifiant", result.id),
+                ("Arguments", "masqués"),
+            ],
+            error="boom",
+        )
+        for _label, value in notify.call_args.kwargs["details"]:
+            self.assertNotIn("a@b.fr", value)
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.remove_light_buildings_job", side_effect=Exception("boom"))
+    def test_light_buildings_arguments_are_masked(self, job, notify):
+        """
+        Input: remove_light_buildings fails for good for the username "jdupont".
+        Expected: the "Arguments" detail is "masqués" and the username is in no
+        detail.
+        """
+        result = remove_light_buildings.apply(args=["folder", "jdupont", 1])
+
+        notify.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.remove_light_buildings"),
+                ("Identifiant", result.id),
+                ("Arguments", "masqués"),
+            ],
+            error="boom",
+        )
+        for _label, value in notify.call_args.kwargs["details"]:
+            self.assertNotIn("jdupont", value)
 
     @patch("batid.services.tchap.notify_tech")
     @patch("batid.tasks.import_etalab_plots_job", side_effect=[Exception("boom"), None])
@@ -151,6 +254,29 @@ class NotifyTaskFailure(TestCase):
             import_plots.delay("75", "2026-01-01")
 
         apply_async.assert_called_once_with(("75", "2026-01-01"), {})
+
+
+class NotifyTechOrLog(TestCase):
+    @patch("batid.services.tchap.notify_tech", side_effect=Exception("tchap down"))
+    def test_tchap_down_is_logged(self, notify):
+        """
+        Input: notify_tech_or_log with a success message, notify_tech raising.
+        Expected: no exception, the message was attempted once with the same
+        arguments and one ERROR record with the stack trace is logged.
+        """
+        with self.assertLogs("batid.services.tchap", level="ERROR") as logs:
+            notify_tech_or_log(
+                level=TchapLevel.SUCCESS, title="hello", details=[("Zone", "01")]
+            )
+
+        notify.assert_called_once_with(
+            level=TchapLevel.SUCCESS,
+            title="hello",
+            details=[("Zone", "01")],
+            error=None,
+        )
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsNotNone(logs.records[0].exc_info)
 
 
 class NotifyTech(TestCase):

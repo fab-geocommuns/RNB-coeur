@@ -1,6 +1,7 @@
 import json
 import os
 import runpy
+from datetime import datetime
 from unittest import mock
 
 from batid.models import Address, Building, City
@@ -12,6 +13,13 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 from requests import Response
 
 from app import settings as settings_module
+
+# Complete Tchap configuration, for tests that let notify_tech reach requests.put
+TCHAP_ENV = {
+    "TCHAP_HOMESERVER_URL": "https://matrix.example.gouv.fr",
+    "TCHAP_ACCESS_TOKEN": "syt_secret",
+    "TCHAP_ROOM_ID": "!room:example.gouv.fr",
+}
 
 
 def create_paris():
@@ -1250,3 +1258,15 @@ def load_settings(env: dict[str, str | None]) -> dict:
         # Sentry must not be initialised in the test process.
         os.environ.pop("SENTRY_DSN", None)
         return runpy.run_path(settings_module.__file__)
+
+
+def assert_notified(*, test, notify, user, change, between) -> None:
+    """Assert `send_mfa_change_notification.delay` was called once, for this user and
+    change, with an ISO change time inside the `between` (start, end) window."""
+    notify.assert_called_once()
+    kwargs = notify.call_args.kwargs
+    test.assertEqual(set(kwargs), {"user_id", "change", "changed_at"})
+    test.assertEqual(kwargs["user_id"], user.pk)
+    test.assertEqual(kwargs["change"], change)
+    start, end = between
+    test.assertTrue(start <= datetime.fromisoformat(kwargs["changed_at"]) <= end)

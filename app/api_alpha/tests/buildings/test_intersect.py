@@ -1,3 +1,6 @@
+import math
+from unittest import mock
+
 from batid.models import Building
 from rest_framework.test import APITestCase
 
@@ -307,6 +310,155 @@ class BuildingIntersectViewTest(APITestCase):
             {"shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"},
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_area_limit_is_1_km2(self):
+        """
+        Input: two squares in Paris, one of ~995 m of side (~990,000 m²), one of
+        ~1,005 m of side (~1,010,000 m²).
+        Expected: 200 for the first, 400 for the second.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(2.35, 48.85, 2.3636, 48.85895)},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(2.35, 48.85, 2.36374, 48.85904)},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_out_of_bounds_longitude_is_rejected(self, db_service):
+        """
+        Input: a small square of side H at longitude 500.
+        Expected: 400 naming the longitude and its value, before any database query.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(500, 0, 500 + H, H)},
+        )
+
+        self.assertEqual(r.status_code, 400)
+        message = r.json()["shape"][0]
+        self.assertIn("longitude", message)
+        self.assertIn("500", message)
+        db_service.assert_not_called()
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_out_of_bounds_latitude_is_rejected(self, db_service):
+        """
+        Input: a small square of side H at latitude 95.
+        Expected: 400 naming the latitude and its value, before any database query.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(0, 95, H, 95 + H)},
+        )
+
+        self.assertEqual(r.status_code, 400)
+        message = r.json()["shape"][0]
+        self.assertIn("latitude", message)
+        self.assertIn("95", message)
+        db_service.assert_not_called()
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_non_finite_area_is_rejected(self, db_service):
+        """
+        Input: a valid square of side H, with the area computation forced to
+        return nan, then inf.
+        Expected: 400 in both cases, before any database query.
+        """
+        for area in (math.nan, math.inf):
+            with self.subTest(area=area), mock.patch(
+                "api_alpha.serializers.serializers.compute_extent_area",
+                return_value=area,
+            ):
+                r = self.client.get(
+                    "/api/alpha/buildings/intersect/",
+                    {"shape": INPUT_SQUARE},
+                )
+                self.assertEqual(r.status_code, 400)
+
+        db_service.assert_not_called()
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_antimeridian_crossing_polygon_is_rejected(self, db_service):
+        """
+        Input: a valid polygon crossing the antimeridian (longitudes 179.999 and
+        -179.999), whose geodesic area is ~24,600 m² but which spans 360° on the
+        plane.
+        Expected: 400 mentioning the antimeridian, before any database query.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {
+                "shape": "POLYGON((179.999 0, 179.999 0.001, -179.999 0.001, "
+                "-179.999 0, 179.999 0))"
+            },
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("antiméridien", r.json()["shape"][0])
+        db_service.assert_not_called()
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_thin_polygon_with_large_bounding_box_is_rejected(self, db_service):
+        """
+        Input: a valid thin diagonal strip of ~6,700 m² whose bounding box covers
+        ~335,000 km² (from 0°E 45°N to 8°E 50°N).
+        Expected: 400 on the bounding box size, before any database query.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": "POLYGON((0 45, 8 50, 8 50.0000001, 0 45.0000001, 0 45))"},
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("rectangle englobant", r.json()["shape"][0])
+        db_service.assert_not_called()
+
+    @mock.patch(
+        "api_alpha.endpoints.buildings.intersect.get_buildings_intersecting_polygon"
+    )
+    def test_box_180_degrees_wide_is_rejected(self, db_service):
+        """
+        Input: a valid rectangle 180° wide in longitude, from 41°N to 51°N.
+        Expected: 400 on the bounding box size, before any database query.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": "POLYGON((-5 41, 175 41, 175 51, -5 51, -5 41))"},
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("rectangle englobant", r.json()["shape"][0])
+        db_service.assert_not_called()
+
+    def test_overseas_polygon_near_antimeridian_is_accepted(self):
+        """
+        Input: a small square of side H in Wallis-et-Futuna (longitude -176.2,
+        latitude -13.3), close to the antimeridian without crossing it.
+        Expected: 200 with no result.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(-176.2, -13.3, -176.2 + H, -13.3 + H)},
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["results"], [])
 
     def test_results_are_paginated(self):
         """

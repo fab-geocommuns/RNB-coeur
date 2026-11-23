@@ -4,7 +4,6 @@ import uuid
 from typing import Optional
 
 from batid.exceptions import (
-    BANAPIDown,
     BANBadRequest,
     BANBadResultType,
     BANUnknownCleInterop,
@@ -324,9 +323,9 @@ def process_batch(batch: list, bdg_import: BuildingImport) -> tuple[int, int]:
 
                 if isinstance(updated_bdg, Building):
                     updated_count += 1
+            # BANAPIDown is not a refusal: it rolls the batch back and fails the task
             except (
                 BANUnknownCleInterop,
-                BANAPIDown,
                 BANBadRequest,
                 BANBadResultType,
             ) as _:
