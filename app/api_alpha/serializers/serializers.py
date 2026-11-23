@@ -156,9 +156,20 @@ class OgcBuildingQuerySerializer(serializers.Serializer):
     bbox = serializers.CharField(required=False)
     insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=100)
+    # CharField refuses NUL characters, which PostgreSQL cannot compare
+    cle_interop_ban = serializers.CharField(required=False)
+    ban_id = serializers.UUIDField(required=False)
 
     def validate_bbox(self, value):
         bbox_validator(value)
+
+    def validate(self, data):
+        if data.get("cle_interop_ban") and data.get("ban_id"):
+            raise serializers.ValidationError(
+                "Vous devez choisir soit 'cle_interop_ban' soit 'ban_id'."
+            )
+
+        return data
 
 
 class ListBuildingQuerySerializer(serializers.Serializer):

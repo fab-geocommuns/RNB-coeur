@@ -1284,16 +1284,3 @@ class ListingAddressFilterTest(APITestCase):
         """
         qs = filter_bdgs_by_address(Building.objects.all(), ban_id="nope")
         self.assertEqual(list(qs), [])
-
-    def test_ogc_with_invalid_ban_id(self):
-        """
-        Input: OGC items endpoint, which does not validate ban_id yet, with an
-        invalid ban_id.
-        Expected: 200 with no feature, not a 500.
-        """
-        r = self.client.get(
-            "/api/alpha/ogc/collections/buildings/items",
-            {"bbox": "-1,-1,1,1", "ban_id": "nope"},
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertEqual(r.json()["features"], [])
