@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     atomic = False
     dependencies = [
-        ("batid", "0163_drop_unused_apirequestlog_indexes"),
+        ("batid", "0164_gin_fastupdate_off"),
     ]
 
     operations = [
