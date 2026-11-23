@@ -1232,13 +1232,25 @@ class ListingAddressFilterTest(APITestCase):
         for cle_interop in ("2a004_abcd_00001", "2A004_ABCD_00001", "2A004_aBcD_00001"):
             with self.subTest(cle_interop=cle_interop):
                 rnb_ids = self._rnb_ids({"cle_interop_ban": cle_interop})
-                self.assertCountEqual(rnb_ids, ["BOTH", "UPPER"])
+                self._assert_both_spellings_matched_without_duplicate(rnb_ids)
 
                 r = self.client.get(
                     self.URL, {"cle_interop_ban": cle_interop, "format": "geojson"}
                 )
-                features = r.json()["features"]
-                self.assertCountEqual([f["id"] for f in features], ["BOTH", "UPPER"])
+                geojson_rnb_ids = [f["id"] for f in r.json()["features"]]
+                self._assert_both_spellings_matched_without_duplicate(geojson_rnb_ids)
+
+    def _assert_both_spellings_matched_without_duplicate(self, rnb_ids):
+        self.assertEqual(
+            set(rnb_ids),
+            {"BOTH", "UPPER"},
+            "Any spelling of the key must match the buildings of both spellings",
+        )
+        self.assertEqual(
+            len(rnb_ids),
+            len(set(rnb_ids)),
+            "A building linked to both spellings must come out only once",
+        )
 
     def test_pagination_with_case_variants(self):
         """
