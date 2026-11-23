@@ -10,6 +10,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import sentry_sdk
+from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.models import (
     KPI,
     Building,
@@ -1233,4 +1234,21 @@ class ContributionSummaryConcurrencyTest(SimpleTestCase):
         self.assertCountEqual(
             responses,
             [[{"fresh": True}] * 3, [{"stale": True}] * 3, [{"stale": True}] * 3],
+        )
+
+
+class ContributionSummaryDocTest(SimpleTestCase):
+    def test_paths_without_parameters_document_no_400(self):
+        """
+        Input: the schema of the summaries and rankings endpoints, which read no
+        parameter and never answer 400.
+        Expected: no 400 response is documented for them; the single-period
+        summary, which checks its days parameter, keeps its 400.
+        """
+        paths = build_schema_all_endpoints()["paths"]
+        for path in [SUMMARIES_URL, RANKINGS_URL]:
+            with self.subTest(path=path):
+                self.assertNotIn("400", paths[path]["get"]["responses"])
+        self.assertIn(
+            "400", paths["/api/alpha/contributions/summary/"]["get"]["responses"]
         )

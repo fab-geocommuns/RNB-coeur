@@ -42,7 +42,10 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                     "arrivés d'abord. Les imports ne sont pas comptés comme des "
                     "contributions. Une contribution est une demande d'édition : "
                     "une fusion ou une scission compte une fois, quel que soit "
-                    "le nombre de bâtiments concernés. Les données sont mises à jour environ "
+                    "le nombre de bâtiments concernés. Les communes ne sont "
+                    "connues que pour les contributions faites depuis le 7 "
+                    "juillet 2025 : celles éditées avant ne sont pas comptées, "
+                    "même sur toute la période. Les données sont mises à jour environ "
                     "toutes les heures. Pour afficher plusieurs périodes "
                     "côte à côte, utilisez plutôt "
                     "GET /api/alpha/contributions/summaries/ : des appels "
@@ -59,7 +62,8 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                             + " ou ".join(str(d) for d in WINDOWS_DAYS)
                             + f" derniers jours, ou {ALL_PERIOD} pour toutes les "
                             "contributions depuis toujours (since vaut alors "
-                            "null)."
+                            "null ; les communes ne sont comptées que depuis le "
+                            "7 juillet 2025)."
                         ),
                         "required": False,
                         "schema": {
@@ -116,7 +120,8 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
                     }
                 },
             }
-        }
+        },
+        with_400=False,
     )
     def get(self, request: Request) -> Response:
         return Response({"summaries": get_all_contribution_summaries()})
@@ -139,9 +144,13 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                     "toutes les organisations ayant contribué, et les "
                     f"{RANKED_CITIES_LIMIT} communes les plus éditées, les plus "
                     "actifs d'abord. Ce sont les versions longues de top dans "
-                    "GET /api/alpha/contributions/summaries/, calculées au même "
-                    "instant (même updated_at). Les données sont mises à jour "
-                    "environ toutes les heures."
+                    "GET /api/alpha/contributions/summaries/ : quand les deux "
+                    "réponses ont le même updated_at, elles viennent du même "
+                    "calcul et top est le début de ces listes. Des appels "
+                    "séparés pendant une mise à jour peuvent renvoyer des "
+                    "calculs différents. Les communes ne sont connues que pour "
+                    "les contributions faites depuis le 7 juillet 2025. Les "
+                    "données sont mises à jour environ toutes les heures."
                 ),
                 "operationId": "getContributionRankings",
                 "responses": {
@@ -153,7 +162,8 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                     }
                 },
             }
-        }
+        },
+        with_400=False,
     )
     def get(self, request: Request) -> Response:
         return Response({"rankings": get_all_contribution_rankings()})
