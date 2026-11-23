@@ -1,12 +1,47 @@
 from typing import Iterable
+from uuid import UUID
 
-from batid.models import Building, City
+from batid.models import Building, BuildingAddressesInternalIdReadOnly, City
 from batid.services.bdg_status import BuildingStatus
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from django.db.models import Prefetch, QuerySet
 from django.shortcuts import get_object_or_404
+
+
+def filter_bdgs_by_address(
+    qs: QuerySet,
+    cle_interop: str | None = None,
+    ban_id: str | UUID | None = None,
+) -> QuerySet:
+    """
+    Keep the buildings linked to the address matching all the given criteria.
+
+    `cle_interop` is compared case-insensitively, through the
+    address_cle_interop_upper_idx index. Since `abc` and `ABC` can both exist in
+    batid_address, the filter is a subquery rather than a join: a building linked
+    to both must come out only once.
+
+    A `ban_id` which is not a UUID matches no address. Callers exposing it publicly
+    are expected to refuse it beforehand, this only guards against a database error.
+    """
+    if not cle_interop and not ban_id:
+        return qs
+
+    links = BuildingAddressesInternalIdReadOnly.objects.all()
+
+    if cle_interop:
+        links = links.filter(address__cle_interop__iexact=cle_interop)
+
+    if ban_id:
+        try:
+            ban_uuid = UUID(str(ban_id))
+        except ValueError:
+            return qs.none()
+        links = links.filter(address__ban_id=ban_uuid)
+
+    return qs.filter(pk__in=links.values("building_id"))
 
 
 def list_bdgs(params, only_active=True) -> QuerySet:
@@ -92,8 +127,9 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         qs = qs.order_by("created_at")
 
     cle_interop_ban = params.get("cle_interop_ban", None)
-    if cle_interop_ban:
-        qs = qs.filter(addresses_internal_read_only__cle_interop=cle_interop_ban)
+    ban_id = params.get("ban_id", None)
+    if cle_interop_ban or ban_id:
+        qs = filter_bdgs_by_address(qs, cle_interop=cle_interop_ban, ban_id=ban_id)
         qs = qs.order_by("created_at")
 
     # to prevent an ugly N+1 problem on the addresses and the validated_by fields

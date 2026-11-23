@@ -2,9 +2,11 @@ import json
 from unittest.mock import patch
 
 from api_alpha.serializers.serializers import ListBuildingQuerySerializer
+from batid.list_bdg import filter_bdgs_by_address
 from batid.models import Address, Building, Organization, Plot, User, UserProfile
 from batid.tests.helpers import create_bdg, create_grenoble
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -227,6 +229,10 @@ class BuildingsEndpointsTest(APITestCase):
         )
 
     def test_bgs_listing_needs_filtering(self):
+        """
+        Input: listing without any filter.
+        Expected: 400, the message names the accepted filters, ban_id included.
+        """
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 400)
         data = r.json()
@@ -234,7 +240,7 @@ class BuildingsEndpointsTest(APITestCase):
             data,
             {
                 "non_field_errors": [
-                    "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+                    "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
                 ]
             },
         )
@@ -1123,3 +1129,171 @@ class ListingMultipleStatusTest(APITestCase):
             r.json()["format"],
             ["« XML » n'est pas un choix valide. Valeurs possibles : json ou geojson."],
         )
+
+
+class ListingAddressFilterTest(APITestCase):
+    URL = "/api/alpha/buildings/"
+    BAN_ID = "fd9736e8-9970-4127-84eb-f2886043c122"
+
+    def setUp(self):
+        # Both spellings can coexist: cle_interop is unique with respect to case
+        self.lower = Address.objects.create(
+            cle_interop="2a004_abcd_00001", ban_id=self.BAN_ID
+        )
+        self.upper = Address.objects.create(cle_interop="2A004_ABCD_00001")
+        other = Address.objects.create(cle_interop="33522_2620_00021")
+
+        point = GEOSGeometry("POINT(0 0)", srid=4326)
+        self.both = Building.objects.create(
+            rnb_id="BOTH",
+            point=point,
+            shape=point,
+            addresses_internal_id=[self.lower.internal_id, self.upper.internal_id],
+        )
+        self.upper_only = Building.objects.create(
+            rnb_id="UPPER",
+            point=point,
+            shape=point,
+            addresses_internal_id=[self.upper.internal_id],
+        )
+        Building.objects.create(
+            rnb_id="OTHER", point=point, addresses_internal_id=[other.internal_id]
+        )
+
+    def _rnb_ids(self, params):
+        r = self.client.get(self.URL, params)
+        self.assertEqual(r.status_code, 200, r.content)
+        return [bdg["rnb_id"] for bdg in r.json()["results"]]
+
+    def test_filter_by_ban_id(self):
+        """
+        Input: ban_id of the address linked to one building, in several spellings.
+        Expected: 200 with this building only, ban_id being a sufficient filter.
+        """
+        for ban_id in (self.BAN_ID, self.BAN_ID.upper(), self.BAN_ID.replace("-", "")):
+            with self.subTest(ban_id=ban_id):
+                self.assertEqual(self._rnb_ids({"ban_id": ban_id}), ["BOTH"])
+
+    def test_unknown_ban_id(self):
+        """
+        Input: a well-formed ban_id matching no address.
+        Expected: 200 with no result.
+        """
+        ban_id = "00000000-0000-4000-8000-000000000000"
+        self.assertEqual(self._rnb_ids({"ban_id": ban_id}), [])
+
+    def test_invalid_ban_id(self):
+        """
+        Input: ban_id values which are not UUIDs (text, truncated, NUL character).
+        Expected: 400 on the ban_id field.
+        """
+        for ban_id in ("nope", self.BAN_ID[:-1], "\x00"):
+            with self.subTest(ban_id=ban_id):
+                r = self.client.get(self.URL, {"ban_id": ban_id})
+                self.assertEqual(r.status_code, 400, r.content)
+                self.assertIn("ban_id", r.json())
+
+    def test_ban_id_and_cle_interop_are_exclusive(self):
+        """
+        Input: ban_id and cle_interop_ban together.
+        Expected: 400 naming both parameters.
+        """
+        r = self.client.get(
+            self.URL, {"ban_id": self.BAN_ID, "cle_interop_ban": "2a004_abcd_00001"}
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(),
+            {
+                "non_field_errors": [
+                    "Vous devez choisir soit 'cle_interop_ban' soit 'ban_id'."
+                ]
+            },
+        )
+
+    def test_empty_ban_id_is_not_a_filter(self):
+        """
+        Input: empty ban_id, alone then with a cle_interop_ban.
+        Expected: 400 (no filter) alone; otherwise only cle_interop_ban applies.
+        """
+        r = self.client.get(self.URL, {"ban_id": ""})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("non_field_errors", r.json())
+
+        rnb_ids = self._rnb_ids({"ban_id": "", "cle_interop_ban": "33522_2620_00021"})
+        self.assertEqual(rnb_ids, ["OTHER"])
+
+    def test_cle_interop_is_case_insensitive_without_duplicate(self):
+        """
+        Input: cle_interop_ban in lower, upper and mixed case; a building is linked
+        to both the lowercase and the uppercase address.
+        Expected: each building comes out exactly once, in JSON and in GeoJSON.
+        """
+        for cle_interop in ("2a004_abcd_00001", "2A004_ABCD_00001", "2A004_aBcD_00001"):
+            with self.subTest(cle_interop=cle_interop):
+                rnb_ids = self._rnb_ids({"cle_interop_ban": cle_interop})
+                self.assertCountEqual(rnb_ids, ["BOTH", "UPPER"])
+
+                r = self.client.get(
+                    self.URL, {"cle_interop_ban": cle_interop, "format": "geojson"}
+                )
+                features = r.json()["features"]
+                self.assertCountEqual([f["id"] for f in features], ["BOTH", "UPPER"])
+
+    def test_pagination_with_case_variants(self):
+        """
+        Input: limit=1 on a key whose two spellings are linked to the first building.
+        Expected: two pages of one building each, then no next page.
+        """
+        r = self.client.get(
+            self.URL, {"cle_interop_ban": "2A004_ABCD_00001", "limit": 1}
+        )
+        first = r.json()
+        self.assertEqual([b["rnb_id"] for b in first["results"]], ["BOTH"])
+        self.assertIsNotNone(first["next"])
+
+        second = self.client.get(first["next"]).json()
+        self.assertEqual([b["rnb_id"] for b in second["results"]], ["UPPER"])
+        self.assertIsNone(second["next"])
+
+    def test_filter_can_use_upper_index(self):
+        """
+        Input: helper called with a cle_interop, sequential scans disabled.
+        Expected: the query plan uses address_cle_interop_upper_idx.
+        """
+        qs = filter_bdgs_by_address(
+            Building.objects.all(), cle_interop="2a004_abcd_00001"
+        )
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL enable_seqscan = off")
+
+        self.assertIn("address_cle_interop_upper_idx", qs.explain())
+
+    def test_helper_without_criterion(self):
+        """
+        Input: helper called without cle_interop nor ban_id.
+        Expected: the queryset is returned unfiltered.
+        """
+        qs = Building.objects.all()
+        self.assertEqual(filter_bdgs_by_address(qs).count(), 3)
+
+    def test_helper_with_invalid_ban_id(self):
+        """
+        Input: helper called with a ban_id which is not a UUID.
+        Expected: no building, and no exception.
+        """
+        qs = filter_bdgs_by_address(Building.objects.all(), ban_id="nope")
+        self.assertEqual(list(qs), [])
+
+    def test_ogc_with_invalid_ban_id(self):
+        """
+        Input: OGC items endpoint, which does not validate ban_id yet, with an
+        invalid ban_id.
+        Expected: 200 with no feature, not a 500.
+        """
+        r = self.client.get(
+            "/api/alpha/ogc/collections/buildings/items",
+            {"bbox": "-1,-1,1,1", "ban_id": "nope"},
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["features"], [])
