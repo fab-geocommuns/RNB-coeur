@@ -6,7 +6,11 @@ from api_alpha.serializers.serializers import (
     OgcBuildingQuerySerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints, rnb_doc
+from api_alpha.utils.rnb_doc import (
+    build_schema_ogc_endpoints,
+    get_status_html_list,
+    rnb_doc,
+)
 from batid.list_bdg import attach_plots, list_bdgs
 from batid.services.rnb_id import clean_rnb_id
 from django.shortcuts import get_object_or_404
@@ -285,6 +289,30 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                         "required": False,
                         "schema": {"type": "string", "minLength": 5, "maxLength": 5},
                         "example": "75101",
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": f"Filtre les bâtiments par statut. Sans ce paramètre, seuls les statuts `constructed` et `notUsable` sont renvoyés. Plusieurs valeurs peuvent être séparées par des virgules, sans espace. La valeur `all`, utilisée seule, renvoie tous les statuts. Les bâtiments désactivés ne sont jamais renvoyés. Une valeur inconnue (la casse compte) ne provoque pas d'erreur : elle est ignorée. Si aucune valeur n'est reconnue, ou si le paramètre est vide, la réponse ne contient aucun bâtiment. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "constructed,demolished",
+                    },
+                    {
+                        "name": "cle_interop_ban",
+                        "in": "query",
+                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN, sans tenir compte de la casse. Ne peut pas être combiné avec `ban_id` (erreur 400).",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "94067_7115_00073",
+                    },
+                    {
+                        "name": "ban_id",
+                        "in": "query",
+                        "description": "Filtre les bâtiments associés à l'adresse ayant cet identifiant BAN. La valeur doit être un UUID valide, sinon la requête est refusée (erreur 400). Ne peut pas être combiné avec `cle_interop_ban` (erreur 400).",
+                        "required": False,
+                        "schema": {"type": "string", "format": "uuid"},
+                        "example": "fd9736e8-9970-4127-84eb-f2886043c122",
                     },
                     {
                         "name": "limit",
