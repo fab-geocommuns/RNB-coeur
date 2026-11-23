@@ -609,6 +609,10 @@ class ContributionSummaryApiTest(APITestCase):
 
     def setUp(self):
         cache.clear()
+        # the test runner shares one LocMemCache between all the tests: an
+        # entry left here would be served to the next ones (KeyError in
+        # test_schema_matches_api)
+        self.addCleanup(cache.clear)
 
     def test_returns_the_summary(self):
         """
