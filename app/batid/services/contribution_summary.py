@@ -120,6 +120,11 @@ def _period_start(now: datetime, days: Optional[int]) -> Optional[datetime]:
     return None if days is None else now - timedelta(days=days)
 
 
+def _isoformat(since: Optional[datetime]) -> Optional[str]:
+    """ISO date of a period start, None for the whole period (no start)"""
+    return None if since is None else since.isoformat()
+
+
 def _is_in(first_at: datetime, since: Optional[datetime]) -> bool:
     """Whether a date is in the period starting at `since` (None: no start)"""
     return since is None or first_at >= since
@@ -214,7 +219,7 @@ def _city_details(ids: set[int]) -> dict[int, dict]:
     Sud). It matches the department of every contributed city.
     """
     return {
-        c["id"]: c
+        c["id"]: dict(c)
         for c in City.objects.filter(id__in=ids)
         .annotate(
             department_code=Case(
@@ -381,7 +386,7 @@ def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, di
             "updated_at": now.isoformat(),
             # null for the whole period, which has no start
             "window_days": days,
-            "since": starts[key] and starts[key].isoformat(),
+            "since": _isoformat(starts[key]),
             # cities and organizations that contributed in the period, and those
             # whose very first contribution is in it
             "cities": _period_counts(cities, key, starts[key]),
