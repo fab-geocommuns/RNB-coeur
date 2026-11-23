@@ -100,7 +100,7 @@ class TestGuesser(TransactionTestCase):
 
         # Add one address for testing address geocoding
         address_1 = Address.objects.create(
-            cle_interop="BAN_ID_ONE",
+            cle_interop="CLE_INTEROP_ONE",
             point=Point(-0.5628137581613334, 44.82584611733995, srid=4326),
         )
 
@@ -237,16 +237,21 @@ class TestGuesser(TransactionTestCase):
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
     def test_guess_from_address(self, geocode_mock):
+        """
+        Input: a point far from any building and an address geocoded to two
+        cle_interop values, the best-scored one being linked to SouthOne.
+        Expected: the only match is SouthOne.
+        """
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
             [
                 {
                     "ext_id": "UNIQUE_ROW",
-                    "result_id": "BAN_ID_ONE",
+                    "result_id": "CLE_INTEROP_ONE",
                     "result_score": 0.9,
                 },
                 {
                     "ext_id": "UNIQUE_ROW",
-                    "result_id": "BAN_ID_LESS_SCORE",
+                    "result_id": "CLE_INTEROP_LESS_SCORE",
                     "result_score": 0.8,
                 },
             ]
@@ -700,9 +705,9 @@ class TestIsolatedMatching(PartialRoofTest):
 class TestAddressGeocoding(TransactionTestCase):
     def setUp(self):
 
-        adr_one = Address.objects.create(cle_interop="BAN_ID_ONE")
-        adr_two = Address.objects.create(cle_interop="BAN_ID_TWO")
-        Address.objects.create(cle_interop="BAN_ID_THREE")
+        adr_one = Address.objects.create(cle_interop="CLE_INTEROP_ONE")
+        adr_two = Address.objects.create(cle_interop="CLE_INTEROP_TWO")
+        Address.objects.create(cle_interop="CLE_INTEROP_THREE")
 
         b = create_default_bdg(rnb_id="BDG_ONE")
         b.addresses_internal_id = [adr_one.internal_id]
@@ -716,9 +721,12 @@ class TestAddressGeocoding(TransactionTestCase):
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
     def test_find_bdgs(self, geocode_mock):
-
+        """
+        Input: an address geocoded to a cle_interop linked to two buildings.
+        Expected: both buildings are matched.
+        """
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
-            [{"ext_id": "line_1", "result_id": "BAN_ID_ONE"}]
+            [{"ext_id": "line_1", "result_id": "CLE_INTEROP_ONE"}]
         )
 
         guesser = Guesser()
@@ -735,8 +743,12 @@ class TestAddressGeocoding(TransactionTestCase):
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
     def test_low_score(self, geocode_mock):
+        """
+        Input: an address geocoded to a known cle_interop with a too low score.
+        Expected: the guess has no match.
+        """
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
-            [{"ext_id": "line_1", "result_id": "BAN_ID_ONE", "result_score": 0.1}]
+            [{"ext_id": "line_1", "result_id": "CLE_INTEROP_ONE", "result_score": 0.1}]
         )
 
         guesser = Guesser()
@@ -752,11 +764,15 @@ class TestAddressGeocoding(TransactionTestCase):
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
     def test_street_type(self, geocode_mock):
+        """
+        Input: an address geocoded to a known cle_interop with a "street" result type.
+        Expected: the guess has no match.
+        """
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
             [
                 {
                     "ext_id": "line_1",
-                    "result_id": "BAN_ID_ONE",
+                    "result_id": "CLE_INTEROP_ONE",
                     "result_type": "street",
                 }
             ]
@@ -774,9 +790,13 @@ class TestAddressGeocoding(TransactionTestCase):
         self.assertEqual(len(guesser.guesses["line_1"]["matches"]), 0)
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
-    def test_no_bdg_w_ban_id(self, geocode_mock):
+    def test_no_bdg_w_cle_interop(self, geocode_mock):
+        """
+        Input: an address geocoded to a cle_interop that no building is linked to.
+        Expected: the guess has no match.
+        """
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
-            [{"ext_id": "line_1", "result_id": "BAN_ID_XXX", "result_score": 0.9}]
+            [{"ext_id": "line_1", "result_id": "CLE_INTEROP_XXX", "result_score": 0.9}]
         )
 
         guesser = Guesser()
@@ -799,7 +819,7 @@ def _mock_guesser_batch_address_geocoding(data):
             d["result_type"] = "housenumber"
 
         if "result_id" not in d:
-            d["result_id"] = "dummy_ban_id"
+            d["result_id"] = "dummy_cle_interop"
 
         if "result_score" not in d:
             d["result_score"] = 0.9
