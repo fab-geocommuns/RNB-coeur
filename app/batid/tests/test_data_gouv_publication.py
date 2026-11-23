@@ -1868,6 +1868,32 @@ class TestNationalArchive(TransactionTestCase):
 
         upload_mock.assert_not_called()
 
+    def test_swapped_buildings_block_the_national_file(self):
+        """
+        Input: margin of minus one day (no building counts as edited); 75 exported;
+        then BDG-IN-75 and BDG-IN-93 swap departments; 93 exported. Both files hold
+        BDG-IN-75, none BDG-IN-93: 2 rows for 2 active buildings.
+        Expected: the national file is refused despite the matching row count.
+        """
+        self.export_department("75")
+        in_75 = GEOSGeometry("POINT(2.5 48.5)", srid=4326)
+        in_93 = GEOSGeometry("POINT(3.5 48.5)", srid=4326)
+        Building.objects.filter(rnb_id="BDG-IN-75").update(point=in_93, shape=in_93)
+        Building.objects.filter(rnb_id="BDG-IN-93").update(point=in_75, shape=in_75)
+        self.assertEqual(
+            [record_id(r) for r in self.export_department("93")[1:]], [b"BDG-IN-75"]
+        )
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+            timedelta(days=-1),
+        ):
+            with self.assertRaisesRegex(
+                NationalArchiveError,
+                "2 department rows \\+ 0 fresh rows, 2 active buildings",
+            ):
+                self.build_national()
+
     @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
     @mock.patch(
         "batid.services.data_gouv_publication.publish_on_data_gouv_with_retries"

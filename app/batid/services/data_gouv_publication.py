@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import time
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import IO
 from uuid import uuid4
@@ -305,6 +306,30 @@ WHERE lower(bdg.sys_period) >= %(since)s
 """
 
 
+# Same value as rnb_id_digest: the first 8 bytes of the md5, as a signed big-endian
+# integer.
+ACTIVE_BUILDINGS_TALLY_SQL = """
+SELECT count(*), coalesce(sum(('x' || left(md5(rnb_id), 16))::bit(64)::bigint), 0)
+FROM batid_building
+WHERE is_active
+"""
+
+
+def rnb_id_digest(rnb_id: bytes) -> int:
+    digest = hashlib.md5(rnb_id, usedforsecurity=False).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
+@dataclass
+class RowTally:
+    """Row count and sum of the rnb_id digests of some national rows. Equal tallies
+    hold the same buildings the same number of times, barring a 64-bit collision:
+    a count alone misses a building written twice in place of a missing one."""
+
+    count: int = 0
+    digest: int = 0
+
+
 class NationalArchiveError(Exception):
     """The national file cannot be assembled from the department archives."""
 
@@ -315,7 +340,7 @@ def create_national_archive(*, directory: str, run_id: str) -> tuple[str, int, s
     Each active building appears once: one that is active in the snapshot and not
     in national_fresh has one department and a version older than `since`, so it is
     in that department file once and in no other; every other building comes only
-    from the fresh export, and only if active. The row count check refuses the file
+    from the fresh export, and only if active. The rnb_id check refuses the file
     when this does not hold (an edit transaction open longer than
     NATIONAL_FRESH_MARGIN across a department export)."""
     department_archives = department_archives_of_run(run_directory(run_id))
@@ -330,25 +355,29 @@ def create_national_archive(*, directory: str, run_id: str) -> tuple[str, int, s
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
         with open_zip_entry(archive=archive, entry_name="RNB_nat.csv") as entry:
             entry.write(header)
-            active_count, fresh_count, skip_ids = write_fresh_buildings(
-                entry=entry, since=since
-            )
+            active, fresh, skip_ids = write_fresh_buildings(entry=entry, since=since)
 
             started = time.monotonic()
-            department_count = sum(
+            department = RowTally()
+            for path in department_archives:
                 copy_department_records(
-                    archive_path=path, entry=entry, header=header, skip_ids=skip_ids
+                    archive_path=path,
+                    entry=entry,
+                    header=header,
+                    skip_ids=skip_ids,
+                    tally=department,
                 )
-                for path in department_archives
-            )
             logging.info(
-                f"national file: {department_count} department rows copied in {time.monotonic() - started:.0f} s"
+                f"national file: {department.count} department rows copied in {time.monotonic() - started:.0f} s"
             )
 
-    if department_count + fresh_count != active_count:
+    written = RowTally(
+        count=department.count + fresh.count, digest=department.digest + fresh.digest
+    )
+    if written != active:
         raise NationalArchiveError(
-            f"National row count mismatch: {department_count} department rows + "
-            f"{fresh_count} fresh rows, {active_count} active buildings"
+            f"National rows differ from the active buildings: {department.count} "
+            f"department rows + {fresh.count} fresh rows, {active.count} active buildings"
         )
     return archive_summary(archive_path)
 
@@ -376,26 +405,28 @@ def department_archives_of_run(run_dir: str) -> list[str]:
 
 def write_fresh_buildings(
     *, entry: IO[bytes], since: datetime
-) -> tuple[int, int, set[bytes]]:
+) -> tuple[RowTally, RowTally, set[bytes]]:
     """Write the buildings that cannot come from the department files. Return the
-    active building count, the number of rows written and the rnb_ids to drop from
-    the department files, all read from one snapshot."""
+    tally of the active buildings, the tally of the rows written and the rnb_ids to
+    drop from the department files, all read from one snapshot."""
     started = time.monotonic()
     with transaction.atomic():
         with connection.cursor() as cursor:
             # Postgres only accepts it before the first query of the transaction.
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
             set_statement_timeout(cursor)
-            cursor.execute("SELECT count(*) FROM batid_building WHERE is_active")
-            (active_count,) = cursor.fetchone()
+            cursor.execute(ACTIVE_BUILDINGS_TALLY_SQL)
+            active_count, active_digest = cursor.fetchone()
+            active = RowTally(count=active_count, digest=int(active_digest))
             cursor.execute(NATIONAL_FRESH_SQL, {"since": since})
             cursor.execute("SELECT rnb_id, is_active FROM national_fresh")
             skip_ids = set()
-            fresh_count = 0
+            fresh = RowTally()
             for rnb_id, is_active in cursor:
                 skip_ids.add(rnb_id.encode())
                 if is_active:
-                    fresh_count += 1
+                    fresh.count += 1
+                    fresh.digest += rnb_id_digest(rnb_id.encode())
             logging.info(
                 f"national file: {len(skip_ids)} buildings to export fresh, found in {time.monotonic() - started:.0f} s"
             )
@@ -410,9 +441,9 @@ def write_fresh_buildings(
                 for data in copy:
                     entry.write(data)
     logging.info(
-        f"national file: {fresh_count} fresh rows exported in {time.monotonic() - started:.0f} s"
+        f"national file: {fresh.count} fresh rows exported in {time.monotonic() - started:.0f} s"
     )
-    return active_count, fresh_count, skip_ids
+    return active, fresh, skip_ids
 
 
 def csv_header(archive_path: str) -> bytes:
@@ -423,12 +454,16 @@ def csv_header(archive_path: str) -> bytes:
 
 
 def copy_department_records(
-    *, archive_path: str, entry: IO[bytes], header: bytes, skip_ids: set[bytes]
-) -> int:
+    *,
+    archive_path: str,
+    entry: IO[bytes],
+    header: bytes,
+    skip_ids: set[bytes],
+    tally: RowTally,
+) -> None:
     """Copy the records of a department archive into the national entry, byte for
-    byte, without its header and without the skipped buildings. Return the number
-    of records written."""
-    written = 0
+    byte, without its header and without the skipped buildings, and add them to
+    the tally."""
     batch: list[bytes] = []
     batch_size = 0
     with ZipFile(archive_path) as archive:
@@ -441,17 +476,18 @@ def copy_department_records(
                 )
             for record in records:
                 # rnb_id is the first field, never quoted
-                if record.partition(b";")[0] in skip_ids:
+                rnb_id = record.partition(b";")[0]
+                if rnb_id in skip_ids:
                     continue
                 batch.append(record)
                 batch_size += len(record)
-                written += 1
+                tally.count += 1
+                tally.digest += rnb_id_digest(rnb_id)
                 if batch_size >= NATIONAL_WRITE_BATCH_BYTES:
                     entry.write(b"".join(batch))
                     batch = []
                     batch_size = 0
     entry.write(b"".join(batch))
-    return written
 
 
 def csv_records(lines: Iterable[bytes]) -> Iterator[bytes]:
