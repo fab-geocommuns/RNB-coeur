@@ -175,7 +175,7 @@ class ContributionSummaryTest(TestCase):
             [
                 {
                     "username": "alice",
-                    "organization": "Commune de Talence",
+                    "organization_name": "Commune de Talence",
                     "organization_short_name": "Talence",
                     "count": 1,
                 }
@@ -219,7 +219,7 @@ class ContributionSummaryTest(TestCase):
         Input: bob contributed before the window and again in it; alice and carol
         (whose username is an email) contribute for the first time in it, carol
         last.
-        Expected: newcomers users = carol (local part only), then alice; not bob.
+        Expected: newcomers users = carol (full username), then alice; not bob.
         """
         carol = ContributorUserFactory(username="carol@mairie.fr")
         edition(self.bob, BEFORE_WINDOW, self.merignac, self.gironde)
@@ -230,7 +230,7 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(
-            data["newcomers"]["users"], [{"username": "carol"}, {"username": "alice"}]
+            data["newcomers"]["users"], [{"username": "carol@mairie.fr"}, {"username": "alice"}]
         )
 
     def test_7_day_window(self):
@@ -396,7 +396,7 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         user = data["top"]["users"][0]
-        self.assertEqual(user["organization"], "Commune de Talence")
+        self.assertEqual(user["organization_name"], "Commune de Talence")
         self.assertEqual(user["organization_short_name"], "Talence")
         organization = data["top"]["organizations"][0]
         self.assertEqual(organization["name"], "Commune de Talence")
@@ -422,7 +422,7 @@ class ContributionSummaryTest(TestCase):
             [
                 {
                     "username": "carole",
-                    "organization": "Département de la Gironde",
+                    "organization_name": "Département de la Gironde",
                     "organization_short_name": None,
                     "count": 1,
                 }
@@ -447,7 +447,7 @@ class ContributionSummaryTest(TestCase):
             [
                 {
                     "username": "bob",
-                    "organization": None,
+                    "organization_name": None,
                     "organization_short_name": None,
                     "count": 1,
                 }
@@ -455,16 +455,16 @@ class ContributionSummaryTest(TestCase):
         )
         self.assertEqual(data["top"]["organizations"], [])
 
-    def test_email_usernames_are_not_published(self):
+    def test_username_is_returned_in_full(self):
         """
         Input: a contributor whose username is an email address.
-        Expected: only the part before the @ is returned.
+        Expected: the full username is returned, as PublicUserSerializer does.
         """
         edition(ContributorUserFactory(username="l.martin@mairie.fr"), IN_WINDOW)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["top"]["users"][0]["username"], "l.martin")
+        self.assertEqual(data["top"]["users"][0]["username"], "l.martin@mairie.fr")
 
     def test_building_changes_sum_the_last_30_complete_days(self):
         """

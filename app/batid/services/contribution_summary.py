@@ -84,11 +84,6 @@ def contributions() -> QuerySet:
     return SummerChallenge.objects.exclude(user__username=RNB_TEAM_USERNAME)
 
 
-def public_username(username: str) -> str:
-    """Some usernames are email addresses: only their local part is shown"""
-    return username.split("@")[0]
-
-
 def short_name_or_none(short_name: Optional[str]) -> Optional[str]:
     """Short name of an organization, None when it has none (null or "")"""
     return short_name or None
@@ -197,8 +192,8 @@ def _top_users(in_window: QuerySet) -> list[dict]:
     }
     return [
         {
-            "username": public_username(details[u["id"]]["username"]),
-            "organization": details[u["id"]]["profile__organization__name"],
+            "username": details[u["id"]]["username"],
+            "organization_name": details[u["id"]]["profile__organization__name"],
             "organization_short_name": short_name_or_none(
                 details[u["id"]]["profile__organization__short_name"]
             ),
@@ -308,7 +303,7 @@ def compute_contribution_summary(
         # contributors whose very first contribution is in the period, the
         # latest first
         "newcomers": {
-            "users": [{"username": public_username(u["username"])} for u in new_users],
+            "users": [{"username": u["username"]} for u in new_users],
         },
     }
 
