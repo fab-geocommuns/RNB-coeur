@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, TypeVar
 from uuid import UUID
 
 from batid.models import Address, Building, BuildingAddressesInternalIdReadOnly, City
@@ -9,13 +9,15 @@ from django.db import connection
 from django.db.models import Prefetch, QuerySet
 from django.shortcuts import get_object_or_404
 
+BuildingsQuerySet = TypeVar("BuildingsQuerySet", bound=QuerySet)
+
 
 def filter_bdgs_by_address(
-    qs: QuerySet,
+    qs: BuildingsQuerySet,
     cle_interop: str | None = None,
     ban_id: str | UUID | None = None,
     only_without_ban_id: bool = False,
-) -> QuerySet:
+) -> BuildingsQuerySet:
     """
     Keep the buildings linked to the address matching all the given criteria.
 
