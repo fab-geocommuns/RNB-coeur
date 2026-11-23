@@ -4,6 +4,7 @@ import hashlib
 import logging
 import os
 import shutil
+import tempfile
 import time
 from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta, timezone
@@ -120,12 +121,12 @@ def build_department_archive(*, dept: str, run_dir: str) -> tuple[str, int, str]
 
 
 def create_directory(area):
-    directory_name = (
-        f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    # mkdtemp: two runs of an area started within the same second (a manual national
+    # next to the chain's one) get their own directory, each removed by its own run.
+    return tempfile.mkdtemp(
+        prefix=f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_',
+        dir=WRITABLE_DATA_DIR,
     )
-    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
-    os.makedirs(directory_path, exist_ok=True)
-    return directory_path
 
 
 # Return the global path of a file WITHOUT the extension

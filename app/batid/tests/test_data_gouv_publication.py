@@ -1137,6 +1137,27 @@ class TestDataGouvPublication(TestCase):
 
             self.assertFalse(publish(area="nat", run_id=uuid.uuid4().hex))
 
+    def test_working_directories_created_in_the_same_second_differ(self):
+        """
+        Input: create_directory("nat") called twice within one frozen second (a
+        manual national launched while the chain's one starts).
+        Expected: two distinct existing directories, so that the first run to finish
+        does not remove the directory of the other.
+        """
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            with freeze_time("2026-11-28 10:00:00"):
+                first = create_directory("nat")
+                second = create_directory("nat")
+
+        self.assertNotEqual(first, second)
+        self.assertTrue(os.path.isdir(first))
+        self.assertTrue(os.path.isdir(second))
+
 
 def data_dir_entries():
     return set(os.listdir(WRITABLE_DATA_DIR))
