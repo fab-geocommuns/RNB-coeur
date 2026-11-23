@@ -1,7 +1,7 @@
 from typing import Iterable
 from uuid import UUID
 
-from batid.models import Building, BuildingAddressesInternalIdReadOnly, City
+from batid.models import Address, Building, BuildingAddressesInternalIdReadOnly, City
 from batid.services.bdg_status import BuildingStatus
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Polygon
@@ -14,6 +14,7 @@ def filter_bdgs_by_address(
     qs: QuerySet,
     cle_interop: str | None = None,
     ban_id: str | UUID | None = None,
+    only_without_ban_id: bool = False,
 ) -> QuerySet:
     """
     Keep the buildings linked to the address matching all the given criteria.
@@ -25,6 +26,9 @@ def filter_bdgs_by_address(
 
     A `ban_id` which is not a UUID matches no address. Callers exposing it publicly
     are expected to refuse it beforehand, this only guards against a database error.
+
+    With `only_without_ban_id`, the addresses holding a BAN ID are left out of the
+    `cle_interop` match. It has no effect when no criterion is given.
     """
     if not cle_interop and not ban_id:
         return qs
@@ -34,6 +38,9 @@ def filter_bdgs_by_address(
     if cle_interop:
         links = links.filter(address__cle_interop__iexact=cle_interop)
 
+    if only_without_ban_id:
+        links = links.filter(address__ban_id__isnull=True)
+
     if ban_id:
         try:
             ban_uuid = UUID(str(ban_id))
@@ -42,6 +49,41 @@ def filter_bdgs_by_address(
         links = links.filter(address__ban_id=ban_uuid)
 
     return qs.filter(pk__in=links.values("building_id"))
+
+
+def filter_bdgs_by_geocoded_address(
+    qs: QuerySet, cle_interop: str, ban_id: str | None
+) -> tuple[QuerySet, UUID | None]:
+    """
+    Keep the buildings linked to an address returned by the geocoder, and return
+    them with the BAN ID really used to filter (None if the filter used the key).
+
+    `Address.ban_id` is only filled for the cities with reliable BAN IDs:
+    - if a local address holds the geocoded BAN ID, filter on it;
+    - if no local address holds it, fall back on `cle_interop`, restricted to the
+      local addresses with no BAN ID. A local address with the same key but another
+      BAN ID is another address (the key has been reassigned) and must not match;
+    - if the geocoder gives no valid BAN ID, nothing shows the key has been
+      reassigned: fall back on `cle_interop`, whether the local address holds a BAN
+      ID or not.
+    """
+    ban_uuid = None
+    if ban_id:
+        try:
+            ban_uuid = UUID(str(ban_id))
+        except ValueError:
+            # The geocoder is an external source: treat a malformed id as absent
+            ban_uuid = None
+
+    if ban_uuid and Address.objects.filter(ban_id=ban_uuid).exists():
+        return filter_bdgs_by_address(qs, ban_id=ban_uuid), ban_uuid
+
+    return (
+        filter_bdgs_by_address(
+            qs, cle_interop=cle_interop, only_without_ban_id=ban_uuid is not None
+        ),
+        None,
+    )
 
 
 def list_bdgs(params, only_active=True) -> QuerySet:

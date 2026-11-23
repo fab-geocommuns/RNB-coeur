@@ -36,10 +36,12 @@ class BanGeocoder:
             if best["properties"]["type"] == "housenumber":
                 return {
                     "cle_interop_ban": best["properties"]["id"],
+                    # banId is not provided for every address
+                    "ban_id": best["properties"].get("banId"),
                     "score": best["properties"]["score"],
                 }
 
-        return {"cle_interop_ban": None, "score": None}
+        return {"cle_interop_ban": None, "ban_id": None, "score": None}
 
 
 class BanBatchGeocoder:

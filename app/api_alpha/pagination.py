@@ -302,6 +302,7 @@ class BuildingAddressCursorPagination(BuildingCursorPagination):
                 "previous": self.get_previous_link(),
                 "status": infos["status"],
                 "cle_interop_ban": infos["cle_interop_ban"],
+                "ban_id": infos["ban_id"],
                 "score_ban": infos["score_ban"],
                 "results": data,
             }

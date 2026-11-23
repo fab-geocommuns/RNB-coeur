@@ -413,6 +413,7 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
     q = serializers.CharField(required=False)
     min_score = serializers.FloatField(required=False)
     cle_interop_ban = serializers.CharField(required=False)
+    ban_id = serializers.UUIDField(required=False)
 
     def validate_min_score(self, min_score):
         if min_score < 0 or min_score > 1:
@@ -421,14 +422,16 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
 
     def validate(self, data):
         # one (and only one) field is required
-        if (data.get("q") is None and data.get("cle_interop_ban") is None) or (
-            data.get("q") is not None and data.get("cle_interop_ban") is not None
-        ):
+        search_params = ("q", "cle_interop_ban", "ban_id")
+        if sum(data.get(param) is not None for param in search_params) != 1:
             raise serializers.ValidationError(
-                "Vous devez définir soit 'q' soit 'cle_interop_ban'."
+                "Vous devez définir un et un seul paramètre parmi 'q', 'cle_interop_ban' et 'ban_id'."
             )
 
-        if data.get("cle_interop_ban") and data.get("min_score"):
+        # "in" for ban_id: min_score=0 is falsy but must be refused too
+        if (data.get("cle_interop_ban") and data.get("min_score")) or (
+            "ban_id" in data and "min_score" in data
+        ):
             raise serializers.ValidationError(
                 "'min_score' n'est pertinent qu'avec une adresse textuelle"
             )
