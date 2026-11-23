@@ -2,7 +2,8 @@ from base64 import b32decode
 from unittest import mock
 from urllib.parse import quote
 
-from batid.tests.helpers import current_code, wrong_code
+from batid.services.mfa import MFAChange
+from batid.tests.helpers import assert_notified, current_code, wrong_code
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -219,6 +220,34 @@ class MFAEnrollmentTest(APITestCase):
         self.assertEqual(login_response.status_code, 401)
         self.assertEqual(login_response.json()["error"], "mfa_required")
 
+    def test_confirm_notifies_the_owner(self):
+        """Confirm with a wrong code, then with the current code: nothing queued for
+        the refusal, one notification queued after commit for the success, for the
+        owner, as an app activation, with the time of the confirmation."""
+        self.setup_app()
+        device = self.pending_device()
+
+        with mock.patch("batid.tasks.send_mfa_change_notification.delay") as notify:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertEqual(self.confirm(otp=wrong_code(device)).status_code, 401)
+            notify.assert_not_called()
+
+            # The refusal delays the next attempt: lift the delay.
+            device.refresh_from_db()
+            device.throttle_reset()
+            before = timezone.now()
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.confirm(otp=current_code(device))
+
+        self.assertEqual(response.status_code, 200)
+        assert_notified(
+            test=self,
+            notify=notify,
+            user=self.user,
+            change=MFAChange.APP_ACTIVATED,
+            between=(before, timezone.now()),
+        )
+
     def test_confirm_login_code_opens_one_session(self):
         """Login code returned by confirm, exchanged twice: the first exchange
         answers 200 with the user's token, the second 400 invalid_code."""
@@ -364,3 +393,37 @@ class MFAEnrollmentTest(APITestCase):
         response = self.confirm(otp=current_code(self.pending_device()))
 
         self.assertEqual(response.status_code, 200)
+
+
+class MFAStatusTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="jdupont", email="jdupont@exemple.fr", password=PASSWORD
+        )
+        self.token = Token.objects.create(user=self.user)
+
+    def status(self):
+        return self.client.get(
+            "/api/alpha/auth/mfa/status/",
+            HTTP_AUTHORIZATION=f"Token {self.token.key}",
+        )
+
+    def test_configured_with_a_confirmed_app(self):
+        """User with a confirmed app, GET with its token: 200 {"configured": true}."""
+        TOTPDevice.objects.create(user=self.user, name="app", confirmed=True)
+
+        response = self.status()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"configured": True})
+
+    def test_not_configured_without_a_confirmed_app(self):
+        """User with a pending app and a backup-code device, no confirmed app, GET
+        with its token: 200 {"configured": false}."""
+        TOTPDevice.objects.create(user=self.user, name="app", confirmed=False)
+        StaticDevice.objects.create(user=self.user, name="backup")
+
+        response = self.status()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"configured": False})

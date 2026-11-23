@@ -122,7 +122,8 @@ def buildings_to_remove(bd_topo_path, max_workers=50):
                 # sometimes the SQL request crashes because the computed surface area is negative
                 # we would like to know more about those buildings
                 print(f"issue with rnb_id {rnb_id}, skipping this building {repr(e)}")
-                with open("log_error_surface.csv", "w") as f:
+                # Append: one short write per line (O_APPEND), the threads do not overwrite each other
+                with open("log_error_surface.csv", "a") as f:
                     f.write(f"{rnb_id}\n")
                 continue
 

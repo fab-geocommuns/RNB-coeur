@@ -392,6 +392,18 @@ class LoginThrottleTest(MFALoginTestCase):
             self.post(path="/api/alpha/login/", username="other").status_code, 400
         )
 
+    def test_mfa_management_endpoints_share_the_login_limit(self):
+        """2/min: a /auth/mfa/replace/setup/ call and a /auth/mfa/backup_codes/ call
+        for "jdupont" fill the login bucket (400 each); the 3rd call, on
+        /auth/mfa/replace/confirm/, and a /login/ call get 429."""
+        for path in (
+            "/api/alpha/auth/mfa/replace/setup/",
+            "/api/alpha/auth/mfa/backup_codes/",
+        ):
+            self.assertEqual(self.post(path=path, username="jdupont").status_code, 400)
+        for path in ("/api/alpha/auth/mfa/replace/confirm/", "/api/alpha/login/"):
+            self.assertEqual(self.post(path=path, username="jdupont").status_code, 429)
+
     def test_username_and_email_of_one_account_share_a_counter(self):
         """2/min, with another account whose email is "JDupont" (same letters as the
         username, other case): a /login/ call with the username "jdupont", then one

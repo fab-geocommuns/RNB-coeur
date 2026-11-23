@@ -119,9 +119,12 @@ class BuildingCursorPagination(BasePagination):
         request_page = request.query_params.get(self.cursor_query_param)
         if request_page:
             try:
-                return int(request_page)
+                page = int(request_page)
             except ValueError:
                 return None
+            # Pages start at 1: a lower cursor would give a negative offset,
+            # which Django querysets refuse.
+            return page if page >= 1 else None
 
         return None
 

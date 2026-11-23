@@ -9,27 +9,39 @@ import requests
 from batid.services.tchap import Code, TchapLevel, notify_tech
 from botocore.config import Config  # type: ignore[import-untyped]
 
+# Prod backups are about 72 GB: one under this floor is a failed backup
+BACKUP_MIN_SIZE_BYTES = 50 * 10**9
+
 
 # main function to be called by the cron job
 def backup_to_s3():
     backup_id, backup_name = create_scaleway_db_backup()
     download_url = create_backup_download_url(backup_id)
-    upload_to_s3(backup_name, download_url)
+    size = upload_to_s3(backup_name, download_url)
+    if size < BACKUP_MIN_SIZE_BYTES:
+        # Raised before remove_older_backups, so that the last valid backups are kept
+        raise Exception(
+            f"Backup {backup_name} is too small: {size} bytes, minimum {BACKUP_MIN_SIZE_BYTES}"
+        )
     remove_older_backups()
-    notify_tchap(backup_name)
+    notify_tchap(backup_name=backup_name, size=size)
 
 
-def notify_tchap(backup_name):
+def notify_tchap(*, backup_name: str, size: int) -> None:
 
     try:
         notify_tech(
             level=TchapLevel.SUCCESS,
             title="Sauvegarde de la base de prod créée chez OVH",
-            details=[("Nom", Code(backup_name))],
+            details=[("Nom", Code(backup_name)), ("Taille", _format_gb(size))],
         )
     except Exception:
         # A retry would start the whole backup again
         logging.exception("Tchap report of the S3 backup failed")
+
+
+def _format_gb(size: int) -> str:
+    return f"{size / 10**9:.2f}".replace(".", ",") + " Go"
 
 
 def scaleway_headers():
@@ -38,7 +50,10 @@ def scaleway_headers():
 
 
 def upload_to_s3(backup_name, download_url):
+    """Stream the Scaleway backup to the OVH bucket and return the stored size in bytes."""
     r = requests.get(download_url, headers=scaleway_headers(), stream=True)
+    if r.status_code != 200:
+        raise Exception(f"Error {r.status_code} while downloading the scaleway backup")
 
     S3_BACKUP_ACCESS_KEY_ID = os.environ.get("S3_BACKUP_ACCESS_KEY_ID")
     S3_BACKUP_SECRET_ACCESS_KEY = os.environ.get("S3_BACKUP_SECRET_ACCESS_KEY")
@@ -72,6 +87,10 @@ def upload_to_s3(backup_name, download_url):
 
     object_exists = s3.get_waiter("object_exists")
     object_exists.wait(Bucket=S3_BACKUP_BUCKET_NAME, Key=backup_name)
+
+    return s3.head_object(Bucket=S3_BACKUP_BUCKET_NAME, Key=backup_name)[
+        "ContentLength"
+    ]
 
 
 def create_scaleway_db_backup():
