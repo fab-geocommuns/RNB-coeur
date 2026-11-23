@@ -230,7 +230,8 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(
-            data["newcomers"]["users"], [{"username": "carol@mairie.fr"}, {"username": "alice"}]
+            data["newcomers"]["users"],
+            [{"username": "carol@mairie.fr"}, {"username": "alice"}],
         )
 
     def test_7_day_window(self):
