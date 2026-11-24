@@ -26,7 +26,7 @@ class Input(TypedDict):
     lng: float
     name: str
     address: str
-    ban_id: str
+    cle_interop: str
 
 
 class Guess(TypedDict):
@@ -153,11 +153,13 @@ class Guesser:
         # About inputs
         print("\n-- Inputs --")
 
-        # how many have an input_ban_id
-        if "input_ban_id" in df.columns:
-            ban_id_count = df["input_ban_id"].notnull().sum()
-            ban_id_percentage = ban_id_count / total * 100
-            print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
+        # how many have an input_cle_interop
+        if "input_cle_interop" in df.columns:
+            cle_interop_count = df["input_cle_interop"].notnull().sum()
+            cle_interop_percentage = cle_interop_count / total * 100
+            print(
+                f"rows with cle_interop: {cle_interop_count} ({cle_interop_percentage:.2f}%)"
+            )
 
     def display_matched_sample(
         self,
@@ -490,9 +492,9 @@ class GeocodeAddressHandler(AbstractHandler):
         with ThreadLocalDBConnection() as connection:
             lat = guess["input"].get("lat", None)
             lng = guess["input"].get("lng", None)
-            ban_id = guess["input"].get("ban_id", None)
+            cle_interop = guess["input"].get("cle_interop", None)
 
-            if not ban_id:
+            if not cle_interop:
                 return guess
 
             if lat and lng:
@@ -500,7 +502,7 @@ class GeocodeAddressHandler(AbstractHandler):
             else:
                 qs = Building.objects.all()
 
-            bdgs = qs.filter(addresses_internal_read_only__cle_interop=ban_id)  # type: ignore[union-attr]
+            bdgs = qs.filter(addresses_internal_read_only__cle_interop=cle_interop)  # type: ignore[union-attr]
 
             if bdgs.count() > 0:
                 guess["matches"] = bdgs  # type: ignore[typeddict-item]
@@ -554,10 +556,10 @@ class GeocodeAddressHandler(AbstractHandler):
             group_key=lambda x: x["ext_id"],
         )
 
-        # Augment input guess with resulting ban_id
+        # Augment input guess with resulting cle_interop
         for ext_id, address_result in address_result_with_max_score_by_ext_id.items():
             if float(address_result["result_score"]) >= self.min_score:
-                guesses[ext_id]["input"]["ban_id"] = address_result["result_id"]
+                guesses[ext_id]["input"]["cle_interop"] = address_result["result_id"]
 
         return guesses
 
