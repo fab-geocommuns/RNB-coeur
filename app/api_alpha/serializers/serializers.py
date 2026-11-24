@@ -168,6 +168,7 @@ class ListBuildingQuerySerializer(serializers.Serializer):
     # validate_status: see the view.
     status = serializers.CharField(required=False)
     cle_interop_ban = serializers.CharField(required=False)
+    ban_id = serializers.UUIDField(required=False)
     with_plots = serializers.IntegerField(required=False, min_value=0, max_value=1)
     # Case-insensitive, like the view and the single building endpoint
     format = serializers.CharField(required=False)
@@ -231,14 +232,20 @@ class ListBuildingQuerySerializer(serializers.Serializer):
                 "Vous devez choisir soit 'bbox' soit 'bb'. Choisissez plutot 'bbox'."
             )
 
+        if data.get("cle_interop_ban") and data.get("ban_id"):
+            raise serializers.ValidationError(
+                "Vous devez choisir soit 'cle_interop_ban' soit 'ban_id'."
+            )
+
         if (
             not data.get("bbox")
             and not data.get("bb")
             and not data.get("insee_code")
             and not data.get("cle_interop_ban")
+            and not data.get("ban_id")
         ):
             raise serializers.ValidationError(
-                "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+                "Choisissez au moins un paramètre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
             )
 
         return data
