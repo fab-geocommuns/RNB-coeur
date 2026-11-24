@@ -122,7 +122,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 "description": LiteralStr(f"""\
 Cet endpoint permet de récupérer une liste paginée de bâtiments.
 
-Au moins un de ces filtres est requis : `bbox`, `bb`, `insee_code` ou `cle_interop_ban`. Les autres paramètres ne suffisent pas.
+Au moins un de ces filtres est requis : `bbox`, `bb`, `insee_code`, `cle_interop_ban` ou `ban_id`. Les autres paramètres ne suffisent pas.
 
 Bâtiments renvoyés :
 * seuls les bâtiments actifs sont listés. Un bâtiment désactivé reste accessible par la consultation d'un bâtiment ;
@@ -140,7 +140,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                         "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Un code INSEE inconnu renvoie une erreur 404.",
                         "required": False,
                         "schema": {"type": "string"},
-                        "example": "75101",
+                        "example": "94067",
                     },
                     {
                         "name": "status",

@@ -6,9 +6,9 @@ what these endpoints really do.
 import re
 
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
-from batid.models import Address, Building
+from batid.models import Address, Building, City
 from batid.services.bdg_status import BuildingStatus
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 from openapi_schema_validator import OAS31Validator, validate
 from rest_framework.test import APITestCase
 
@@ -21,6 +21,14 @@ POLYGON = GEOSGeometry(
     srid=4326,
 )
 
+# Shape crossing the east edge of the documented bbox, its point being outside
+EDGE_POLYGON = GEOSGeometry(
+    "POLYGON((2.4330 48.8420, 2.4450 48.8420, 2.4450 48.8430, "
+    "2.4330 48.8430, 2.4330 48.8420))",
+    srid=4326,
+)
+EDGE_POINT = GEOSGeometry("POINT(2.4440 48.8425)", srid=4326)
+
 
 class ListingDocTest(APITestCase):
     def setUp(self):
@@ -28,10 +36,24 @@ class ListingDocTest(APITestCase):
         self.list_doc = self.schema["paths"][LIST_PATH]["get"]
         self.params = {p["name"]: p for p in self.list_doc["parameters"]}
 
+        # the city of the documented insee_code example, covering the documented
+        # bbox example (the bb example is the same box)
+        min_lon, min_lat, max_lon, max_lat = map(
+            float, self.params["bbox"]["example"].split(",")
+        )
+        City.objects.create(
+            code_insee=self.params["insee_code"]["example"],
+            name="Saint-Mandé",
+            shape=MultiPolygon(
+                Polygon.from_bbox((min_lon, min_lat, max_lon, max_lat)), srid=4326
+            ),
+        )
+
         # a building inside the documented bbox and bb examples, with the
-        # documented cle_interop_ban example as address
+        # documented cle_interop_ban and ban_id examples as address
         address = Address.objects.create(
             cle_interop=self.params["cle_interop_ban"]["example"],
+            ban_id=self.params["ban_id"]["example"],
             source="ban",
             # null city fields are documented by the schema fixes of #1125
             street_number="73",
@@ -58,6 +80,24 @@ class ListingDocTest(APITestCase):
             ],
         )
 
+        # never listed with the documented filter examples: an inactive building
+        # inside the area, and a building whose shape enters the area while its
+        # point stays outside
+        Building.objects.create(
+            rnb_id="INACTIVE0001",
+            shape=POLYGON,
+            point=POLYGON.point_on_surface,
+            status="constructed",
+            is_active=False,
+            addresses_internal_id=[address.internal_id],
+        )
+        Building.objects.create(
+            rnb_id="EDGEPOINT001",
+            shape=EDGE_POLYGON,
+            point=EDGE_POINT,
+            status="constructed",
+        )
+
     def _validate(self, instance, schema: dict) -> None:
         validate(
             instance,
@@ -68,8 +108,10 @@ class ListingDocTest(APITestCase):
     def test_documented_filters_are_the_required_ones(self):
         """
         Input: each documented listing parameter, sent alone with its example value.
-        Expected: the parameters the description lists as filters are accepted alone
-        (no 400), every other parameter is refused alone (400).
+        Expected: each parameter the description lists as a filter is accepted alone
+        and returns the example building only (not the inactive building, nor the
+        building whose point is outside the area); every other parameter is refused
+        alone (400).
         """
         line = next(
             line
@@ -83,7 +125,10 @@ class ListingDocTest(APITestCase):
             with self.subTest(param=name):
                 r = self.client.get(LIST_PATH, {name: param["example"]})
                 if name in documented_filters:
-                    self.assertNotEqual(r.status_code, 400, r.content)
+                    self.assertEqual(r.status_code, 200, r.content)
+                    self.assertEqual(
+                        {b["rnb_id"] for b in r.json()["results"]}, {"DOCEXAMPLE01"}
+                    )
                 else:
                     self.assertEqual(r.status_code, 400)
 
@@ -100,6 +145,39 @@ class ListingDocTest(APITestCase):
             },
         )
         self.assertEqual(r.status_code, 200, r.content)
+
+    def test_insee_code_example_is_a_commune(self):
+        """
+        Input: the documented insee_code example.
+        Expected: a commune code, not the code of an arrondissement of Paris, Lyon or
+        Marseille: the cities table only holds communes, so such a code answers 404.
+        """
+        example = self.params["insee_code"]["example"]
+        self.assertRegex(example, r"^\d[\dAB]\d{3}$")
+        self.assertIsNone(
+            re.match(r"^(751(0[1-9]|1\d|20)|6938[1-9]|132(0[1-9]|1[0-6]))$", example),
+            f"{example} is an arrondissement code",
+        )
+
+    def test_doc_states_which_buildings_are_listed(self):
+        """
+        Input: the documentation of the listing and of its geographic filters.
+        Expected: it states that only active buildings are listed and that the
+        geographic filters work on the point of the building (the behaviour is
+        checked by test_documented_filters_are_the_required_ones).
+        """
+        description = self.list_doc["description"]
+        self.assertIn("seuls les bâtiments actifs sont listés", description)
+        self.assertIn(
+            "Les filtres géographiques (`bbox`, `bb`, `insee_code`) portent sur le "
+            "point du bâtiment",
+            description,
+        )
+        for name in ("bbox", "bb", "insee_code"):
+            with self.subTest(param=name):
+                param_description = self.params[name]["description"]
+                self.assertIn("point (localisation)", param_description)
+                self.assertNotIn("emprise", param_description)
 
     def test_status_doc_lists_every_status_and_default(self):
         """
@@ -146,11 +224,16 @@ class ListingDocTest(APITestCase):
     def test_listing_404_is_documented(self):
         """
         Input: listing on an INSEE code matching no city.
-        Expected: the API answers 404 and the documentation lists a 404 response.
+        Expected: the API answers 404, and the documentation lists a 404 response
+        and states it in the insee_code parameter.
         """
         r = self.client.get(LIST_PATH, {"insee_code": "99999"})
         self.assertEqual(r.status_code, 404)
         self.assertIn("404", self.list_doc["responses"])
+        self.assertIn(
+            "code INSEE inconnu renvoie une erreur 404",
+            self.params["insee_code"]["description"],
+        )
 
     def test_lookup_matches_documentation(self):
         """

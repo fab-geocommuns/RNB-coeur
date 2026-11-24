@@ -243,7 +243,13 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                                             "title": "format=geojson",
                                             "description": "Réponse avec le paramètre `format=geojson`",
                                             "required": ["type", "geometry"],
-                                            "$ref": "#/components/schemas/BuildingGeoJSON",
+                                            # allOf rather than a $ref with siblings,
+                                            # which tools following OpenAPI 3.0 ignore
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/BuildingGeoJSON"
+                                                }
+                                            ],
                                         },
                                     ]
                                 }
