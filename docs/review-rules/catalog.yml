@@ -1,7 +1,7 @@
 last_run:
-  at: '2026-11-19T17:06:14Z'
+  at: '2026-11-24T10:14:23Z'
   mode: dry_run
-  collected_until: '2026-11-19T17:00:53Z'
+  collected_until: '2026-11-24T10:03:46Z'
   errors: []
 families:
 - id: api-doc-contract-mismatch
@@ -2762,3 +2762,9 @@ processed:
   reason: description de doc inexacte, vérification humaine
 - comment_id: 4617119010
   reason: description de doc inexacte, vérification humaine
+- comment_id: 4668619808
+  reason: lisibilité d'une assertion de test, jugement humain
+- comment_id: 4668743309
+  reason: question sur un paramètre
+- comment_id: 4678345854
+  reason: question sur subTest
