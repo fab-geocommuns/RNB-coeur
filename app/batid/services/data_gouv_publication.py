@@ -343,7 +343,13 @@ def create_national_archive(*, directory: str, run_id: str) -> tuple[str, int, s
     from the fresh export, and only if active. The rnb_id check refuses the file
     when this does not hold (an edit transaction open longer than
     NATIONAL_FRESH_MARGIN across a department export)."""
-    department_archives = department_archives_of_run(run_directory(run_id))
+    run_dir = run_directory(run_id)
+    # A new chain removes the run directories idle for RUN_DIRECTORY_MAX_IDLE_S, and
+    # reading the archives leaves the mtime unchanged: the national file renews it
+    # before its reading (about 1 h), however late it starts after its departments.
+    os.makedirs(run_dir, exist_ok=True)
+    os.utime(run_dir)
+    department_archives = department_archives_of_run(run_dir)
 
     oldest_export = min(os.path.getmtime(path) for path in department_archives)
     since = (

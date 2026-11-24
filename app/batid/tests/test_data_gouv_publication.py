@@ -20,6 +20,7 @@ from batid.models import (
     Plot,
     UserProfile,
 )
+from batid.services import data_gouv_publication
 from batid.services.administrative_areas import dpts_list
 from batid.services.data_gouv_publication import (
     DATA_GOUV_TIMEOUT_S,
@@ -39,6 +40,7 @@ from batid.services.data_gouv_publication import (
     publish,
     publish_on_data_gouv,
     publish_on_data_gouv_with_retries,
+    remove_previous_run_directories,
     run_directory,
     update_resource_metadata,
     upload_to_s3,
@@ -1867,6 +1869,32 @@ class TestNationalArchive(TransactionTestCase):
                 publish(area="nat", run_id=self.run_id)
 
         upload_mock.assert_not_called()
+
+    def test_new_chain_during_the_national_keeps_its_run_directory(self):
+        """
+        Input: both departments exported, the run directory last modified two days
+        ago (a national started long after its departments); a new chain removes the
+        idle run directories while the national selects its fresh buildings.
+        Expected: the national file is built and holds the buildings of both
+        departments.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        two_days_ago = (datetime.now() - timedelta(days=2)).timestamp()
+        os.utime(self.run_dir, (two_days_ago, two_days_ago))
+        real_write_fresh_buildings = data_gouv_publication.write_fresh_buildings
+
+        def new_chain_starts(**kwargs):
+            remove_previous_run_directories()
+            return real_write_fresh_buildings(**kwargs)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.write_fresh_buildings",
+            side_effect=new_chain_starts,
+        ):
+            archive_path = self.build_national()
+
+        self.assertEqual(self.national_ids(archive_path), [b"BDG-IN-75", b"BDG-IN-93"])
 
     def test_swapped_buildings_block_the_national_file(self):
         """
