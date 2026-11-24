@@ -2,7 +2,7 @@
 
 # dry_run: the loop only pushes the catalog branch and writes preview.md.
 # live: the loop also opens and comments GitHub issues.
-mode: dry_run
+mode: live
 
 # Label carried by every issue the loop opens (it already exists on the repository).
 label: PR review loop
