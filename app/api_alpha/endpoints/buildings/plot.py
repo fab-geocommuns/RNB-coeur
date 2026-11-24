@@ -1,7 +1,7 @@
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.serializers.serializers import BuildingPlotSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.rnb_doc import PAGINATION_PARAMETERS, rnb_doc
 from batid.exceptions import PlotUnknown
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from rest_framework.exceptions import NotFound
@@ -24,6 +24,7 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "01402000AB0051",
                     },
+                    *PAGINATION_PARAMETERS,
                 ],
                 "responses": {
                     "200": {
@@ -65,7 +66,8 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "404": {"description": "Parcelle cadastrale inconnue."},
                 },
             }
         }

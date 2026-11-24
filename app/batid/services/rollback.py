@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from batid.exceptions import (
     DatabaseInconsistency,
@@ -11,6 +11,7 @@ from batid.exceptions import (
 from batid.models.building import BuildingWithHistory, Event, EventType
 from batid.models.others import DataFix
 from batid.services.RNB_team_user import get_RNB_team_user
+from batid.services.tchap import Code, TchapLevel, notify_tech_or_log
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Func
@@ -58,7 +59,13 @@ def _check_incoherent_event(building) -> None:
         )
 
 
-def rollback(user: User, start_time: datetime | None, end_time: datetime | None):
+def rollback(
+    *,
+    author: User,
+    user: User,
+    start_time: datetime | None,
+    end_time: datetime | None,
+):
     team_rnb = get_RNB_team_user()
 
     data_fix = DataFix.objects.create(
@@ -70,31 +77,61 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     # Pre-fetch in bulk to avoid N+1 (3 queries/event → 2 bulk queries)
     one_building_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
 
-    events_reverted = []
-    events_not_revertable = []
-    events_already_reverted = []
-    events_are_revert = []
+    events_reverted: list[uuid.UUID | None] = []
+    events_not_revertable: list[uuid.UUID | None] = []
+    events_already_reverted: list[uuid.UUID | None] = []
+    events_are_revert: list[uuid.UUID | None] = []
 
-    for event_id in event_ids:
-        try:
-            if event_id:
-                building = one_building_by_event_id.get(event_id)
-                _check_incoherent_event(building)
+    def details() -> list[tuple[str, str]]:
+        return _rollback_details(
+            author=author,
+            user=user,
+            start_time=start_time,
+            end_time=end_time,
+            progress=f"{len(events_reverted)} sur {len(event_ids)}",
+            already_reverted_n=len(events_already_reverted),
+            not_revertable_n=len(events_not_revertable),
+            are_revert_n=len(events_are_revert),
+            data_fix_id=data_fix.id,  # type: ignore[attr-defined]
+        )
 
-                if event_id in already_reverted_ids:
-                    events_already_reverted.append(event_id)
-                elif building and building.revert_event_id is not None:
-                    events_are_revert.append(event_id)
-                else:
-                    revert_uuid = Event.revert_event(
-                        {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
-                        event_id,
-                        user_making_revert=team_rnb,
-                    )
-                    if revert_uuid:
-                        events_reverted.append(event_id)
-        except RevertNotAllowed:
-            events_not_revertable.append(event_id)
+    # No global transaction: each revert is atomic, so the reverted count of a
+    # stopped rollback is exact.
+    try:
+        for event_id in event_ids:
+            try:
+                if event_id:
+                    building = one_building_by_event_id.get(event_id)
+                    _check_incoherent_event(building)
+
+                    if event_id in already_reverted_ids:
+                        events_already_reverted.append(event_id)
+                    elif building and building.revert_event_id is not None:
+                        events_are_revert.append(event_id)
+                    else:
+                        revert_uuid = Event.revert_event(
+                            {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
+                            event_id,
+                            user_making_revert=team_rnb,
+                        )
+                        if revert_uuid:
+                            events_reverted.append(event_id)
+            except RevertNotAllowed:
+                events_not_revertable.append(event_id)
+    except Exception as e:
+        notify_tech_or_log(
+            level=TchapLevel.FAILURE,
+            title="Rollback des éditions interrompu",
+            details=details(),
+            error=str(e),
+        )
+        raise
+
+    notify_tech_or_log(
+        level=TchapLevel.ALERT,
+        title="Rollback des éditions d'un utilisateur",
+        details=details(),
+    )
 
     return {
         "user": user.username,
@@ -111,6 +148,45 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
         "events_are_revert": events_are_revert,
         "events_are_revert_n": len(events_are_revert),
     }
+
+
+def _rollback_details(
+    *,
+    author: User,
+    user: User,
+    start_time: datetime | None,
+    end_time: datetime | None,
+    progress: str,
+    already_reverted_n: int,
+    not_revertable_n: int,
+    are_revert_n: int,
+    data_fix_id: int,
+) -> list[tuple[str, str]]:
+    details = [
+        ("Auteur", author.username),
+        ("Utilisateur visé", user.username),
+        ("Période", _format_period(start_time=start_time, end_time=end_time)),
+        ("Événements annulés", progress),
+    ]
+    # The total also counts the events skipped by the rollback: say why
+    skipped = [
+        ("Déjà annulés", already_reverted_n),
+        ("Non annulables", not_revertable_n),
+        ("Déjà des annulations", are_revert_n),
+    ]
+    details += [(label, str(n)) for label, n in skipped if n > 0]
+    details.append(("DataFix", Code(str(data_fix_id))))
+    return details
+
+
+def _format_period(*, start_time: datetime | None, end_time: datetime | None) -> str:
+    start = (
+        f"du {start_time.astimezone(UTC):%d/%m/%Y %H:%M}" if start_time else "du début"
+    )
+    end = (
+        f"au {end_time.astimezone(UTC):%d/%m/%Y %H:%M}" if end_time else "à maintenant"
+    )
+    return f"{start} {end} (UTC)"
 
 
 def rollback_dry_run(

@@ -3,12 +3,24 @@ from io import BytesIO
 
 from api_alpha.endpoints.auth.pro_connect import issue_login_code
 from api_alpha.utils.login_throttle import LoginRateThrottle
-from api_alpha.utils.rnb_doc import rnb_doc
-from batid.services.mfa import MFAError, confirm_enrollment, start_enrollment
+from api_alpha.utils.rnb_doc import TOKEN_REQUIRED_RESPONSE, rnb_doc
+from batid.services.mfa import (
+    MFAError,
+    confirm_enrollment,
+    confirm_replacement,
+    has_confirmed_app,
+    regenerate_backup_codes,
+    start_enrollment,
+    start_replacement,
+)
+from django.contrib.auth.models import User
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from django_otp.qr import write_qrcode_image
 from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 MFA_ERRORS = {
     MFAError.REQUIRED: (
@@ -131,10 +143,92 @@ def credentials_body_doc(
     }
 
 
-class MFASetupView(ObtainAuthToken):
+SETUP_200_DOC = {
+    "description": "Données à saisir dans l'application d'authentification.",
+    "content": {
+        "application/json": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "otpauth_uri": {
+                        "type": "string",
+                        "example": "otpauth://totp/RNB%3Ajdupont?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30&issuer=RNB",
+                    },
+                    "secret": {
+                        "type": "string",
+                        "description": "Clé en base32, pour une saisie manuelle.",
+                        "example": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+                    },
+                    "qr_code_svg": {
+                        "type": "string",
+                        "description": "QR code de `otpauth_uri`, au format SVG.",
+                    },
+                },
+            }
+        }
+    },
+}
+
+NEW_APP_OTP_PROPERTY = {
+    "type": "string",
+    "description": "Code à 6 chiffres affiché par l'application.",
+    "example": "123456",
+}
+
+CURRENT_OTP_PROPERTY = {
+    "type": "string",
+    "description": "Code affiché par l'application d'authentification actuelle, ou l'un des codes de secours, qui est alors consommé.",
+    "example": "123456",
+}
+
+BACKUP_CODES_PROPERTY = {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "Codes de secours à usage unique.",
+    "example": ["k3m7qz2a"],
+}
+
+SETUP_NOT_STARTED_400_DOC = {
+    "description": f"Identifiant ou mot de passe incorrect, ou `{MFAError.SETUP_NOT_STARTED}` : {MFA_ERRORS[MFAError.SETUP_NOT_STARTED][1]}"
+}
+
+NEW_APP_OTP_BODY_DOC = credentials_body_doc(
+    properties={**CREDENTIALS_PROPERTIES, "otp": NEW_APP_OTP_PROPERTY},
+    required=("username", "password", "otp"),
+)
+
+CURRENT_FACTOR_BODY_DOC = credentials_body_doc(
+    properties={**CREDENTIALS_PROPERTIES, "otp": CURRENT_OTP_PROPERTY},
+    required=("username", "password", "otp"),
+)
+
+
+def setup_response(device: TOTPDevice) -> Response:
+    qr_code = BytesIO()
+    write_qrcode_image(device.config_url, qr_code)
+    return Response(
+        {
+            "otpauth_uri": device.config_url,
+            "secret": b32encode(device.bin_key).decode(),
+            "qr_code_svg": qr_code.getvalue().decode(),
+        }
+    )
+
+
+class MFAView(ObtainAuthToken):
+    """Endpoint authenticated by the username and password of the body, counted
+    with /login/ in the per-account limit."""
+
     throttle_classes = [LoginRateThrottle]
     throttle_scope = "login"
 
+    def authenticated_user(self, request) -> User:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data["user"]
+
+
+class MFASetupView(MFAView):
     @rnb_doc(
         {
             "post": {
@@ -144,31 +238,7 @@ class MFASetupView(ObtainAuthToken):
                 **PASSWORD_AUTH_DOC,
                 "requestBody": credentials_body_doc(properties=CREDENTIALS_PROPERTIES),
                 "responses": {
-                    "200": {
-                        "description": "Données à saisir dans l'application d'authentification.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "otpauth_uri": {
-                                            "type": "string",
-                                            "example": "otpauth://totp/RNB%3Ajdupont?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30&issuer=RNB",
-                                        },
-                                        "secret": {
-                                            "type": "string",
-                                            "description": "Clé en base32, pour une saisie manuelle.",
-                                            "example": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
-                                        },
-                                        "qr_code_svg": {
-                                            "type": "string",
-                                            "description": "QR code de `otpauth_uri`, au format SVG.",
-                                        },
-                                    },
-                                }
-                            }
-                        },
-                    },
+                    "200": SETUP_200_DOC,
                     "400": BAD_CREDENTIALS_DOC,
                     "401": password_auth_401_doc(),
                     "409": mfa_error_doc(MFAError.ALREADY_CONFIGURED),
@@ -178,29 +248,13 @@ class MFASetupView(ObtainAuthToken):
         }
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-
-        device = start_enrollment(user)
+        device = start_enrollment(self.authenticated_user(request))
         if isinstance(device, MFAError):
             return mfa_error_response(device)
-
-        qr_code = BytesIO()
-        write_qrcode_image(device.config_url, qr_code)
-        return Response(
-            {
-                "otpauth_uri": device.config_url,
-                "secret": b32encode(device.bin_key).decode(),
-                "qr_code_svg": qr_code.getvalue().decode(),
-            }
-        )
+        return setup_response(device)
 
 
-class MFAConfirmView(ObtainAuthToken):
-    throttle_classes = [LoginRateThrottle]
-    throttle_scope = "login"
-
+class MFAConfirmView(MFAView):
     @rnb_doc(
         {
             "post": {
@@ -208,17 +262,7 @@ class MFAConfirmView(ObtainAuthToken):
                 "description": "Confirme l'application d'authentification avec son premier code et renvoie 10 codes de secours, affichés une seule fois. Le jeton d'API du compte est renouvelé : l'ancien est refusé.",
                 "operationId": "confirmMFA",
                 **PASSWORD_AUTH_DOC,
-                "requestBody": credentials_body_doc(
-                    properties={
-                        **CREDENTIALS_PROPERTIES,
-                        "otp": {
-                            "type": "string",
-                            "description": "Code à 6 chiffres affiché par l'application.",
-                            "example": "123456",
-                        },
-                    },
-                    required=("username", "password", "otp"),
-                ),
+                "requestBody": NEW_APP_OTP_BODY_DOC,
                 "responses": {
                     "200": {
                         "description": "Application confirmée.",
@@ -231,20 +275,13 @@ class MFAConfirmView(ObtainAuthToken):
                                             "type": "string",
                                             "description": f"Code à usage unique, valable {ENROLLMENT_LOGIN_CODE_TTL_SECONDS // 60} minutes, à échanger contre le nouveau jeton d'API avec `/auth/pro_connect/exchange/`.",
                                         },
-                                        "backup_codes": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "Codes de secours à usage unique.",
-                                            "example": ["k3m7qz2a"],
-                                        },
+                                        "backup_codes": BACKUP_CODES_PROPERTY,
                                     },
                                 }
                             }
                         },
                     },
-                    "400": {
-                        "description": f"Identifiant ou mot de passe incorrect, ou `{MFAError.SETUP_NOT_STARTED}` : {MFA_ERRORS[MFAError.SETUP_NOT_STARTED][1]}"
-                    },
+                    "400": SETUP_NOT_STARTED_400_DOC,
                     "401": password_auth_401_doc(MFAError.INVALID),
                     "409": mfa_error_doc(MFAError.ALREADY_CONFIGURED),
                     "429": LOGIN_THROTTLE_DOC,
@@ -253,10 +290,7 @@ class MFAConfirmView(ObtainAuthToken):
         }
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-
+        user = self.authenticated_user(request)
         codes = confirm_enrollment(user=user, otp=request.data.get("otp"))
         if isinstance(codes, MFAError):
             return mfa_error_response(codes)
@@ -269,3 +303,133 @@ class MFAConfirmView(ObtainAuthToken):
                 "backup_codes": codes,
             }
         )
+
+
+def backup_codes_200_doc(description: str) -> dict:
+    return {
+        "description": description,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {"backup_codes": BACKUP_CODES_PROPERTY},
+                }
+            }
+        },
+    }
+
+
+class MFAReplaceSetupView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Changement d'application d'authentification",
+                "description": "Génère une nouvelle application d'authentification (TOTP) non confirmée, à confirmer avec `/auth/mfa/replace/confirm/`. L'application actuelle reste valable jusqu'à cette confirmation. Refusé si aucune application n'est confirmée.",
+                "operationId": "replaceMFASetup",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": CURRENT_FACTOR_BODY_DOC,
+                "responses": {
+                    "200": SETUP_200_DOC,
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        device = start_replacement(user=user, otp=request.data.get("otp"))
+        if isinstance(device, MFAError):
+            return mfa_error_response(device)
+        return setup_response(device)
+
+
+class MFAReplaceConfirmView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Confirmation du changement d'application d'authentification",
+                "description": "Confirme la nouvelle application d'authentification avec son premier code, supprime l'ancienne et renvoie 10 nouveaux codes de secours, affichés une seule fois : les anciens sont refusés. Le jeton d'API du compte ne change pas.",
+                "operationId": "replaceMFAConfirm",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": NEW_APP_OTP_BODY_DOC,
+                "responses": {
+                    "200": backup_codes_200_doc("Nouvelle application confirmée."),
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        codes = confirm_replacement(user=user, otp=request.data.get("otp"))
+        if isinstance(codes, MFAError):
+            return mfa_error_response(codes)
+        return Response({"backup_codes": codes})
+
+
+class MFABackupCodesView(MFAView):
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Régénération des codes de secours",
+                "description": "Remplace les codes de secours par 10 nouveaux, affichés une seule fois : les anciens sont refusés. Refusé si aucune application d'authentification n'est confirmée.",
+                "operationId": "regenerateMFABackupCodes",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": CURRENT_FACTOR_BODY_DOC,
+                "responses": {
+                    "200": backup_codes_200_doc("Nouveaux codes de secours."),
+                    "400": SETUP_NOT_STARTED_400_DOC,
+                    "401": password_auth_401_doc(MFAError.INVALID),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
+            }
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = self.authenticated_user(request)
+        codes = regenerate_backup_codes(user=user, otp=request.data.get("otp"))
+        if isinstance(codes, MFAError):
+            return mfa_error_response(codes)
+        return Response({"backup_codes": codes})
+
+
+class MFAStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "État de la double authentification",
+                "description": "Indique si une application d'authentification est confirmée pour le compte du jeton.",
+                "operationId": "getMFAStatus",
+                "tags": AUTH_TAGS,
+                "security": [{"tokenAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "État de la double authentification du compte.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "configured": {
+                                            "type": "boolean",
+                                            "description": "`true` si une application d'authentification est confirmée. Une application en attente de confirmation ou des codes de secours seuls ne comptent pas.",
+                                        }
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "401": TOKEN_REQUIRED_RESPONSE,
+                },
+            }
+        },
+        with_400=False,
+    )
+    def get(self, request):
+        return Response({"configured": has_confirmed_app(request.user)})

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Checks the response headers set by the nginx image: HSTS, rate limit headers, hidden nginx version.
+# Checks the response headers set by the nginx image: HSTS, rate limit headers, hidden nginx version,
+# and that HTTP/2 is off on both ports (nginx2root).
 # Builds the image, runs it in front of a dummy backend with a self-signed certificate, then curls it.
 # Usage: nginx/test_headers.sh (needs docker and openssl; uses port 8443, override with PORT=...)
 set -euo pipefail
@@ -24,6 +25,9 @@ docker build --quiet --tag "$NAME" . >/dev/null
 # nginx-proxy only serves HTTPS, and only sends HSTS, for a host with a certificate.
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$HOST" \
     -keyout "$CERTS_DIR/$HOST.key" -out "$CERTS_DIR/$HOST.crt" 2>/dev/null
+# As on the servers: with a default certificate, the fallback server completes TLS for clients without SNI.
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=default" \
+    -keyout "$CERTS_DIR/default.key" -out "$CERTS_DIR/default.crt" 2>/dev/null
 
 docker network create "$NAME" >/dev/null
 docker run --detach --name "$NAME-backend" --network "$NAME" \
@@ -71,6 +75,24 @@ rejected=$(request --request POST "https://$HOST:$PORT/admin/login/")
 check "admin login 429: status" "$rejected" '^HTTP/[0-9.]+ 429'
 check "admin login 429: HSTS" "$rejected" '^strict-transport-security: max-age=31536000'
 check "admin login 429: RateLimit-Limit" "$rejected" '^ratelimit-limit: 1'
+
+# HTTP/2 stays off until nginx-proxy ships nginx >= 1.31.9 (see Dockerfile).
+# Each check expects an exact value, so a failed handshake or a curl without HTTP/2 fails instead of passing.
+# Over TLS, ALPN must pick http/1.1, with SNI and without (what scanners hitting the IP send).
+# `|| true`: a failed handshake must fail the check, not end the script.
+alpn() {
+    echo | openssl s_client -connect "127.0.0.1:$PORT" -alpn h2,http/1.1 "$@" 2>/dev/null || true
+}
+check "HTTPS with SNI: ALPN picks http/1.1" "$(alpn -servername "$HOST")" '^ALPN protocol: http/1\.1'
+check "HTTPS without SNI: ALPN picks http/1.1" "$(alpn -noservername)" '^ALPN protocol: http/1\.1'
+# On port 80, an h2c prior-knowledge request must get no HTTP/2 answer, neither for the vhost nor for the
+# fallback server (unknown Host): nginx closes the connection without a reply (curl exit 52).
+# The proxy's curl is used because the host's may lack HTTP/2 (Git Bash on Windows).
+for host in "$HOST" unknown.test; do
+    h2c=$(docker exec "$NAME-proxy" curl --silent --http2-prior-knowledge --output /dev/null --max-time 5 \
+        --write-out '%{http_version} %{exitcode}' --header "Host: $host" http://localhost/ || true)
+    check "port 80, Host $host: no h2c" "$h2c" '^0 52$'
+done
 
 if [ "$FAILURES" -gt 0 ]; then
     echo "$FAILURES check(s) failed"

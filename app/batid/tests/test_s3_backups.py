@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from batid.services.s3_backup.backup_task import upload_to_s3
 from batid.services.tchap import Code, TchapLevel
 from batid.tasks import backup_to_s3
 from django.test import TestCase
@@ -7,8 +8,9 @@ from django.test import TestCase
 SUCCESS_KWARGS = {
     "level": TchapLevel.SUCCESS,
     "title": "Sauvegarde de la base de prod créée chez OVH",
-    "details": [("Nom", Code("rnb_backup_test"))],
+    "details": [("Nom", Code("rnb_backup_test")), ("Taille", "72,35 Go")],
 }
+BACKUP_SIZE = 72_350_000_000
 
 
 class TestS3Backups(TestCase):
@@ -41,7 +43,9 @@ class TestS3Backups(TestCase):
     @patch("batid.services.tchap.notify_tech")
     @patch("batid.services.s3_backup.backup_task.notify_tech")
     @patch("batid.services.s3_backup.backup_task.remove_older_backups")
-    @patch("batid.services.s3_backup.backup_task.upload_to_s3")
+    @patch(
+        "batid.services.s3_backup.backup_task.upload_to_s3", return_value=BACKUP_SIZE
+    )
     @patch("batid.services.s3_backup.backup_task.create_backup_download_url")
     @patch(
         "batid.services.s3_backup.backup_task.create_scaleway_db_backup",
@@ -70,7 +74,9 @@ class TestS3Backups(TestCase):
     @patch("batid.services.tchap.notify_tech")
     @patch("batid.services.s3_backup.backup_task.notify_tech")
     @patch("batid.services.s3_backup.backup_task.remove_older_backups")
-    @patch("batid.services.s3_backup.backup_task.upload_to_s3")
+    @patch(
+        "batid.services.s3_backup.backup_task.upload_to_s3", return_value=BACKUP_SIZE
+    )
     @patch("batid.services.s3_backup.backup_task.create_backup_download_url")
     @patch(
         "batid.services.s3_backup.backup_task.create_scaleway_db_backup",
@@ -106,7 +112,9 @@ class TestS3Backups(TestCase):
         side_effect=Exception("tchap down"),
     )
     @patch("batid.services.s3_backup.backup_task.remove_older_backups")
-    @patch("batid.services.s3_backup.backup_task.upload_to_s3")
+    @patch(
+        "batid.services.s3_backup.backup_task.upload_to_s3", return_value=BACKUP_SIZE
+    )
     @patch("batid.services.s3_backup.backup_task.create_backup_download_url")
     @patch(
         "batid.services.s3_backup.backup_task.create_scaleway_db_backup",
@@ -126,3 +134,106 @@ class TestS3Backups(TestCase):
         self.assertEqual(result.state, "SUCCESS")
         create_mock.assert_called_once()
         notify_mock.assert_called_once()
+
+    @patch("batid.services.s3_backup.backup_task.boto3.client")
+    @patch("batid.services.s3_backup.backup_task.requests.get")
+    def test_download_error_raises(self, get_mock, client_mock):
+        """
+        Input: the Scaleway backup download answers with a 403.
+        Expected: upload_to_s3 raises an error naming the status, nothing is
+        uploaded to the bucket.
+        """
+        get_mock.return_value.status_code = 403
+
+        with self.assertRaises(Exception) as context:
+            upload_to_s3("rnb_backup_test", "https://download.example")
+
+        self.assertEqual(
+            str(context.exception), "Error 403 while downloading the scaleway backup"
+        )
+        client_mock.return_value.upload_fileobj.assert_not_called()
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.services.s3_backup.backup_task.notify_tech")
+    @patch("batid.services.s3_backup.backup_task.remove_older_backups")
+    @patch("batid.services.s3_backup.backup_task.upload_to_s3", return_value=1000)
+    @patch("batid.services.s3_backup.backup_task.create_backup_download_url")
+    @patch(
+        "batid.services.s3_backup.backup_task.create_scaleway_db_backup",
+        return_value=("backup-id", "rnb_backup_test"),
+    )
+    def test_too_small_backup_fails(
+        self,
+        create_mock,
+        download_url_mock,
+        upload_mock,
+        remove_mock,
+        service_notify_mock,
+        receiver_notify_mock,
+    ):
+        """
+        Input: every backup step succeeds but the stored backup is 1 000 bytes, on
+        both attempts of the task.
+        Expected: the task ends in FAILURE, older backups are kept, no success
+        message; one failure message naming the task and the size in its error.
+        """
+        result = backup_to_s3.apply()
+
+        self.assertEqual(result.state, "FAILURE")
+        remove_mock.assert_not_called()
+        service_notify_mock.assert_not_called()
+        error = "Backup rnb_backup_test is too small: 1000 bytes, minimum 50000000000"
+        receiver_notify_mock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.backup_to_s3"),
+                ("Identifiant", result.id),
+                ("Arguments", "aucun"),
+            ],
+            error=error,
+        )
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.services.s3_backup.backup_task.notify_tech")
+    @patch("batid.services.s3_backup.backup_task.remove_older_backups")
+    @patch("batid.services.s3_backup.backup_task.requests.get")
+    @patch("batid.services.s3_backup.backup_task.create_backup_download_url")
+    @patch(
+        "batid.services.s3_backup.backup_task.create_scaleway_db_backup",
+        return_value=("backup-id", "rnb_backup_test"),
+    )
+    def test_download_error_fails_the_task(
+        self,
+        create_mock,
+        download_url_mock,
+        get_mock,
+        remove_mock,
+        service_notify_mock,
+        receiver_notify_mock,
+    ):
+        """
+        Input: the Scaleway backup download answers with a 403 on both attempts of
+        the task, run with .apply(): Celery runs the retry eagerly, in the same call.
+        Expected: 2 download attempts, the task ends in FAILURE, older backups are
+        kept, no success message; one failure message naming the task, with the
+        403 in its error.
+        """
+        get_mock.return_value.status_code = 403
+
+        result = backup_to_s3.apply()
+
+        self.assertEqual(result.state, "FAILURE")
+        self.assertEqual(get_mock.call_count, 2)
+        remove_mock.assert_not_called()
+        service_notify_mock.assert_not_called()
+        receiver_notify_mock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.backup_to_s3"),
+                ("Identifiant", result.id),
+                ("Arguments", "aucun"),
+            ],
+            error="Error 403 while downloading the scaleway backup",
+        )

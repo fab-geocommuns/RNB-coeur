@@ -129,7 +129,7 @@ services:
   flower:
     cap_drop: ["ALL"]
     restart: unless-stopped
-    image: mher/flower:2.0.1
+    image: mher/flower:2.2.0
     container_name: flower
     command: celery flower --url_prefix=flower
     depends_on:

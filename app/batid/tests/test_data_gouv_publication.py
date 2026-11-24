@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+import uuid
 from datetime import datetime
 from unittest import mock
 from zipfile import ZipFile
@@ -17,6 +18,7 @@ from batid.models import (
     Plot,
     UserProfile,
 )
+from batid.services.administrative_areas import dpts_list
 from batid.services.data_gouv_publication import (
     DATA_GOUV_TIMEOUT_S,
     DataGouvAccessDenied,
@@ -32,10 +34,12 @@ from batid.services.data_gouv_publication import (
     update_resource_metadata,
     upload_to_s3,
 )
+from batid.services.tchap import Code, TchapLevel
+from batid.tasks import publish_datagouv_all
 from batid.tests.factories.users import ContributorUserFactory
 from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from freezegun import freeze_time
 from moto import mock_aws
 
@@ -969,6 +973,24 @@ class TestDataGouvPublication(TestCase):
 
         sleep_mock.assert_not_called()
 
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_archive",
+        return_value=("archive.zip", 1, "sha1"),
+    )
+    @mock.patch("batid.services.data_gouv_publication.cleanup_directory")
+    @mock.patch("batid.services.data_gouv_publication.create_directory")
+    def test_publish_returns_false_when_disabled(
+        self, create_directory_mock, cleanup_mock, create_archive_mock, upload_mock
+    ):
+        """
+        Input: publish("33") with ENABLE_DATAGOUV_PUBLICATION="false".
+        Expected: False, nothing uploaded.
+        """
+        self.assertFalse(publish("33"))
+        upload_mock.assert_not_called()
+
     @mock.patch(
         "batid.services.data_gouv_publication.create_directory",
         side_effect=OSError(28, "No space left on device"),
@@ -1057,3 +1079,247 @@ class TestDataGouvPublishTasks(TestCase):
 
         self.assertEqual(publish_mock.call_args_list, [mock.call("49")])
         notify_tech_mock.assert_not_called()
+
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_summary_after_a_complete_run(self, publish_mock, summary_mock):
+        """
+        Input: chain of 49, 50 and the national file under one run id, all published.
+        Expected: one summary "Publication data.gouv terminée" counting 3 published
+        zones out of every department plus the national file; SUCCESS only when
+        the count reaches that total, so ALERT here.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        chain(
+            get_area_publish_task("49", run_id=run_id),
+            get_area_publish_task("50", run_id=run_id),
+            get_area_publish_task("nat", run_id=run_id),
+        ).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list,
+            [mock.call("49"), mock.call("50"), mock.call("nat")],
+        )
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"3 sur {total}")],
+        )
+
+    @mock.patch("batid.tasks.dpts_list", return_value=["49", "50"])
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_summary_success_when_every_zone_is_published(
+        self, publish_mock, summary_mock, dpts_list_mock
+    ):
+        """
+        Input: departments limited to 49 and 50, chain of 49, 50 and the national
+        file under one run id, all published.
+        Expected: one SUCCESS summary "Publication data.gouv terminée" with
+        "3 sur 3".
+        """
+        run_id = uuid.uuid4().hex
+
+        chain(
+            get_area_publish_task("49", run_id=run_id),
+            get_area_publish_task("50", run_id=run_id),
+            get_area_publish_task("nat", run_id=run_id),
+        ).apply()
+
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.SUCCESS,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", "3 sur 3")],
+        )
+
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
+    def test_summary_alerts_on_a_failed_zone(
+        self, publish_mock, summary_mock, notify_tech_mock
+    ):
+        """
+        Input: chain of 49, 50 and the national file under one run id, 49 fails.
+        Expected: the per-zone failure message for 49, then one ALERT summary
+        counting 2 published zones.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        with self.assertLogs("batid.tasks", level="ERROR"):
+            chain(
+                get_area_publish_task("49", run_id=run_id),
+                get_area_publish_task("50", run_id=run_id),
+                get_area_publish_task("nat", run_id=run_id),
+            ).apply()
+
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la publication data.gouv",
+            details=[("Zone", "49")],
+            error="boom",
+        )
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"2 sur {total}")],
+        )
+
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=False)
+    def test_disabled_publication_is_not_counted(self, publish_mock, summary_mock):
+        """
+        Input: the national file under a run id, publish returning False (the flag
+        was turned off after the launch, nothing sent to data.gouv.fr).
+        Expected: the zone is not counted, the summary alerts with 0 published zones.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        get_area_publish_task("nat", run_id=run_id).apply()
+
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"0 sur {total}")],
+        )
+
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_no_summary_without_run_id(self, publish_mock, summary_mock):
+        """
+        Input: chain of 50 and the national file without run id (the manual
+        publish_opendata path).
+        Expected: both published, no summary message.
+        """
+        chain(get_area_publish_task("50"), get_area_publish_task("nat")).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call("50"), mock.call("nat")]
+        )
+        summary_mock.assert_not_called()
+
+    @mock.patch("batid.tasks.cache.incr", side_effect=Exception("redis down"))
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_count_failure_does_not_stop_the_run(
+        self, publish_mock, summary_mock, incr_mock
+    ):
+        """
+        Input: the national file published under a run id, the cache raising on the
+        count.
+        Expected: the task ends with "done", one ERROR record is logged and the
+        summary alerts with 0 published zones.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            result = get_area_publish_task("nat", run_id=run_id).apply()
+
+        self.assertEqual(result.get(), "done")
+        self.assertEqual(len(logs.records), 1)
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"0 sur {total}")],
+        )
+
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": "unix:///nonexistent/redis.sock",
+            }
+        }
+    )
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.publish", return_value=True)
+    def test_unreachable_cache_does_not_fail_the_national_task(
+        self, publish_mock, summary_mock
+    ):
+        """
+        Input: the national file published under a run id, the cache pointing to a
+        Redis socket that cannot exist (count and read both fail).
+        Expected: the task ends with "done" instead of failing after the
+        publication, and the summary alerts with an unknown count.
+        """
+        run_id = uuid.uuid4().hex
+        total = len(dpts_list()) + 1
+
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            result = get_area_publish_task("nat", run_id=run_id).apply()
+
+        self.assertEqual(result.get(), "done")
+        self.assertEqual(len(logs.records), 2)
+        summary_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv terminée",
+            details=[("Zones publiées", f"inconnu sur {total}")],
+        )
+
+
+class TestDataGouvPublicationFlag(TestCase):
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_unset_flag_launches_nothing(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION unset.
+        Expected: no chain queued, one alert "Publication data.gouv non lancée"
+        naming the variable and "non définie" as its value.
+        """
+        with mock.patch.dict(os.environ):
+            os.environ.pop("ENABLE_DATAGOUV_PUBLICATION", None)
+            publish_datagouv_all.run()
+
+        chain_mock.assert_not_called()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv non lancée",
+            details=[
+                ("Variable", "ENABLE_DATAGOUV_PUBLICATION"),
+                ("Valeur", "non définie"),
+            ],
+        )
+        self.assertIsInstance(notify_tech_mock.call_args.kwargs["details"][0][1], Code)
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_false_flag_launches_nothing(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="false".
+        Expected: no chain queued, one alert "Publication data.gouv non lancée"
+        with the value "false" as Code.
+        """
+        publish_datagouv_all.run()
+
+        chain_mock.assert_not_called()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.ALERT,
+            title="Publication data.gouv non lancée",
+            details=[
+                ("Variable", "ENABLE_DATAGOUV_PUBLICATION"),
+                ("Valeur", "false"),
+            ],
+        )
+        self.assertIsInstance(notify_tech_mock.call_args.kwargs["details"][1][1], Code)
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_enabled_flag_launches_the_chain(self, notify_tech_mock, chain_mock):
+        """
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="true".
+        Expected: the chain is queued once and the launch message is unchanged.
+        """
+        publish_datagouv_all.run()
+
+        chain_mock.return_value.assert_called_once_with()
+        notify_tech_mock.assert_called_once_with(
+            level=TchapLevel.LAUNCH,
+            title="Publication data.gouv lancée",
+            details=[("Zones", "tous les départements et le fichier national")],
+        )

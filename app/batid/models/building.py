@@ -958,16 +958,24 @@ class Building(BuildingAbstract):
     class Meta:
         # ordering = ["rnb_id"]
         indexes = [
-            GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(
-                fields=["addresses_internal_id"], name="bdg_addresses_internal_id_idx"
+                fields=["event_origin"], name="bdg_event_origin_idx", fastupdate=False
+            ),
+            GinIndex(
+                fields=["addresses_internal_id"],
+                name="bdg_addresses_internal_id_idx",
+                fastupdate=False,
             ),
             models.Index(fields=("status",), name="bdg_status_idx"),
-            GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
+            GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx", fastupdate=False),
             # lower is used to create an index on the start of the time range
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
-            GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
+            GinIndex(
+                fields=["parent_buildings"],
+                name="bdg_parent_buildings_idx",
+                fastupdate=False,
+            ),
             models.Index(fields=["event_id"], name="bdg_event_id_idx"),
             models.Index(
                 fields=(
@@ -1220,14 +1228,24 @@ class BuildingHistoryOnly(BuildingAbstract):
         managed = True
         db_table = "batid_building_history"
         indexes = [
-            GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
             GinIndex(
-                fields=["addresses_internal_id"], name="bdg_hist_addr_internal_id_idx"
+                fields=["event_origin"],
+                name="bdg_history_event_origin_idx",
+                fastupdate=False,
+            ),
+            GinIndex(
+                fields=["addresses_internal_id"],
+                name="bdg_hist_addr_internal_id_idx",
+                fastupdate=False,
             ),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
             Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
-            GinIndex(fields=["parent_buildings"], name="bdg_hist_parent_buildings_idx"),
+            GinIndex(
+                fields=["parent_buildings"],
+                name="bdg_hist_parent_buildings_idx",
+                fastupdate=False,
+            ),
         ]
 
         constraints = [

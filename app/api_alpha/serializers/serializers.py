@@ -8,6 +8,7 @@ from api_alpha.validators import (
     BdgInADSValidator,
     ads_validate_rnbid,
 )
+from batid.exceptions import InvalidWGS84Geometry
 from batid.models import (
     ADS,
     Address,
@@ -21,7 +22,7 @@ from batid.services.bdg_status import BuildingStatus
 from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.user import get_user_id_b64
-from batid.utils.geo import compute_shape_area
+from batid.utils.geo import assert_coords_in_wgs84_bounds, compute_extent_area
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.password_validation import validate_password
@@ -167,6 +168,7 @@ class ListBuildingQuerySerializer(serializers.Serializer):
     # validate_status: see the view.
     status = serializers.CharField(required=False)
     cle_interop_ban = serializers.CharField(required=False)
+    ban_id = serializers.UUIDField(required=False)
     with_plots = serializers.IntegerField(required=False, min_value=0, max_value=1)
     # Case-insensitive, like the view and the single building endpoint
     format = serializers.CharField(required=False)
@@ -230,14 +232,20 @@ class ListBuildingQuerySerializer(serializers.Serializer):
                 "Vous devez choisir soit 'bbox' soit 'bb'. Choisissez plutot 'bbox'."
             )
 
+        if data.get("cle_interop_ban") and data.get("ban_id"):
+            raise serializers.ValidationError(
+                "Vous devez choisir soit 'cle_interop_ban' soit 'ban_id'."
+            )
+
         if (
             not data.get("bbox")
             and not data.get("bb")
             and not data.get("insee_code")
             and not data.get("cle_interop_ban")
+            and not data.get("ban_id")
         ):
             raise serializers.ValidationError(
-                "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+                "Choisissez au moins un paramètre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
             )
 
         return data
@@ -378,10 +386,24 @@ class BuildingIntersectQuerySerializer(serializers.Serializer):
         # expected downstream by the comparison with the buildings footprints.
         geom.srid = 4326
 
-        area_m2 = compute_shape_area(geom)
-        if area_m2 > INTERSECT_MAX_POLYGON_AREA_M2:
+        try:
+            assert_coords_in_wgs84_bounds(geom)
+        except InvalidWGS84Geometry as e:
+            raise serializers.ValidationError(e.api_message_with_details())
+
+        # The database reads a polygon crossing the antimeridian the long way round,
+        # as a band over all longitudes.
+        x_min, _, x_max, _ = geom.extent
+        if x_max - x_min > 180:
             raise serializers.ValidationError(
-                "Le polygone fourni est trop grand (aire maximale : 1 km²)"
+                "L'emprise en longitude du polygone dépasse 180° (polygone trop large ou traversant l'antiméridien)"
+            )
+
+        # The database filters candidates on the bounding box: bound the box, not the
+        # polygon. "not <=" also refuses a nan or infinite area.
+        if not compute_extent_area(geom) <= INTERSECT_MAX_POLYGON_AREA_M2:
+            raise serializers.ValidationError(
+                "L'emprise du polygone (rectangle englobant) est trop grande (aire maximale : 1 km²)"
             )
 
         return geom

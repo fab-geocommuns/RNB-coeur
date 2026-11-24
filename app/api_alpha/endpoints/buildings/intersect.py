@@ -4,7 +4,7 @@ from api_alpha.serializers.serializers import (
     BuildingIntersectSerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.rnb_doc import PAGINATION_PARAMETERS, rnb_doc
 from batid.services.bdg_intersect import get_buildings_intersecting_polygon
 from rest_framework.views import APIView
 
@@ -20,11 +20,12 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                     {
                         "name": "shape",
                         "in": "query",
-                        "description": "Polygone au format WKT (WGS84). Seul le type Polygon est accepté (pas de MultiPolygon), la géométrie doit être en 2D (les géométries 3D, avec une coordonnée Z, sont refusées) et son aire doit être inférieure à 1 km².",
+                        "description": "Polygone au format WKT (WGS84). Seul le type Polygon est accepté (pas de MultiPolygon), la géométrie doit être en 2D (les géométries 3D, avec une coordonnée Z, sont refusées) et l'aire de son rectangle englobant doit être inférieure à 1 km².",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "POLYGON((5.7213 45.1848, 5.7213 45.1854, 5.7222 45.1854, 5.7222 45.1848, 5.7213 45.1848))",
                     },
+                    *PAGINATION_PARAMETERS,
                 ],
                 "responses": {
                     "200": {
@@ -65,7 +66,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Pourcentage du polygone fourni qui est couvert par la géométrie du bâtiment RNB, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio du polygone fourni qui est couvert par la géométrie du bâtiment RNB, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.9,
                                                             },
                                                             "rnb_covered_by_input": {
@@ -73,7 +74,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Pourcentage de la géométrie du bâtiment RNB qui est couvert par le polygone fourni, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio de la géométrie du bâtiment RNB qui est couvert par le polygone fourni, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.88,
                                                             },
                                                         },
@@ -87,7 +88,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                         },
                     },
                     "400": {
-                        "description": "Requête invalide : paramètre shape manquant, WKT non analysable, géométrie qui n'est pas un Polygon, géométrie 3D, polygone invalide ou aire supérieure à 1 km²",
+                        "description": "Requête invalide : paramètre shape manquant ou vide, WKT non analysable, géométrie qui n'est pas un Polygon, géométrie 3D, SRID autre que 4326, polygone invalide, coordonnée hors des bornes WGS84 (longitude hors de [-180, 180] ou latitude hors de [-90, 90]), emprise en longitude supérieure à 180° (polygone trop large ou traversant l'antiméridien), emprise (rectangle englobant) supérieure à 1 km², ou `limit` non vide qui n'est pas un entier entre 1 et 100",
                     },
                 },
             }

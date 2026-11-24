@@ -153,10 +153,18 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "cle_interop_ban",
                         "in": "query",
-                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
+                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN, sans tenir compte de la casse. Ne peut pas être combiné avec `ban_id`.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "94067_7115_00073",
+                    },
+                    {
+                        "name": "ban_id",
+                        "in": "query",
+                        "description": "Filtre les bâtiments associés à l'adresse ayant cet identifiant BAN. La valeur doit être un UUID valide, sinon la requête est refusée (erreur 400). Ne peut pas être combiné avec `cle_interop_ban`.",
+                        "required": False,
+                        "schema": {"type": "string", "format": "uuid"},
+                        "example": "fd9736e8-9970-4127-84eb-f2886043c122",
                     },
                     {
                         "name": "withPlots",

@@ -5,16 +5,19 @@ from batid.models import Building, BuildingImport, Candidate
 from batid.services.candidate import Inspector
 from batid.services.imports import building_import_history
 from batid.services.imports.import_bdtopo import (
+    _transform_bdtopo_feature,
     bdtopo_dpts_list,
     bdtopo_src_params,
     create_bdtopo_full_import_tasks,
     create_candidate_from_bdtopo,
 )
+from batid.services.tchap import TchapLevel
+from batid.tasks import convert_bdtopo
 from batid.tests import helpers
 from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import create_default_bdg
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.test import TestCase, TransactionTestCase
 
 
@@ -137,19 +140,112 @@ class ImportBDTopoGeopackage(TransactionTestCase):
         create_candidate_from_bdtopo(src_params, "7a1b2c3d-4e5f-4061-8293-a4b5c6d7e8f9")
         self.assertEqual(Candidate.objects.count(), 6)
 
+    @patch(
+        "batid.services.imports.import_bdtopo._known_bdtopo_id",
+        side_effect=OperationalError("server closed the connection"),
+    )
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_database_error_fails_the_conversion(
+        self, sourceRemoveFolderMock, sourceFindMock, knownBdtopoIdMock
+    ):
+        """
+        Input: the fixture, the lookup of known BD Topo ids raises a database error.
+        Expected: the conversion raises the error and creates no candidate.
+        """
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+
+        with self.assertRaises(OperationalError):
+            create_candidate_from_bdtopo(bdtopo_src_params("02", "2025-09-15"))
+
+        self.assertEqual(Candidate.objects.count(), 0)
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch(
+        "batid.services.imports.import_bdtopo._known_bdtopo_id",
+        side_effect=OperationalError("server closed the connection"),
+    )
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_database_error_fails_the_task(
+        self, sourceRemoveFolderMock, sourceFindMock, knownBdtopoIdMock, notifyMock
+    ):
+        """
+        Input: convert_bdtopo (max_retries=3) on the fixture, the lookup of known BD
+        Topo ids raising a database error on every attempt, run with .apply():
+        Celery runs the retries eagerly, in the same call.
+        Expected: 4 attempts, the task ends in FAILURE, no candidate; one failure
+        message naming the task and its arguments, with the database error.
+        """
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+
+        result = convert_bdtopo.apply(args=[bdtopo_src_params("02", "2025-09-15")])
+
+        self.assertEqual(result.state, "FAILURE")
+        self.assertEqual(knownBdtopoIdMock.call_count, 4)
+        self.assertEqual(Candidate.objects.count(), 0)
+        notifyMock.assert_called_once_with(
+            level=TchapLevel.FAILURE,
+            title="Échec de la tâche",
+            details=[
+                ("Tâche", "batid.tasks.convert_bdtopo"),
+                ("Identifiant", result.id),
+                (
+                    "Arguments",
+                    "{'dpt': '002', 'projection': 'LAMB93', 'date': '2025-09-15'}",
+                ),
+            ],
+            error="server closed the connection",
+        )
+
+    @patch("batid.services.imports.import_bdtopo._transform_bdtopo_feature")
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_skipped_features_are_counted(
+        self, sourceRemoveFolderMock, sourceFindMock, transformMock
+    ):
+        """
+        Input: the fixture, the transformation of BATIMENT0000000312141365 raises.
+        Expected: the 2 other new buildings become candidates and the function
+        returns 2 skipped features: that one and the one with an invalid date.
+        """
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+
+        def transform(feature, srid):
+            if feature["properties"]["cleabs"] == "BATIMENT0000000312141365":
+                raise Exception("broken geometry")
+            return _transform_bdtopo_feature(feature, srid)
+
+        transformMock.side_effect = transform
+
+        skipped_count = create_candidate_from_bdtopo(
+            bdtopo_src_params("02", "2025-09-15")
+        )
+
+        self.assertEqual(Candidate.objects.count(), 2)
+        self.assertEqual(skipped_count, 2)
+
 
 class TestImportTasks(TestCase):
     def test_tasks_count(self):
-
+        """
+        Input: every BD Topo department, release 2023-09-15.
+        Expected: a chord whose header holds one 2-task chain per department and
+        whose body is the summary task, with the launch uuid and the release date.
+        """
         dpts = bdtopo_dpts_list()
 
-        all_tasks = create_bdtopo_full_import_tasks(dpts, "2023-09-15")
+        full_import = create_bdtopo_full_import_tasks(dpts, "2023-09-15")
 
-        self.assertEqual(len(all_tasks), len(dpts))
-
-        for dpt_chain in all_tasks:
-
+        self.assertEqual(len(full_import.tasks), len(dpts))
+        for dpt_chain in full_import.tasks:
             self.assertEqual(len(dpt_chain.tasks), 2)
+
+        body = full_import.body
+        self.assertEqual(body.task, "batid.tasks.report_bdtopo_import")
+        self.assertEqual(body.kwargs["release_date"], "2023-09-15")
+        launch_uuid = full_import.tasks[0].tasks[1].args[1]
+        self.assertEqual(body.kwargs["bulk_launch_uuid"], str(launch_uuid))
 
 
 class TestLockBuildingImport(TestCase):
