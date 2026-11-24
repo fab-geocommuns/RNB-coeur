@@ -240,7 +240,7 @@ class BuildingsEndpointsTest(APITestCase):
             data,
             {
                 "non_field_errors": [
-                    "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
+                    "Choisissez au moins un paramètre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
                 ]
             },
         )
