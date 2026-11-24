@@ -137,7 +137,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Un code INSEE inconnu renvoie une erreur 404.",
+                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sinon la requête est refusée (erreur 400). Un code INSEE inconnu renvoie une erreur 404.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "94067",
@@ -145,7 +145,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "status",
                         "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400.",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400. Une valeur vide (`status=`) ne renvoie aucun bâtiment.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
@@ -241,7 +241,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                         },
                     },
                     "404": {
-                        "description": "Le code INSEE ne correspond à aucune commune."
+                        "description": "Le code INSEE ne correspond à aucune commune, ou le curseur de pagination (`cursor`) n'est pas valide."
                     },
                 },
             },

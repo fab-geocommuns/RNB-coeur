@@ -235,6 +235,56 @@ class ListingDocTest(APITestCase):
             self.params["insee_code"]["description"],
         )
 
+    def test_insee_code_of_wrong_length_is_400(self):
+        """
+        Input: listing on INSEE codes of 4 and 6 characters.
+        Expected: 400 (not the 404 of an unknown code), as the insee_code
+        documentation states.
+        """
+        self.assertIn(
+            "Le code doit faire 5 caractères, sinon la requête est refusée (erreur 400)",
+            self.params["insee_code"]["description"],
+        )
+        for code in ("9406", "940670"):
+            with self.subTest(insee_code=code):
+                r = self.client.get(LIST_PATH, {"insee_code": code})
+                self.assertEqual(r.status_code, 400)
+
+    def test_invalid_cursor_is_documented_404(self):
+        """
+        Input: the bbox example with an invalid pagination cursor, in json then
+        geojson format.
+        Expected: 404, and the documented 404 response mentions the cursor.
+        """
+        self.assertIn("cursor", self.list_doc["responses"]["404"]["description"])
+        for fmt in ("json", "geojson"):
+            with self.subTest(format=fmt):
+                r = self.client.get(
+                    LIST_PATH,
+                    {
+                        "bbox": self.params["bbox"]["example"],
+                        "cursor": "zzz",
+                        "format": fmt,
+                    },
+                )
+                self.assertEqual(r.status_code, 404)
+
+    def test_empty_status_returns_no_building(self):
+        """
+        Input: the bbox example with an empty status ("status=").
+        Expected: 200 with no building (neither the default statuses nor a 400), as
+        the status documentation states.
+        """
+        self.assertIn(
+            "Une valeur vide (`status=`) ne renvoie aucun bâtiment",
+            self.params["status"]["description"],
+        )
+        r = self.client.get(
+            LIST_PATH, {"bbox": self.params["bbox"]["example"], "status": ""}
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["results"], [])
+
     def test_lookup_matches_documentation(self):
         """
         Input: lookup of an existing building in json then geojson format, then of
