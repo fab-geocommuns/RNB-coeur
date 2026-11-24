@@ -598,6 +598,84 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["contributions"], {"total": 2})
 
+    def test_technical_account_contribution_rows_are_left_out(self):
+        """
+        Input: in the window, one Contribution row of the technical RNB account
+        and one of alice.
+        Expected: only alice is ranked, and contributions.total is 1, over
+        30 days and over the whole period.
+        """
+        contribution(UserFactory(username="RNB"), IN_WINDOW)
+        contribution(self.alice, IN_WINDOW)
+
+        summaries = compute_all_summaries(now=NOW)
+
+        for key in ("30", "all"):
+            with self.subTest(period=key):
+                data = summaries[key]
+                self.assertEqual(
+                    [u["username"] for u in data["rankings"]["users"]], ["alice"]
+                )
+                self.assertEqual(data["contributions"], {"total": 1})
+
+    def test_overseas_city_has_a_3_character_department(self):
+        """
+        Input: alice edits in Saint-Denis (97411), in La Réunion (974), while a
+        department 97 does not exist.
+        Expected: the city is ranked with the department 974, La Réunion.
+        """
+        reunion = Department.objects.create(code="974", name="La Réunion")
+        saint_denis = City.objects.create(code_insee="97411", name="Saint-Denis")
+        edition(self.alice, IN_WINDOW, saint_denis, reunion)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["top"]["cities"][0]["department"],
+            {"code": "974", "name": "La Réunion"},
+        )
+
+    def test_organization_first_contribution_is_its_earliest_member(self):
+        """
+        Input: an organization whose member "old" contributed on 1 June 2025
+        and member "recent" in the window; the contributors are read in both
+        orders.
+        Expected: the organization is active but not new: its first
+        contribution is the earliest of its members, whatever their order.
+        """
+        org = Organization.objects.create(name="Org")
+        contribution(
+            member_of(ContributorUserFactory(username="old"), org),
+            datetime(2025, 6, 1, tzinfo=PARIS),
+        )
+        contribution(
+            member_of(ContributorUserFactory(username="recent"), org), IN_WINDOW
+        )
+        user_stats = contribution_summary._user_stats
+
+        for name, order in (("as read", list), ("reversed", reversed)):
+            with self.subTest(order=name), patch.object(
+                contribution_summary,
+                "_user_stats",
+                side_effect=lambda *args, order=order: list(order(user_stats(*args))),
+            ):
+                data = compute_contribution_summary(now=NOW)
+
+                self.assertEqual(data["organizations"], {"total": 1, "new": 0})
+
+    def test_contributions_after_now_are_left_out(self):
+        """
+        Input: alice contributes in the window and on 20 October 2026, after
+        "now" (15 October 2026).
+        Expected: over the whole period, only the first one is counted.
+        """
+        contribution(self.alice, IN_WINDOW)
+        contribution(self.alice, datetime(2026, 10, 20, tzinfo=PARIS))
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertEqual(data["contributions"], {"total": 1})
+
 
 # a cache of its own, so that the tests never touch the Redis one
 @override_settings(
