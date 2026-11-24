@@ -16,7 +16,6 @@ def filter_bdgs_by_address(
     qs: BuildingsQuerySet,
     cle_interop: str | None = None,
     ban_id: str | UUID | None = None,
-    only_without_ban_id: bool = False,
 ) -> BuildingsQuerySet:
     """
     Keep the buildings linked to the address matching all the given criteria.
@@ -28,9 +27,6 @@ def filter_bdgs_by_address(
 
     A `ban_id` which is not a UUID matches no address. Callers exposing it publicly
     are expected to refuse it beforehand, this only guards against a database error.
-
-    With `only_without_ban_id`, the addresses holding a BAN ID are left out of the
-    `cle_interop` match. It has no effect when no criterion is given.
     """
     if not cle_interop and not ban_id:
         return qs
@@ -39,9 +35,6 @@ def filter_bdgs_by_address(
 
     if cle_interop:
         links = links.filter(address__cle_interop__iexact=cle_interop)
-
-    if only_without_ban_id:
-        links = links.filter(address__ban_id__isnull=True)
 
     if ban_id:
         try:
@@ -80,12 +73,14 @@ def filter_bdgs_by_geocoded_address(
     if ban_uuid and Address.objects.filter(ban_id=ban_uuid).exists():
         return filter_bdgs_by_address(qs, ban_id=ban_uuid), ban_uuid
 
-    return (
-        filter_bdgs_by_address(
-            qs, cle_interop=cle_interop, only_without_ban_id=ban_uuid is not None
-        ),
-        None,
+    if ban_uuid is None:
+        return filter_bdgs_by_address(qs, cle_interop=cle_interop), None
+
+    # Same subquery as filter_bdgs_by_address, see why there
+    links = BuildingAddressesInternalIdReadOnly.objects.filter(
+        address__cle_interop__iexact=cle_interop, address__ban_id__isnull=True
     )
+    return qs.filter(pk__in=links.values("building_id")), None
 
 
 def list_bdgs(params, only_active=True) -> QuerySet:
