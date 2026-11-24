@@ -42,10 +42,15 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                     "arrivés d'abord. Les imports ne sont pas comptés comme des "
                     "contributions. Une contribution est une demande d'édition : "
                     "une fusion ou une scission compte une fois, quel que soit "
-                    "le nombre de bâtiments concernés. Les communes ne sont "
-                    "connues que pour les contributions faites depuis le 7 "
-                    "juillet 2025 : celles éditées avant ne sont pas comptées, "
-                    "même sur toute la période. Les données sont mises à jour environ "
+                    "le nombre de bâtiments concernés. Avant avril 2025, une "
+                    "contribution est un signalement corrigé, comptée à la date "
+                    "du signalement et attribuée à la personne qui l'a traité. "
+                    "Pour les communes, seules les éditions faites depuis le 7 "
+                    "juillet 2025 sont comptées : une commune est nouvelle si "
+                    "sa première édition depuis cette date tombe dans la "
+                    "période. Sur toute la période (days=all), new vaut donc "
+                    "total, pour les communes comme pour les organisations. "
+                    "Les données sont mises à jour environ "
                     "toutes les heures. Pour afficher plusieurs périodes "
                     "côte à côte, utilisez plutôt "
                     "GET /api/alpha/contributions/summaries/ : des appels "
@@ -62,8 +67,9 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                             + " ou ".join(str(d) for d in WINDOWS_DAYS)
                             + f" derniers jours, ou {ALL_PERIOD} pour toutes les "
                             "contributions depuis toujours (since vaut alors "
-                            "null ; les communes ne sont comptées que depuis le "
-                            "7 juillet 2025)."
+                            "null, et new vaut total ; pour les communes, seules "
+                            "les éditions faites depuis le 7 juillet 2025 sont "
+                            "comptées)."
                         ),
                         "required": False,
                         "schema": {
@@ -148,9 +154,12 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                     "réponses ont le même updated_at, elles viennent du même "
                     "calcul et top est le début de ces listes. Des appels "
                     "séparés pendant une mise à jour peuvent renvoyer des "
-                    "calculs différents. Les communes ne sont connues que pour "
-                    "les contributions faites depuis le 7 juillet 2025. Les "
-                    "données sont mises à jour environ toutes les heures."
+                    "calculs différents. Avant avril 2025, une contribution "
+                    "est un signalement corrigé, comptée à la date du "
+                    "signalement et attribuée à la personne qui l'a traité. "
+                    "Pour les communes, seules les éditions faites depuis le 7 "
+                    "juillet 2025 sont comptées. Les données sont mises à jour "
+                    "environ toutes les heures."
                 ),
                 "operationId": "getContributionRankings",
                 "responses": {

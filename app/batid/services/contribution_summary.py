@@ -73,6 +73,9 @@ EMPTY_CACHE_POLL_SECONDS = 0.5
 # A contribution is one Contribution row: every edition request (creation,
 # update, merge, split…) writes exactly one, whatever the number of buildings
 # it touches. The internal Metabase dashboard counts the editions the same way.
+# The rows before April 2025 are older reports kept by migration 0138: the
+# contribution is then a fixed report, dated by the report and counted for the
+# user who handled it (review_user, renamed user by 0139).
 # In SummerChallenge, the only rows with a city, a contribution is one distinct
 # event_id: a single update (eg. shape + address) writes several rows sharing
 # the same event_id.
@@ -193,9 +196,11 @@ def _user_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[di
 def _city_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[dict]:
     """
     Query 2/3, one pass over the SummerChallenge rows for every period at
-    once. Per city: the date of its very first contribution ("first_at") and
-    its number of contributions since each start ("n_<period key>"), the
-    distinct events counted from the covering index sc_city_event_idx alone
+    once. Per city: the date of its first contribution since 7 July 2025, when
+    the rows start ("first_at"), and its number of contributions since each
+    start ("n_<period key>"), the distinct events counted from the covering
+    index sc_city_event_idx alone. A city edited before that date and again
+    after is counted, and new if that later edition is in the period.
     """
     return list(
         city_contributions()
