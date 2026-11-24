@@ -245,7 +245,7 @@ class ListBuildingQuerySerializer(serializers.Serializer):
             and not data.get("ban_id")
         ):
             raise serializers.ValidationError(
-                "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
+                "Choisissez au moins un paramètre de filtrage parmi 'bbox', 'insee_code', 'cle_interop_ban' ou 'ban_id'."
             )
 
         return data
