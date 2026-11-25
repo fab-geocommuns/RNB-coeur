@@ -73,9 +73,10 @@ EMPTY_CACHE_POLL_SECONDS = 0.5
 # A contribution is one Contribution row: every edition request (creation,
 # update, merge, split…) writes exactly one, whatever the number of buildings
 # it touches. The internal Metabase dashboard counts the editions the same way.
-# The rows before April 2025 are older reports kept by migration 0138: the
-# contribution is then a fixed report, dated by the report and counted for the
-# user who handled it (review_user, renamed user by 0139).
+# Until 2025, some rows are older fixed reports kept by migration 0138: the
+# contribution is then dated by the report and counted for the user who
+# handled it (review_user, renamed user by 0139). They are mixed with editions
+# (February 2025) and go on until September 2025, so no date splits the two.
 # In SummerChallenge, the only rows with a city, a contribution is one distinct
 # event_id: a single update (eg. shape + address) writes several rows sharing
 # the same event_id.
