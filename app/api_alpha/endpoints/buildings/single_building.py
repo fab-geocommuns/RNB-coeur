@@ -190,7 +190,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": f"Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Il renvoie aussi les bâtiments désactivés (`is_active` à `false`), que la liste des bâtiments n'affiche jamais, et les bâtiments de statut {ALL_STATUS_MD}, alors que la liste n'affiche par défaut que les statuts `constructed` et `notUsable`. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": f"Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Il renvoie les bâtiments de statut {ALL_STATUS_MD}, qu'ils soient actifs ou désactivés (`is_active` à `false`), alors que la liste des bâtiments n'affiche jamais les désactivés et, par défaut, que les statuts `constructed` et `notUsable`. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {

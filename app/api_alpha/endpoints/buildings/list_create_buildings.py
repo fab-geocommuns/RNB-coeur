@@ -111,7 +111,7 @@ BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
             "type": "string",
             "format": "date-time",
             "description": "Horodatage de la génération de la réponse.",
-            "example": "2025-12-25T13:37:00Z",
+            "example": "2025-12-25T13:37:00.000Z",
         },
     },
 }
@@ -131,7 +131,7 @@ Au moins un de ces filtres est requis : `bbox`, `bb`, `insee_code`, `cle_interop
 
 Bâtiments renvoyés :
 * seuls les bâtiments actifs sont listés. Un bâtiment désactivé reste accessible par la consultation d'un bâtiment s'il est de statut {ALL_STATUS_MD} ;
-* sans paramètre `status`, seuls les bâtiments réels sont listés, c'est-à-dire de statut {REAL_STATUS_MD}.
+* sans paramètre `status`, seuls les bâtiments de statut {REAL_STATUS_MD} sont listés.
 
 Les filtres géographiques (`bbox`, `bb`, `insee_code`) portent sur le point du bâtiment, pas sur son emprise au sol.
 
@@ -152,7 +152,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "status",
                         "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400. Une valeur vide (`status=`) ne renvoie aucun bâtiment ; une valeur faite seulement d'espaces est refusée (erreur 400).",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments de ces statuts sont renvoyés : {', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}. Une valeur inconnue renvoie une erreur 400. Une valeur vide (`status=`) ne renvoie aucun bâtiment ; une valeur faite seulement d'espaces est refusée (erreur 400).",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
@@ -235,7 +235,6 @@ NB : l'URL se termine nécessairement par un slash (/).
                             "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
-                            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4, soit environ 34 000 km² en France métropolitaine. "
                             "Ne peut pas être combiné avec `bbox`."
                         ),
                         "required": False,
@@ -258,7 +257,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                         },
                     },
                     "404": {
-                        "description": "Le code INSEE ne correspond à aucune commune, ou le curseur de pagination (`cursor`) est illisible."
+                        "description": "Le code INSEE ne correspond à aucune commune (un code entouré d'espaces compris, voir `insee_code`), ou le curseur de pagination (`cursor`) est illisible."
                     },
                 },
             },

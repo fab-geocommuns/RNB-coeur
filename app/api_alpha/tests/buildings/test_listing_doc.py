@@ -189,13 +189,17 @@ class ListingDocTest(APITestCase):
         """
         Input: the documentation of the status parameter.
         Expected: it names every BuildingStatus key, the "all" value and the
-        statuses listed by default.
+        statuses listed by default, without calling them "réels": the OGC and
+        GitBook documentation give that word other meanings (active, or active with
+        these statuses).
         """
         description = self.params["status"]["description"]
         for status in BuildingStatus.ALL_TYPES_KEYS:
             self.assertIn(f"<b>{status}</b>", description)
         self.assertIn("`all`", description)
         self.assertIn(", ".join(BuildingStatus.REAL_BUILDINGS_STATUS), description)
+        self.assertNotIn("réels", description)
+        self.assertNotIn("réels", self.list_doc["description"])
 
     def _validate_response(self, r, operation_doc: dict) -> None:
         """Validate a response against the schema documented for its real
@@ -226,6 +230,15 @@ class ListingDocTest(APITestCase):
                     items = data["results"] if fmt == "json" else data["features"]
                     self.assertEqual(len(items), 1)
                     self._validate_response(r, self.list_doc)
+                    if fmt == "geojson":
+                        # the documented timeStamp example has the real shape
+                        # (milliseconds and Z)
+                        shape = r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$"
+                        example = self.list_doc["responses"]["200"]["content"][
+                            "application/json"
+                        ]["schema"]["oneOf"][1]["properties"]["timeStamp"]["example"]
+                        self.assertRegex(data["timeStamp"], shape)
+                        self.assertRegex(example, shape)
 
     def test_listing_404_is_documented(self):
         """
@@ -236,6 +249,10 @@ class ListingDocTest(APITestCase):
         r = self.client.get(LIST_PATH, {"insee_code": "99999"})
         self.assertEqual(r.status_code, 404)
         self.assertIn("404", self.list_doc["responses"])
+        self.assertIn(
+            "un code entouré d'espaces compris, voir `insee_code`",
+            self.list_doc["responses"]["404"]["description"],
+        )
         self.assertIn(
             "code INSEE inconnu renvoie une erreur 404",
             self.params["insee_code"]["description"],
@@ -295,26 +312,37 @@ class ListingDocTest(APITestCase):
 
     def test_bbox_area_limit_is_documented(self):
         """
-        Input: bbox and bb of an area of exactly 4 square degrees, then just above 4.
-        Expected: 200 at 4, 400 above, and both descriptions state that the area
+        Input: bbox of an area of exactly 4 square degrees, then just above 4.
+        Expected: 200 at 4, 400 above, and the bbox description states that the area
         must not exceed 4 (about 34 000 km²), not that it must be below 4.
         """
-        cases = {
-            "bbox": ("2,48,4,50", "2,48,4.0001,50"),
-            "bb": ("50,2,48,4", "50,2,48,4.0001"),
-        }
-        for name, (at_limit, above_limit) in cases.items():
-            with self.subTest(param=name):
-                description = self.params[name]["description"]
-                self.assertIn("ne doit pas dépasser 4", description)
-                self.assertIn("34 000 km²", description)
-                self.assertNotIn("< 4", description)
-                self.assertNotIn("deux départements", description)
+        description = self.params["bbox"]["description"]
+        self.assertIn("ne doit pas dépasser 4", description)
+        self.assertIn("34 000 km²", description)
+        self.assertNotIn("< 4", description)
+        self.assertNotIn("deux départements", description)
 
-                r = self.client.get(LIST_PATH, {name: at_limit})
-                self.assertEqual(r.status_code, 200, r.content)
-                r = self.client.get(LIST_PATH, {name: above_limit})
-                self.assertEqual(r.status_code, 400)
+        r = self.client.get(LIST_PATH, {"bbox": "2,48,4,50"})
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.get(LIST_PATH, {"bbox": "2,48,4.0001,50"})
+        self.assertEqual(r.status_code, 400)
+
+    def test_bb_doc_promises_no_area_limit(self):
+        """
+        Input: a bb of 410 square degrees, and a valid bb around Brest (negative
+        longitudes).
+        Expected: the first is accepted and the second refused (bb compares its
+        coordinates as text), so the bb description promises no area limit.
+        """
+        description = self.params["bb"]["description"]
+        self.assertNotIn("La taille est limitée", description)
+        self.assertNotIn("ne doit pas dépasser", description)
+        self.assertNotIn("km²", description)
+
+        r = self.client.get(LIST_PATH, {"bb": "9,-5,50,5"})
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.get(LIST_PATH, {"bb": "48.40,-4.50,48.38,-4.48"})
+        self.assertEqual(r.status_code, 400)
 
     def test_bbox_and_bb_together_is_documented_400(self):
         """
@@ -430,7 +458,7 @@ class ListingDocTest(APITestCase):
         """
         description = self.schema["paths"][SINGLE_PATH]["get"]["description"]
         self.assertIn(
-            "alors que la liste n'affiche par défaut que les statuts "
+            "et, par défaut, que les statuts "
             + " et ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STATUS),
             description,
         )
@@ -466,9 +494,14 @@ class ListingDocTest(APITestCase):
             list_description,
         )
         self.assertIn(
-            f"et les bâtiments de statut {ALL_STATUS_MD}", lookup_doc["description"]
+            f"Il renvoie les bâtiments de statut {ALL_STATUS_MD}, qu'ils soient "
+            "actifs ou désactivés",
+            lookup_doc["description"],
         )
         self.assertNotIn("tous les statuts", lookup_doc["description"])
+        self.assertNotIn(
+            "renvoie aussi les bâtiments désactivés", lookup_doc["description"]
+        )
         self.assertEqual(
             lookup_doc["responses"]["404"]["description"],
             f"Aucun bâtiment de statut {ALL_STATUS_MD} ne correspond à cet "
