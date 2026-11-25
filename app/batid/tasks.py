@@ -420,8 +420,6 @@ def publish_datagouv_all():
         )
         return "Publication disabled"
 
-    # Before the launch message: a failing cleanup is retried once, which would
-    # announce twice a chain that never starts.
     remove_previous_run_directories()
 
     notify_tech(

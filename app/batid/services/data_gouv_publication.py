@@ -108,7 +108,12 @@ def remove_previous_run_directories() -> None:
     or at their national file. A manual national can still be filling its own for
     about 9 h, hence the idle delay."""
     for path in glob.glob(os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}*")):
-        if time.time() - os.path.getmtime(path) > RUN_DIRECTORY_MAX_IDLE_S:
+        try:
+            idle_s = time.time() - os.path.getmtime(path)
+        except FileNotFoundError:
+            # removed meanwhile by the national file of its run
+            continue
+        if idle_s > RUN_DIRECTORY_MAX_IDLE_S:
             cleanup_directory(path)
 
 

@@ -1562,26 +1562,28 @@ class TestDataGouvPublicationFlag(TestCase):
         self.assertEqual(os.listdir(running_run_dir), ["RNB_75.csv.zip"])
 
     @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
-    @mock.patch(
-        "batid.tasks.remove_previous_run_directories",
-        side_effect=PermissionError("run directory not removable"),
-    )
     @mock.patch("batid.tasks.chain")
     @mock.patch("batid.tasks.notify_tech")
-    def test_failing_cleanup_sends_no_launch_message(
-        self, notify_tech_mock, chain_mock, remove_mock
+    def test_run_directory_removed_meanwhile_does_not_stop_the_chain(
+        self, notify_tech_mock, chain_mock
     ):
         """
-        Input: publish_datagouv_all with publication enabled, the removal of the
-        previous run directories raising.
-        Expected: the error is raised, no chain queued and no "Publication data.gouv
-        lancée" message sent (the task retry would otherwise send it twice).
+        Input: publish_datagouv_all with publication enabled, the run directory
+        listing returning a directory removed before its date is read (a national
+        file finishing at that moment).
+        Expected: the chain is queued and the launch message sent once.
         """
-        with self.assertRaisesRegex(PermissionError, "run directory not removable"):
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.glob.glob",
+            return_value=[os.path.join(data_dir, f"{RUN_DIRECTORY_PREFIX}finished")],
+        ):
             publish_datagouv_all.run()
 
-        chain_mock.assert_not_called()
-        notify_tech_mock.assert_not_called()
+        chain_mock.return_value.assert_called_once_with()
+        notify_tech_mock.assert_called_once()
 
 
 @mock.patch("batid.management.commands.publish_opendata.app.send_task")
