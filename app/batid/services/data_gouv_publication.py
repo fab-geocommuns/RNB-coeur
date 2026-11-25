@@ -2,6 +2,7 @@ import glob
 import hashlib
 import logging
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -31,7 +32,8 @@ def publish(*, area: str, run_id: str | None = None) -> bool:
     publication is disabled: the archive is built, nothing is sent.
 
     A department of a run keeps its archive in the run directory, where the national
-    file is assembled from it; the national file then removes that directory."""
+    file is assembled from it; the national file removes that directory once it is
+    built and sent."""
     print(f"Processing area: {area}")
 
     if area == "nat":
@@ -51,20 +53,22 @@ def publish(*, area: str, run_id: str | None = None) -> bool:
 
 
 def publish_national(*, run_id: str | None) -> bool:
-    # Without a run (manual launch), every department archive is missing: the
-    # national file builds them all in a private run directory.
+    """Without a run (manual launch), every department archive is missing: the
+    national file builds them all in a private run directory.
+
+    A failed national file keeps the run directory, so that `publish_opendata
+    --strate country --run-id <run id>` relaunches it without rebuilding the
+    departments; the next chain removes it once idle."""
     run_id = run_id or uuid4().hex
+    run_dir = run_directory(run_id)
+    directory_name = create_directory("nat")
     try:
-        directory_name = create_directory("nat")
-        try:
-            archive = create_national_archive(directory=directory_name, run_id=run_id)
-            return send_archive(area="nat", archive=archive)
-        finally:
-            cleanup_directory(directory_name)
+        archive = create_national_archive(directory=directory_name, run_id=run_id)
+        published = send_archive(area="nat", archive=archive)
     finally:
-        # Missing when the national file failed before its assembly.
-        if os.path.isdir(run_directory(run_id)):
-            cleanup_directory(run_directory(run_id))
+        cleanup_directory(directory_name)
+    cleanup_directory(run_dir)
+    return published
 
 
 def send_archive(*, area: str, archive: tuple[str, int, str]) -> bool:
@@ -87,14 +91,22 @@ RUN_DIRECTORY_PREFIX = "datagouvfr_run_"
 RUN_DIRECTORY_MAX_IDLE_S = 24 * 3600
 
 
+def check_run_id(run_id: str) -> None:
+    """A run id is a uuid4 hex: its run directory is removed recursively, so a run id
+    holding "/.." would remove a directory outside the data directory."""
+    if not re.fullmatch(r"[0-9a-f]{32}", run_id):
+        raise ValueError(f"Invalid data.gouv run id: {run_id!r}")
+
+
 def run_directory(run_id: str) -> str:
+    check_run_id(run_id)
     return os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}{run_id}")
 
 
 def remove_previous_run_directories() -> None:
     """Remove the run directories (about 10 GB each) left by chains stopped before
-    their national file. A manual national can still be filling its own for about
-    9 h, hence the idle delay."""
+    or at their national file. A manual national can still be filling its own for
+    about 9 h, hence the idle delay."""
     for path in glob.glob(os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}*")):
         if time.time() - os.path.getmtime(path) > RUN_DIRECTORY_MAX_IDLE_S:
             cleanup_directory(path)

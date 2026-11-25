@@ -50,6 +50,8 @@ from batid.tasks import publish_datagouv_all, publish_datagouv_national
 from batid.tests.factories.users import ContributorUserFactory
 from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -1105,21 +1107,15 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.send_archive", return_value=True)
     @mock.patch(
         "batid.services.data_gouv_publication.create_national_archive",
-        side_effect=[
-            ("RNB_nat.csv.zip", 3, "sha1"),
-            NationalArchiveError("assembly failed"),
-            ("RNB_nat.csv.zip", 3, "sha1"),
-        ],
+        return_value=("RNB_nat.csv.zip", 3, "sha1"),
     )
     def test_failed_run_directory_removal_keeps_the_national_outcome(
         self, create_national_mock, send_mock
     ):
         """
-        Input: publish(area="nat", run_id=<run>) with a run directory whose removal
-        raises PermissionError, once after a successful publication, once after the
-        assembly raised; then once with no run directory at all.
-        Expected: True for the published file, the assembly error for the failed one,
-        the removal error logged each time; the missing run directory logs nothing.
+        Input: publish(area="nat", run_id=<run>) succeeding, with a run directory
+        whose removal raises PermissionError.
+        Expected: True, and the removal error logged with the run directory path.
         """
         data_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, data_dir)
@@ -1138,19 +1134,10 @@ class TestDataGouvPublication(TestCase):
             run_dir = run_directory(run_id)
             os.makedirs(run_dir)
             with mock.patch("os.rmdir", side_effect=rmdir_denied_on_runs):
-                with self.assertLogs(level="ERROR") as published_logs:
+                with self.assertLogs(level="ERROR") as logs:
                     self.assertTrue(publish(area="nat", run_id=run_id))
-                with self.assertLogs(level="ERROR") as failed_logs:
-                    with self.assertRaisesRegex(
-                        NationalArchiveError, "assembly failed"
-                    ):
-                        publish(area="nat", run_id=run_id)
 
-            with self.assertNoLogs(level="ERROR"):
-                self.assertTrue(publish(area="nat", run_id=uuid.uuid4().hex))
-
-        for logs in (published_logs, failed_logs):
-            self.assertIn(run_dir, "\n".join(logs.output))
+        self.assertIn(run_dir, "\n".join(logs.output))
 
     def test_working_directories_created_in_the_same_second_differ(self):
         """
@@ -1597,6 +1584,46 @@ class TestDataGouvPublicationFlag(TestCase):
         notify_tech_mock.assert_not_called()
 
 
+@mock.patch("batid.management.commands.publish_opendata.app.send_task")
+class TestPublishOpendataCommand(TestCase):
+    def test_national_relaunched_with_its_run_id(self, send_task_mock):
+        """
+        Input: publish_opendata --strate country --run-id <uuid hex>.
+        Expected: the national task is queued once with that run id.
+        """
+        run_id = uuid.uuid4().hex
+
+        call_command("publish_opendata", "--strate", "country", "--run-id", run_id)
+
+        send_task_mock.assert_called_once_with(
+            "batid.tasks.publish_datagouv_national", kwargs={"run_id": run_id}
+        )
+
+    def test_national_without_run_id(self, send_task_mock):
+        """
+        Input: publish_opendata --strate country.
+        Expected: the national task is queued once without run id.
+        """
+        call_command("publish_opendata", "--strate", "country")
+
+        send_task_mock.assert_called_once_with(
+            "batid.tasks.publish_datagouv_national", kwargs={"run_id": None}
+        )
+
+    def test_invalid_run_id_queues_nothing(self, send_task_mock):
+        """
+        Input: --run-id "../x" with strate country, then a valid run id with strate
+        department.
+        Expected: a CommandError each time and no task queued.
+        """
+        with self.assertRaisesRegex(CommandError, "'../x'"):
+            call_command("publish_opendata", "--strate", "country", "--run-id", "../x")
+        with self.assertRaisesRegex(CommandError, "--run-id"):
+            call_command("publish_opendata", "--run-id", uuid.uuid4().hex)
+
+        send_task_mock.assert_not_called()
+
+
 def zip_records(archive_path):
     with ZipFile(archive_path) as archive:
         (entry_name,) = archive.namelist()
@@ -1696,6 +1723,68 @@ class TestNationalArchive(TransactionTestCase):
             self.national_ids(self.build_national()),
             [b"BDG-BORDER", b"BDG-IN-75", b"BDG-IN-93"],
         )
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch(
+        "batid.services.data_gouv_publication.publish_on_data_gouv_with_retries"
+    )
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_failed_national_keeps_its_run_directory_for_a_relaunch(
+        self, upload_mock, publish_mock
+    ):
+        """
+        Input: both departments exported; the national file published under the run
+        id with the upload raising, then published again under the same run id.
+        Expected: the failure raises and keeps both department archives; the relaunch
+        builds no department, uploads RNB_nat.csv.zip and removes the run directory.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        upload_mock.side_effect = [
+            Exception("S3 unavailable"),
+            "https://example.test/RNB_nat.csv.zip",
+        ]
+
+        with self.assertRaisesRegex(Exception, "S3 unavailable"):
+            publish(area="nat", run_id=self.run_id)
+
+        self.assertEqual(
+            sorted(os.listdir(self.run_dir)), ["RNB_75.csv.zip", "RNB_93.csv.zip"]
+        )
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.create_archive"
+        ) as create_archive_mock:
+            self.assertTrue(publish(area="nat", run_id=self.run_id))
+
+        create_archive_mock.assert_not_called()
+        self.assertEqual(
+            os.path.basename(upload_mock.call_args.args[0]), "RNB_nat.csv.zip"
+        )
+        self.assertFalse(os.path.exists(self.run_dir))
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_run_id_other_than_a_uuid_is_refused(self):
+        """
+        Input: publish(area="nat", run_id="/../..") with the data directory nested in
+        a directory holding another file.
+        Expected: ValueError naming the run id, before any file is written or
+        removed: the other file is kept.
+        """
+        data_dir = os.path.join(self.data_dir, "data")
+        os.makedirs(data_dir)
+        other_file = os.path.join(self.data_dir, "other.csv")
+        with open(other_file, "wb") as f:
+            f.write(b"csv")
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            with self.assertRaisesRegex(ValueError, "'/../..'"):
+                publish(area="nat", run_id="/../..")
+
+        self.assertTrue(os.path.exists(other_file))
+        self.assertEqual(os.listdir(data_dir), [])
 
     def test_building_outside_every_department_is_exported(self):
         """
