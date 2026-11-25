@@ -62,7 +62,7 @@ def publish_national(*, run_id: str | None) -> bool:
         finally:
             cleanup_directory(directory_name)
     finally:
-        # Missing when no department archive was built.
+        # Missing when the national file failed before its assembly.
         if os.path.isdir(run_directory(run_id)):
             cleanup_directory(run_directory(run_id))
 
@@ -92,7 +92,7 @@ def run_directory(run_id: str) -> str:
 
 
 def remove_previous_run_directories() -> None:
-    """Remove the run directories (about 12 GB each) left by chains stopped before
+    """Remove the run directories (about 10 GB each) left by chains stopped before
     their national file. A manual national can still be filling its own for about
     9 h, hence the idle delay."""
     for path in glob.glob(os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}*")):
@@ -277,8 +277,8 @@ def archive_summary(archive_path: str) -> tuple[str, int, str]:
     return (archive_path, archive_size, archive_sha1)
 
 
-# A building edited less than this before the oldest department export is exported
-# fresh by the national file. It covers a department export (its COPY snapshot is
+# A building edited after the oldest department export, or less than this before it,
+# is exported fresh by the national file. It covers a department export (its COPY snapshot is
 # taken before the archive mtime) and an edit transaction open across a department
 # snapshot (lower(sys_period) is the start of the edit transaction).
 NATIONAL_FRESH_MARGIN = timedelta(hours=24)
@@ -286,7 +286,7 @@ NATIONAL_FRESH_MARGIN = timedelta(hours=24)
 NATIONAL_WRITE_BATCH_BYTES = 1024 * 1024
 
 # Buildings that cannot be taken from the department files: outside every
-# department or on a department border (in zero or two files), or edited since the
+# department or on a department border (in zero or several files), or edited since the
 # department files were written (stale or deactivated there). The per-building
 # subquery counts each building once, whatever the number of subdivided polygons.
 NATIONAL_FRESH_SQL = """
