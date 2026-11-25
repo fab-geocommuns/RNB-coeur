@@ -24,3 +24,18 @@ jobs:
         run: pip install bandit
       - name: Run bandit
         run: cd app && bandit -r . -c pyproject.toml
+
+  # Project rules of .semgrep/, through the pre-commit hook so its settings live in one place.
+  # pre-commit.ci skips this hook: its environment is too big for it.
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run semgrep rules
+        run: pre-commit run semgrep --all-files

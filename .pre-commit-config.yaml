@@ -1,6 +1,10 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: app/static
+ci:
+  # The semgrep environment (355 MiB) exceeds the pre-commit.ci size limit (250 MiB):
+  # the "semgrep" job of .github/workflows/sast.yml runs this hook instead.
+  skip: [semgrep]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -21,3 +25,12 @@ repos:
     rev: 26.10.1
     hooks:
       - id: black
+  # Project rules born from recurring review comments: one file per rule in .semgrep/
+  - repo: https://github.com/semgrep/pre-commit
+    rev: v1.186.0
+    hooks:
+      - id: semgrep
+        args: ["--config", ".semgrep/", "--error", "--metrics=off", "--disable-version-check", "--quiet"]
+        types: [python]
+        # The rule fixtures contain the forbidden code on purpose.
+        exclude: ^\.semgrep/
