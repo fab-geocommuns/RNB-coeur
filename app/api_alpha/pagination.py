@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-from django.db.models import BooleanField
+from django.db import connection
+from django.db.models import BooleanField, QuerySet
 from django.db.models.expressions import RawSQL
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import BasePagination, CursorPagination
@@ -172,8 +173,13 @@ class BuildingListingCursorPagination(CursorPagination):
 
         current_id = int(current_position) if current_position else 0
 
+        # The id column is qualified with the table of the paginated model: a
+        # filter may join another table which also has an "id" column (e.g. the
+        # building <> address link table), which makes a bare "id" ambiguous.
+        id_column = self._qualified_pk_column(queryset)
+
         queryset = queryset.order_by(
-            RawSQL('point("batid_building"."id", 0.) <-> point(%s, 0.)', [current_id])
+            RawSQL(f"point({id_column}, 0.) <-> point(%s, 0.)", [current_id])
         )
 
         if current_position is not None:
@@ -186,7 +192,7 @@ class BuildingListingCursorPagination(CursorPagination):
             if self.cursor.reverse != is_reversed:
                 queryset = queryset.filter(
                     RawSQL(
-                        "point(id, 0) << point(%s, 0.)",
+                        f"point({id_column}, 0) << point(%s, 0.)",
                         (current_position,),
                         output_field=BooleanField(),
                     )
@@ -194,7 +200,7 @@ class BuildingListingCursorPagination(CursorPagination):
             else:
                 queryset = queryset.filter(
                     RawSQL(
-                        "point(id, 0) >> point(%s, 0.)",
+                        f"point({id_column}, 0) >> point(%s, 0.)",
                         (current_position,),
                         output_field=BooleanField(),
                     )
@@ -243,6 +249,14 @@ class BuildingListingCursorPagination(CursorPagination):
             self.display_page_controls = True
 
         return self.page
+
+    @staticmethod
+    def _qualified_pk_column(queryset: QuerySet) -> str:
+        """Primary key column of the queryset's model, quoted and qualified with
+        its table, e.g. '"batid_building"."id"'."""
+        meta = queryset.model._meta
+        qn = connection.ops.quote_name
+        return f"{qn(meta.db_table)}.{qn(meta.pk.column)}"
 
 
 class OGCApiPagination(BuildingListingCursorPagination):
