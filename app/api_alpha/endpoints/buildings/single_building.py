@@ -11,6 +11,7 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import (
+    ALL_STATUS_MD,
     EDITION_AUTH_RESPONSES,
     get_shape_rules,
     get_status_list,
@@ -189,7 +190,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Il renvoie aussi les bâtiments désactivés (`is_active` à `false`), que la liste des bâtiments n'affiche jamais, et les bâtiments de tous les statuts, démolis compris, alors que la liste n'affiche par défaut que les statuts `constructed` et `notUsable`. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": f"Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Il renvoie aussi les bâtiments désactivés (`is_active` à `false`), que la liste des bâtiments n'affiche jamais, et les bâtiments de statut {ALL_STATUS_MD}, alors que la liste n'affiche par défaut que les statuts `constructed` et `notUsable`. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -257,7 +258,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                         },
                     },
                     "404": {
-                        "description": "Aucun bâtiment ne correspond à cet identifiant RNB."
+                        "description": f"Aucun bâtiment de statut {ALL_STATUS_MD} ne correspond à cet identifiant RNB."
                     },
                 },
             }

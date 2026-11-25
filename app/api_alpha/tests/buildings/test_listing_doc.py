@@ -30,6 +30,13 @@ EDGE_POLYGON = GEOSGeometry(
 )
 EDGE_POINT = GEOSGeometry("POINT(2.4440 48.8425)", srid=4326)
 
+# Statuses the lookup serves, as written in the documentation:
+# `constructed`, `notUsable` ou `demolished`
+ALL_STATUS_MD = (
+    ", ".join(f"`{s}`" for s in BuildingStatus.ALL_TYPES_KEYS[:-1])
+    + f" ou `{BuildingStatus.ALL_TYPES_KEYS[-1]}`"
+)
+
 
 class ListingDocTest(APITestCase):
     def setUp(self):
@@ -259,6 +266,8 @@ class ListingDocTest(APITestCase):
         in the length, but the view looks up the raw value, spaces included), as the
         insee_code documentation states.
         """
+        # Documents a defect: the view looks up the raw value instead of the
+        # validated one. Fixing #1276 changes this 404 and the documentation.
         self.assertIn(
             "Une espace avant ou après le code n'est pas comptée dans la longueur, "
             "mais fait échouer la recherche (erreur 404)",
@@ -440,6 +449,44 @@ class ListingDocTest(APITestCase):
         self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, {"DEMOLISHED01"})
         r = self.client.get("/api/alpha/buildings/DEMOLISHED01/")
         self.assertEqual(r.status_code, 200)
+
+    def test_lookup_doc_names_the_statuses_it_serves(self):
+        """
+        Input: lookup of an inactive building of a served status, then of an inactive
+        building whose status was retired from the code (2 such buildings exist in
+        production, deactivated before the retirement).
+        Expected: 200 then 404, so the listing and lookup documentation name the
+        served statuses instead of promising every status or every inactive building.
+        """
+        list_description = self.list_doc["description"]
+        lookup_doc = self.schema["paths"][SINGLE_PATH]["get"]
+        self.assertIn(
+            "Un bâtiment désactivé reste accessible par la consultation d'un "
+            f"bâtiment s'il est de statut {ALL_STATUS_MD}",
+            list_description,
+        )
+        self.assertIn(
+            f"et les bâtiments de statut {ALL_STATUS_MD}", lookup_doc["description"]
+        )
+        self.assertNotIn("tous les statuts", lookup_doc["description"])
+        self.assertEqual(
+            lookup_doc["responses"]["404"]["description"],
+            f"Aucun bâtiment de statut {ALL_STATUS_MD} ne correspond à cet "
+            "identifiant RNB.",
+        )
+
+        r = self.client.get("/api/alpha/buildings/INACTIVE0001/")
+        self.assertEqual(r.status_code, 200)
+
+        Building.objects.create(
+            rnb_id="RETIREDSTAT1",
+            shape=POLYGON,
+            point=POLYGON.point_on_surface,
+            status="ongoingChange",
+            is_active=False,
+        )
+        r = self.client.get("/api/alpha/buildings/RETIREDSTAT1/")
+        self.assertEqual(r.status_code, 404)
 
     def test_lookup_matches_documentation(self):
         """

@@ -12,6 +12,7 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import (
+    ALL_STATUS_MD,
     EDITION_AUTH_RESPONSES,
     get_shape_rules,
     get_status_html_list,
@@ -79,7 +80,11 @@ BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
     "description": "Réponse avec le paramètre `format=geojson`",
     "required": ["type", "features", "links"],
     "properties": {
-        "type": {"type": "string", "const": "FeatureCollection"},
+        "type": {
+            "type": "string",
+            "const": "FeatureCollection",
+            "example": "FeatureCollection",
+        },
         "features": {
             "type": "array",
             "items": {"$ref": "#/components/schemas/BuildingGeoJSON"},
@@ -125,7 +130,7 @@ Cet endpoint permet de récupérer une liste paginée de bâtiments.
 Au moins un de ces filtres est requis : `bbox`, `bb`, `insee_code`, `cle_interop_ban` ou `ban_id`. Les autres paramètres ne suffisent pas.
 
 Bâtiments renvoyés :
-* seuls les bâtiments actifs sont listés. Un bâtiment désactivé reste accessible par la consultation d'un bâtiment ;
+* seuls les bâtiments actifs sont listés. Un bâtiment désactivé reste accessible par la consultation d'un bâtiment s'il est de statut {ALL_STATUS_MD} ;
 * sans paramètre `status`, seuls les bâtiments réels sont listés, c'est-à-dire de statut {REAL_STATUS_MD}.
 
 Les filtres géographiques (`bbox`, `bb`, `insee_code`) portent sur le point du bâtiment, pas sur son emprise au sol.
@@ -135,6 +140,8 @@ NB : l'URL se termine nécessairement par un slash (/).
                 "operationId": "listBuildings",
                 "parameters": [
                     {
+                        # The 404 on a code surrounded by spaces comes from the view
+                        # reading the raw value: fixing #1276 changes this sentence.
                         "name": "insee_code",
                         "in": "query",
                         "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sans espace : un code plus court ou plus long est refusé (erreur 400). Une espace avant ou après le code n'est pas comptée dans la longueur, mais fait échouer la recherche (erreur 404). Un code INSEE inconnu renvoie une erreur 404, de même qu'un code d'arrondissement de Paris, Lyon ou Marseille (par exemple 75101 ou 69381) : utilisez le code de la commune.",
