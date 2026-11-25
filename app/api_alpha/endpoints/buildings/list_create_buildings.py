@@ -53,12 +53,12 @@ BUILDINGS_PAGE_SCHEMA = {
         "next": {
             "type": ["string", "null"],
             "description": "<br />URL de la page de résultats suivante<br />",
-            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
+            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525,48.839201,2.434158,48.845782&cursor=cD02MzQ3OTk1",
         },
         "previous": {
             "type": ["string", "null"],
             "description": "<br />URL de la page de résultats précédente<br />",
-            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
+            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525,48.839201,2.434158,48.845782&cursor=cj0xJnA9NjM0Nzk3Ng%3D%3D",
         },
         "results": {
             "type": "array",
@@ -79,7 +79,7 @@ BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
     "description": "Réponse avec le paramètre `format=geojson`",
     "required": ["type", "features", "links"],
     "properties": {
-        "type": {"type": "string", "example": "FeatureCollection"},
+        "type": {"type": "string", "const": "FeatureCollection"},
         "features": {
             "type": "array",
             "items": {"$ref": "#/components/schemas/BuildingGeoJSON"},
@@ -137,7 +137,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sinon la requête est refusée (erreur 400). Un code INSEE inconnu renvoie une erreur 404.",
+                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sans espace : un code d'une autre longueur est refusé (erreur 400). Un code INSEE inconnu renvoie une erreur 404, de même qu'un code d'arrondissement de Paris, Lyon ou Marseille (par exemple 75101 ou 69381) : utilisez le code de la commune.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "94067",
@@ -200,12 +200,21 @@ NB : l'URL se termine nécessairement par un slash (/).
                         "example": 50,
                     },
                     {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Page de résultats à récupérer. Inutile de le construire : suivez les URL des attributs `next` et `previous` de la réponse (liens `next` et `prev` de `links` en format `geojson`), qui gardent les filtres de la requête. Un curseur invalide renvoie une erreur 404.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "cD02MzQ3OTk1",
+                    },
+                    {
                         "name": "bbox",
                         "in": "query",
                         "description": (
                             "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box. "
                             "Le format est `min_lon,min_lat,max_lon,max_lat`. "
-                            "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
+                            "La taille est limitée : (max_lon - min_lon) * (max_lat - min_lat) ne doit pas dépasser 4, soit environ 34 000 km² en France métropolitaine. "
+                            "Ne peut pas être combiné avec `bb`."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
@@ -219,7 +228,8 @@ NB : l'URL se termine nécessairement par un slash (/).
                             "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
-                            "La taille de la bbox est limitée par la contrainte (se_lon - nw_lon) * (nw_lat - se_lat) < 4. Cela correspond à la surface d'environ deux départements français."
+                            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4, soit environ 34 000 km² en France métropolitaine. "
+                            "Ne peut pas être combiné avec `bbox`."
                         ),
                         "required": False,
                         "schema": {"type": "string"},

@@ -9,6 +9,7 @@ from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.models import Address, Building, City
 from batid.services.bdg_status import BuildingStatus
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+from jsonschema.exceptions import ValidationError
 from openapi_schema_validator import OAS31Validator, validate
 from rest_framework.test import APITestCase
 
@@ -242,13 +243,116 @@ class ListingDocTest(APITestCase):
         documentation states.
         """
         self.assertIn(
-            "Le code doit faire 5 caractères, sinon la requête est refusée (erreur 400)",
+            "Le code doit faire 5 caractères, sans espace : un code d'une autre "
+            "longueur est refusé (erreur 400)",
             self.params["insee_code"]["description"],
         )
         for code in ("9406", "940670"):
             with self.subTest(insee_code=code):
                 r = self.client.get(LIST_PATH, {"insee_code": code})
                 self.assertEqual(r.status_code, 400)
+
+    def test_insee_code_with_spaces_does_not_list(self):
+        """
+        Input: the documented insee_code example followed by a space.
+        Expected: no listing (the view looks up the raw value, spaces included, so
+        an existing commune answers 404), hence the "sans espace" of the
+        documentation.
+        """
+        self.assertIn("sans espace", self.params["insee_code"]["description"])
+        r = self.client.get(
+            LIST_PATH, {"insee_code": self.params["insee_code"]["example"] + " "}
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_arrondissement_code_is_documented_404(self):
+        """
+        Input: listing on the INSEE codes of an arrondissement of Paris and of Lyon.
+        Expected: 404 (the cities table only holds communes), as the insee_code
+        documentation states.
+        """
+        description = self.params["insee_code"]["description"]
+        self.assertIn("arrondissement", description)
+        for code in ("75101", "69381"):
+            with self.subTest(insee_code=code):
+                self.assertIn(code, description)
+                r = self.client.get(LIST_PATH, {"insee_code": code})
+                self.assertEqual(r.status_code, 404)
+
+    def test_bbox_area_limit_is_documented(self):
+        """
+        Input: bbox and bb of an area of exactly 4 square degrees, then just above 4.
+        Expected: 200 at 4, 400 above, and both descriptions state that the area
+        must not exceed 4 (about 34 000 km²), not that it must be below 4.
+        """
+        cases = {
+            "bbox": ("2,48,4,50", "2,48,4.0001,50"),
+            "bb": ("50,2,48,4", "50,2,48,4.0001"),
+        }
+        for name, (at_limit, above_limit) in cases.items():
+            with self.subTest(param=name):
+                description = self.params[name]["description"]
+                self.assertIn("ne doit pas dépasser 4", description)
+                self.assertIn("34 000 km²", description)
+                self.assertNotIn("< 4", description)
+                self.assertNotIn("deux départements", description)
+
+                r = self.client.get(LIST_PATH, {name: at_limit})
+                self.assertEqual(r.status_code, 200, r.content)
+                r = self.client.get(LIST_PATH, {name: above_limit})
+                self.assertEqual(r.status_code, 400)
+
+    def test_bbox_and_bb_together_is_documented_400(self):
+        """
+        Input: listing with both the bbox and the bb examples.
+        Expected: 400, and each of the two descriptions states it cannot be
+        combined with the other.
+        """
+        r = self.client.get(
+            LIST_PATH,
+            {
+                "bbox": self.params["bbox"]["example"],
+                "bb": self.params["bb"]["example"],
+            },
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn(
+            "Ne peut pas être combiné avec `bb`", self.params["bbox"]["description"]
+        )
+        self.assertIn(
+            "Ne peut pas être combiné avec `bbox`", self.params["bb"]["description"]
+        )
+
+    def test_documented_page_links_can_be_followed(self):
+        """
+        Input: the documented next and previous example URLs, followed as is.
+        Expected: 200 (they keep a filter, like the real links), and the cursor
+        they carry is a documented parameter.
+        """
+        self.assertIn("cursor", self.params)
+        properties = self.list_doc["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ]["oneOf"][0]["properties"]
+        for link in ("next", "previous"):
+            with self.subTest(link=link):
+                example = properties[link]["example"]
+                url = example[example.index(LIST_PATH) :]
+                self.assertIn("cursor=", url)
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200, r.content)
+
+    def test_geojson_listing_type_is_a_constant(self):
+        """
+        Input: the documented geojson listing schema, and a page whose type is not
+        FeatureCollection.
+        Expected: the schema fixes type to FeatureCollection, so the page is refused.
+        """
+        schema = self.list_doc["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ]["oneOf"][1]
+        self.assertEqual(schema["properties"]["type"].get("const"), "FeatureCollection")
+        with self.assertRaises(ValidationError):
+            self._validate({"type": "Feature", "features": [], "links": []}, schema)
 
     def test_invalid_cursor_is_documented_404(self):
         """
@@ -290,7 +394,9 @@ class ListingDocTest(APITestCase):
         Input: lookup of an existing building in json then geojson format, then of
         an unknown RNB ID.
         Expected: each 200 response validates against the schema documented for its
-        real Content-Type, and the unknown RNB ID gives the documented 404.
+        real Content-Type and is in the requested format (a Feature without root
+        rnb_id for geojson, the building with its rnb_id for json), and the unknown
+        RNB ID gives the documented 404.
         """
         single_doc = self.schema["paths"][SINGLE_PATH]["get"]
 
@@ -301,6 +407,14 @@ class ListingDocTest(APITestCase):
                 )
                 self.assertEqual(r.status_code, 200)
                 self._validate_response(r, single_doc)
+                data = r.json()
+                if fmt == "geojson":
+                    self.assertEqual(data["type"], "Feature")
+                    self.assertEqual(data["id"], "DOCEXAMPLE01")
+                    self.assertNotIn("rnb_id", data)
+                else:
+                    self.assertEqual(data["rnb_id"], "DOCEXAMPLE01")
+                    self.assertNotIn("type", data)
 
         r = self.client.get("/api/alpha/buildings/UNKNOWNRNBID/")
         self.assertEqual(r.status_code, 404)
