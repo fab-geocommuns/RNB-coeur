@@ -137,7 +137,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sans espace : un code d'une autre longueur est refusé (erreur 400). Un code INSEE inconnu renvoie une erreur 404, de même qu'un code d'arrondissement de Paris, Lyon ou Marseille (par exemple 75101 ou 69381) : utilisez le code de la commune.",
+                        "description": "Filtre les bâtiments dont le point (localisation) intersecte la commune ayant ce code INSEE. Le code doit faire 5 caractères, sans espace : un code plus court ou plus long est refusé (erreur 400). Une espace avant ou après le code n'est pas comptée dans la longueur, mais fait échouer la recherche (erreur 404). Un code INSEE inconnu renvoie une erreur 404, de même qu'un code d'arrondissement de Paris, Lyon ou Marseille (par exemple 75101 ou 69381) : utilisez le code de la commune.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "94067",
@@ -145,7 +145,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "status",
                         "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400. Une valeur vide (`status=`) ne renvoie aucun bâtiment.",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400. Une valeur vide (`status=`) ne renvoie aucun bâtiment ; une valeur faite seulement d'espaces est refusée (erreur 400).",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
@@ -202,7 +202,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "cursor",
                         "in": "query",
-                        "description": "Page de résultats à récupérer. Inutile de le construire : suivez les URL des attributs `next` et `previous` de la réponse (liens `next` et `prev` de `links` en format `geojson`), qui gardent les filtres de la requête. Un curseur invalide renvoie une erreur 404.",
+                        "description": "Page de résultats à récupérer. Inutile de le construire : suivez les URL des attributs `next` et `previous` de la réponse (liens `next` et `prev` de `links` en format `geojson`), qui gardent les filtres de la requête. Un curseur illisible renvoie une erreur 404.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "cD02MzQ3OTk1",
@@ -251,7 +251,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                         },
                     },
                     "404": {
-                        "description": "Le code INSEE ne correspond à aucune commune, ou le curseur de pagination (`cursor`) n'est pas valide."
+                        "description": "Le code INSEE ne correspond à aucune commune, ou le curseur de pagination (`cursor`) est illisible."
                     },
                 },
             },

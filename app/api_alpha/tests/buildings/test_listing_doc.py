@@ -56,7 +56,6 @@ class ListingDocTest(APITestCase):
             cle_interop=self.params["cle_interop_ban"]["example"],
             ban_id=self.params["ban_id"]["example"],
             source="ban",
-            # null city fields are documented by the schema fixes of #1125
             street_number="73",
             street_rep="",
             street="rue de Paris",
@@ -70,7 +69,6 @@ class ListingDocTest(APITestCase):
             point=POLYGON.point_on_surface,
             status="constructed",
             addresses_internal_id=[address.internal_id],
-            # null ext_ids are documented by the schema fixes of #1125
             ext_ids=[
                 {
                     "source": "bdnb",
@@ -242,28 +240,35 @@ class ListingDocTest(APITestCase):
         Expected: 400 (not the 404 of an unknown code), as the insee_code
         documentation states.
         """
+        description = self.params["insee_code"]["description"]
         self.assertIn(
-            "Le code doit faire 5 caractères, sans espace : un code d'une autre "
-            "longueur est refusé (erreur 400)",
-            self.params["insee_code"]["description"],
+            "Le code doit faire 5 caractères, sans espace : un code plus court ou "
+            "plus long est refusé (erreur 400)",
+            description,
         )
-        for code in ("9406", "940670"):
+        self.assertNotIn("un code d'une autre longueur est refusé", description)
+        for code in ("9406", "940670", "9406 "):
             with self.subTest(insee_code=code):
                 r = self.client.get(LIST_PATH, {"insee_code": code})
                 self.assertEqual(r.status_code, 400)
 
     def test_insee_code_with_spaces_does_not_list(self):
         """
-        Input: the documented insee_code example followed by a space.
-        Expected: no listing (the view looks up the raw value, spaces included, so
-        an existing commune answers 404), hence the "sans espace" of the
-        documentation.
+        Input: the documented insee_code example with a space before, then after.
+        Expected: 404 although the code has 6 characters (the spaces are not counted
+        in the length, but the view looks up the raw value, spaces included), as the
+        insee_code documentation states.
         """
-        self.assertIn("sans espace", self.params["insee_code"]["description"])
-        r = self.client.get(
-            LIST_PATH, {"insee_code": self.params["insee_code"]["example"] + " "}
+        self.assertIn(
+            "Une espace avant ou après le code n'est pas comptée dans la longueur, "
+            "mais fait échouer la recherche (erreur 404)",
+            self.params["insee_code"]["description"],
         )
-        self.assertEqual(r.status_code, 404)
+        example = self.params["insee_code"]["example"]
+        for code in (" " + example, example + " "):
+            with self.subTest(insee_code=code):
+                r = self.client.get(LIST_PATH, {"insee_code": code})
+                self.assertEqual(r.status_code, 404)
 
     def test_arrondissement_code_is_documented_404(self):
         """
@@ -356,11 +361,22 @@ class ListingDocTest(APITestCase):
 
     def test_invalid_cursor_is_documented_404(self):
         """
-        Input: the bbox example with an invalid pagination cursor, in json then
-        geojson format.
-        Expected: 404, and the documented 404 response mentions the cursor.
+        Input: the bbox example with an unreadable pagination cursor (not base64),
+        in json then geojson format.
+        Expected: 404, and the documentation promises the 404 for an unreadable
+        cursor only: a readable cursor holding a position that is not an integer
+        answers 500 today, so the doc must not promise 404 for any invalid cursor.
         """
-        self.assertIn("cursor", self.list_doc["responses"]["404"]["description"])
+        self.assertIn(
+            "le curseur de pagination (`cursor`) est illisible",
+            self.list_doc["responses"]["404"]["description"],
+        )
+        cursor_doc = self.params["cursor"]["description"]
+        self.assertIn("Un curseur illisible renvoie une erreur 404", cursor_doc)
+        self.assertNotIn("Un curseur invalide renvoie une erreur 404", cursor_doc)
+        self.assertNotIn(
+            "n'est pas valide", self.list_doc["responses"]["404"]["description"]
+        )
         for fmt in ("json", "geojson"):
             with self.subTest(format=fmt):
                 r = self.client.get(
@@ -375,12 +391,14 @@ class ListingDocTest(APITestCase):
 
     def test_empty_status_returns_no_building(self):
         """
-        Input: the bbox example with an empty status ("status=").
-        Expected: 200 with no building (neither the default statuses nor a 400), as
-        the status documentation states.
+        Input: the bbox example with an empty status ("status="), then with a status
+        made of spaces only.
+        Expected: 200 with no building for the empty value (neither the default
+        statuses nor a 400), 400 for the spaces, as the status documentation states.
         """
         self.assertIn(
-            "Une valeur vide (`status=`) ne renvoie aucun bâtiment",
+            "Une valeur vide (`status=`) ne renvoie aucun bâtiment ; une valeur faite "
+            "seulement d'espaces est refusée (erreur 400)",
             self.params["status"]["description"],
         )
         r = self.client.get(
@@ -388,6 +406,40 @@ class ListingDocTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["results"], [])
+
+        r = self.client.get(
+            LIST_PATH, {"bbox": self.params["bbox"]["example"], "status": " "}
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_lookup_doc_compares_statuses_with_listing_default(self):
+        """
+        Input: a demolished building in the bbox example, listed without status,
+        listed with status=demolished, and looked up.
+        Expected: absent from the default listing only; the lookup documentation
+        says the listing excludes demolished buildings by default, not always.
+        """
+        description = self.schema["paths"][SINGLE_PATH]["get"]["description"]
+        self.assertIn(
+            "alors que la liste n'affiche par défaut que les statuts "
+            + " et ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STATUS),
+            description,
+        )
+        self.assertNotIn("et tous les statuts, démolis compris", description)
+
+        Building.objects.create(
+            rnb_id="DEMOLISHED01",
+            shape=POLYGON,
+            point=POLYGON.point_on_surface,
+            status="demolished",
+        )
+        bbox = self.params["bbox"]["example"]
+        r = self.client.get(LIST_PATH, {"bbox": bbox})
+        self.assertNotIn("DEMOLISHED01", {b["rnb_id"] for b in r.json()["results"]})
+        r = self.client.get(LIST_PATH, {"bbox": bbox, "status": "demolished"})
+        self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, {"DEMOLISHED01"})
+        r = self.client.get("/api/alpha/buildings/DEMOLISHED01/")
+        self.assertEqual(r.status_code, 200)
 
     def test_lookup_matches_documentation(self):
         """
