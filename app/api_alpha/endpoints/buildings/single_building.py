@@ -228,7 +228,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                                 "schema": {
                                     "oneOf": [
                                         {
-                                            "title": "Bâtiment (format=json)",
+                                            "title": "Building (format=json)",
                                             "description": "Réponse par défaut, ou avec le paramètre `format=json`",
                                             "required": ["rnb_id"],
                                             "allOf": [
@@ -241,7 +241,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                                             ],
                                         },
                                         {
-                                            "title": "Feature de bâtiment (format=geojson)",
+                                            "title": "BuildingFeature (format=geojson)",
                                             "description": "Réponse avec le paramètre `format=geojson`",
                                             "required": ["type", "geometry"],
                                             # allOf rather than a $ref with siblings,

@@ -342,22 +342,28 @@ class ListingDocTest(APITestCase):
     def test_bb_area_limit_is_documented(self):
         """
         Input: a bb in the documented order (north-west then south-east) of exactly
-        4 square degrees, then of 80 square degrees.
-        Expected: 200 at 4, 400 above, and the bb description states that the area
-        must not exceed 4, like the bbox one.
+        4 square degrees, then of 80 square degrees, then an inverted bb (south-east
+        corner north of the north-west one) of 410 square degrees.
+        Expected: 200 at 4, 400 at 80, and 200 for the inverted bb (bb compares its
+        coordinates as text, so the area of an inverted box comes out negative): the
+        bb description limits the area of boxes in the documented order only, and
+        does not compare it with bbox, which refuses inverted boxes.
         """
         description = self.params["bb"]["description"]
         self.assertIn(
-            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit "
-            "pas dépasser 4",
+            "Pour une boîte dans cet ordre (coin Nord-Ouest au nord-ouest du coin "
+            "Sud-Est), (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4",
             description,
         )
+        self.assertNotIn("comme pour `bbox`", description)
 
         r = self.client.get(LIST_PATH, {"bb": "50,1,48,3"})
         self.assertEqual(r.status_code, 200, r.content)
         r = self.client.get(LIST_PATH, {"bb": "50,1,40,9"})
         self.assertEqual(r.status_code, 400)
         self.assertIn("trop grande", r.json()["bb"][0])
+        r = self.client.get(LIST_PATH, {"bb": "9,-5,50,5"})
+        self.assertEqual(r.status_code, 200, r.content)
 
     def test_bbox_and_bb_together_is_documented_400(self):
         """
@@ -430,8 +436,9 @@ class ListingDocTest(APITestCase):
         """
         Input: the titles of the oneOf branches of the listing and lookup 200
         responses.
-        Expected: four distinct titles: client generators name the inline models
-        after them, and equal titles give FormatJson and FormatJson1.
+        Expected: four distinct ASCII titles: client generators (openapi-generator)
+        name the inline models after them, equal titles give FormatJson and
+        FormatJson1, and an accented letter is dropped (bâtiment gives BTiment).
         """
         titles = []
         for path in (LIST_PATH, SINGLE_PATH):
@@ -441,6 +448,9 @@ class ListingDocTest(APITestCase):
             titles += [branch["title"] for branch in schema["oneOf"]]
         self.assertEqual(len(titles), 4)
         self.assertEqual(len(set(titles)), 4, titles)
+        for title in titles:
+            with self.subTest(title=title):
+                self.assertTrue(title.isascii())
 
     def test_geojson_listing_type_is_a_constant(self):
         """

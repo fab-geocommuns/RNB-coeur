@@ -48,8 +48,8 @@ REAL_STATUS_MD = " ou ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STA
 BUILDINGS_PAGE_SCHEMA = {
     "type": "object",
     # Titles name the models generated from the schema: distinct for each branch
-    # of the listing and lookup responses
-    "title": "Page de bâtiments (format=json)",
+    # of the listing and lookup responses, and ASCII (generators drop accents)
+    "title": "BuildingsPage (format=json)",
     "description": "Réponse par défaut, ou avec le paramètre `format=json`",
     "required": ["next", "previous", "results"],
     "properties": {
@@ -80,7 +80,7 @@ BUILDINGS_PAGE_SCHEMA = {
 # Response of the listing with format=geojson: the FeatureCollection is at the root
 BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
     "type": "object",
-    "title": "FeatureCollection de bâtiments (format=geojson)",
+    "title": "BuildingsFeatureCollection (format=geojson)",
     "description": "Réponse avec le paramètre `format=geojson`",
     "required": ["type", "features", "links"],
     "properties": {
@@ -240,7 +240,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                             "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
-                            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4, comme pour `bbox`. "
+                            "Pour une boîte dans cet ordre (coin Nord-Ouest au nord-ouest du coin Sud-Est), (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4. "
                             "Ne peut pas être combiné avec `bbox`."
                         ),
                         "required": False,
