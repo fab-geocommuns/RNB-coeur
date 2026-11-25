@@ -1801,6 +1801,21 @@ class TestNationalArchive(TransactionTestCase):
         self.assertFalse(os.path.exists(self.run_dir))
 
     @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_unpublished_national_removes_its_run_directory(self):
+        """
+        Input: both departments exported, the national file published under the run
+        id with the publication disabled (staging, sandbox).
+        Expected: False and the run directory removed: a disabled chain stops before
+        removing the idle run directories, so a kept one would never be removed.
+        """
+        self.export_department("75")
+        self.export_department("93")
+
+        self.assertFalse(publish(area="nat", run_id=self.run_id))
+
+        self.assertFalse(os.path.exists(self.run_dir))
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
     def test_run_id_other_than_a_uuid_is_refused(self):
         """
         Input: publish(area="nat", run_id="/../..") with the data directory nested in

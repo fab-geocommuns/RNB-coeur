@@ -33,7 +33,7 @@ def publish(*, area: str, run_id: str | None = None) -> bool:
 
     A department of a run keeps its archive in the run directory, where the national
     file is assembled from it; the national file removes that directory once it is
-    built and sent."""
+    built, sent or not."""
     print(f"Processing area: {area}")
 
     if area == "nat":
@@ -58,7 +58,8 @@ def publish_national(*, run_id: str | None) -> bool:
 
     A failed national file keeps the run directory, so that `publish_opendata
     --strate country --run-id <run id>` relaunches it without rebuilding the
-    departments; the next chain removes it once idle."""
+    departments; the next chain removes it once idle. A national file built with the
+    publication disabled removes it unsent: no chain runs there to remove it."""
     run_id = run_id or uuid4().hex
     run_dir = run_directory(run_id)
     directory_name = create_directory("nat")
