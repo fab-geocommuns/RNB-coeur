@@ -47,19 +47,23 @@ REAL_STATUS_MD = " ou ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STA
 # the oneOf of the response.
 BUILDINGS_PAGE_SCHEMA = {
     "type": "object",
-    "title": "format=json",
+    # Titles name the models generated from the schema: distinct for each branch
+    # of the listing and lookup responses
+    "title": "Page de bâtiments (format=json)",
     "description": "Réponse par défaut, ou avec le paramètre `format=json`",
     "required": ["next", "previous", "results"],
     "properties": {
+        # Real links of the bbox example in production: next is the one of page 1,
+        # previous the one of page 2 (which leads back to page 1)
         "next": {
             "type": ["string", "null"],
             "description": "<br />URL de la page de résultats suivante<br />",
-            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525,48.839201,2.434158,48.845782&cursor=cD02MzQ3OTk1",
+            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525%2C48.839201%2C2.434158%2C48.845782&cursor=cD0xNzE5Nzc5NQ%3D%3D",
         },
         "previous": {
             "type": ["string", "null"],
             "description": "<br />URL de la page de résultats précédente<br />",
-            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525,48.839201,2.434158,48.845782&cursor=cj0xJnA9NjM0Nzk3Ng%3D%3D",
+            "example": f"{settings.URL}/api/alpha/buildings/?bbox=2.424525%2C48.839201%2C2.434158%2C48.845782&cursor=cj0xJnA9MTcyMDg1Mjg%3D",
         },
         "results": {
             "type": "array",
@@ -76,7 +80,7 @@ BUILDINGS_PAGE_SCHEMA = {
 # Response of the listing with format=geojson: the FeatureCollection is at the root
 BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
     "type": "object",
-    "title": "format=geojson",
+    "title": "FeatureCollection de bâtiments (format=geojson)",
     "description": "Réponse avec le paramètre `format=geojson`",
     "required": ["type", "features", "links"],
     "properties": {
@@ -212,7 +216,8 @@ NB : l'URL se termine nécessairement par un slash (/).
                         "description": "Page de résultats à récupérer. Inutile de le construire : suivez les URL des attributs `next` et `previous` de la réponse (liens `next` et `prev` de `links` en format `geojson`), qui gardent les filtres de la requête. Un curseur illisible renvoie une erreur 404.",
                         "required": False,
                         "schema": {"type": "string"},
-                        "example": "cD02MzQ3OTk1",
+                        # the cursor of the next example of the response
+                        "example": "cD0xNzE5Nzc5NQ==",
                     },
                     {
                         "name": "bbox",
@@ -235,6 +240,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                             "Filtre les bâtiments dont le point (localisation) est situé dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
+                            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4, comme pour `bbox`. "
                             "Ne peut pas être combiné avec `bbox`."
                         ),
                         "required": False,

@@ -4,6 +4,8 @@ what these endpoints really do.
 """
 
 import re
+from base64 import b64decode
+from urllib.parse import parse_qs, urlparse
 
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.models import Address, Building, City
@@ -168,12 +170,22 @@ class ListingDocTest(APITestCase):
     def test_doc_states_which_buildings_are_listed(self):
         """
         Input: the documentation of the listing and of its geographic filters.
-        Expected: it states that only active buildings are listed and that the
-        geographic filters work on the point of the building (the behaviour is
-        checked by test_documented_filters_are_the_required_ones).
+        Expected: it states that only active buildings are listed, which statuses
+        are listed without the status parameter, and that the geographic filters
+        work on the point of the building (the behaviour is checked by
+        test_documented_filters_are_the_required_ones and
+        test_lookup_doc_compares_statuses_with_listing_default).
         """
         description = self.list_doc["description"]
         self.assertIn("seuls les bâtiments actifs sont listés", description)
+        default_statuses = " ou ".join(
+            f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STATUS
+        )
+        self.assertIn(
+            f"sans paramètre `status`, seuls les bâtiments de statut "
+            f"{default_statuses} sont listés",
+            description,
+        )
         self.assertIn(
             "Les filtres géographiques (`bbox`, `bb`, `insee_code`) portent sur le "
             "point du bâtiment",
@@ -327,22 +339,25 @@ class ListingDocTest(APITestCase):
         r = self.client.get(LIST_PATH, {"bbox": "2,48,4.0001,50"})
         self.assertEqual(r.status_code, 400)
 
-    def test_bb_doc_promises_no_area_limit(self):
+    def test_bb_area_limit_is_documented(self):
         """
-        Input: a bb of 410 square degrees, and a valid bb around Brest (negative
-        longitudes).
-        Expected: the first is accepted and the second refused (bb compares its
-        coordinates as text), so the bb description promises no area limit.
+        Input: a bb in the documented order (north-west then south-east) of exactly
+        4 square degrees, then of 80 square degrees.
+        Expected: 200 at 4, 400 above, and the bb description states that the area
+        must not exceed 4, like the bbox one.
         """
         description = self.params["bb"]["description"]
-        self.assertNotIn("La taille est limitée", description)
-        self.assertNotIn("ne doit pas dépasser", description)
-        self.assertNotIn("km²", description)
+        self.assertIn(
+            "La taille est limitée : (se_lon - nw_lon) * (nw_lat - se_lat) ne doit "
+            "pas dépasser 4",
+            description,
+        )
 
-        r = self.client.get(LIST_PATH, {"bb": "9,-5,50,5"})
+        r = self.client.get(LIST_PATH, {"bb": "50,1,48,3"})
         self.assertEqual(r.status_code, 200, r.content)
-        r = self.client.get(LIST_PATH, {"bb": "48.40,-4.50,48.38,-4.48"})
+        r = self.client.get(LIST_PATH, {"bb": "50,1,40,9"})
         self.assertEqual(r.status_code, 400)
+        self.assertIn("trop grande", r.json()["bb"][0])
 
     def test_bbox_and_bb_together_is_documented_400(self):
         """
@@ -382,6 +397,50 @@ class ListingDocTest(APITestCase):
                 self.assertIn("cursor=", url)
                 r = self.client.get(url)
                 self.assertEqual(r.status_code, 200, r.content)
+
+    def test_documented_page_links_are_consecutive_pages(self):
+        """
+        Input: the cursors of the documented next and previous examples, and the
+        documented cursor parameter example.
+        Expected: next moves forward from a position, previous moves backward from
+        a later position (the previous link of the page next leads to), and the
+        cursor example is the one of next: following next, then the previous of
+        that page, goes from page 1 to page 2 and back.
+        """
+        properties = self.list_doc["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ]["oneOf"][0]["properties"]
+
+        def cursor_of(url: str) -> dict:
+            encoded = parse_qs(urlparse(url).query)["cursor"][0]
+            return parse_qs(b64decode(encoded).decode())
+
+        next_cursor = cursor_of(properties["next"]["example"])
+        previous_cursor = cursor_of(properties["previous"]["example"])
+
+        self.assertNotIn("r", next_cursor)
+        self.assertEqual(previous_cursor.get("r"), ["1"])
+        self.assertGreater(int(previous_cursor["p"][0]), int(next_cursor["p"][0]))
+        self.assertEqual(
+            parse_qs(b64decode(self.params["cursor"]["example"]).decode()),
+            next_cursor,
+        )
+
+    def test_response_branch_titles_are_distinct(self):
+        """
+        Input: the titles of the oneOf branches of the listing and lookup 200
+        responses.
+        Expected: four distinct titles: client generators name the inline models
+        after them, and equal titles give FormatJson and FormatJson1.
+        """
+        titles = []
+        for path in (LIST_PATH, SINGLE_PATH):
+            schema = self.schema["paths"][path]["get"]["responses"]["200"]["content"][
+                "application/json"
+            ]["schema"]
+            titles += [branch["title"] for branch in schema["oneOf"]]
+        self.assertEqual(len(titles), 4)
+        self.assertEqual(len(set(titles)), 4, titles)
 
     def test_geojson_listing_type_is_a_constant(self):
         """
