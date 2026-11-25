@@ -1,9 +1,16 @@
+import glob
 import hashlib
 import logging
 import os
+import re
 import shutil
+import tempfile
 import time
-from datetime import datetime
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import IO
+from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import boto3
@@ -20,37 +27,124 @@ def datagouv_publication_enabled() -> bool:
     return os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true"
 
 
-def publish(area: str) -> bool:
+def publish(*, area: str, run_id: str | None = None) -> bool:
     """Build the area archive and send it to data.gouv.fr. Return False when the
-    publication is disabled: the archive is built, nothing is sent."""
+    publication is disabled: the archive is built, nothing is sent.
+
+    A department of a run keeps its archive in the run directory, where the national
+    file is assembled from it; the national file removes that directory once it is
+    built, sent or not."""
     print(f"Processing area: {area}")
+
+    if area == "nat":
+        return publish_national(run_id=run_id)
+
+    if run_id:
+        archive = build_department_archive(dept=area, run_dir=run_directory(run_id))
+        return send_archive(area=area, archive=archive)
 
     directory_name = create_directory(area)
     try:
-        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
-
-        enabled = datagouv_publication_enabled()
-        if enabled:
-            public_url = upload_to_s3(archive_path)
-            publish_on_data_gouv_with_retries(
-                area=area,
-                public_url=public_url,
-                archive_size=archive_size,
-                archive_sha1=archive_sha1,
-            )
+        archive = create_archive(directory_name, area)
+        return send_archive(area=area, archive=archive)
     finally:
         # we always cleanup the directory, no matter what happens
         cleanup_directory(directory_name)
+
+
+def publish_national(*, run_id: str | None) -> bool:
+    """Without a run (manual launch), every department archive is missing: the
+    national file builds them all in a private run directory.
+
+    A failed national file keeps the run directory, so that `publish_opendata
+    --strate country --run-id <run id>` relaunches it without rebuilding the
+    departments; the next chain removes it once idle. A national file built with the
+    publication disabled removes it unsent: no chain runs there to remove it."""
+    run_id = run_id or uuid4().hex
+    run_dir = run_directory(run_id)
+    directory_name = create_directory("nat")
+    try:
+        archive = create_national_archive(directory=directory_name, run_id=run_id)
+        published = send_archive(area="nat", archive=archive)
+    finally:
+        cleanup_directory(directory_name)
+    cleanup_directory(run_dir)
+    return published
+
+
+def send_archive(*, area: str, archive: tuple[str, int, str]) -> bool:
+    archive_path, archive_size, archive_sha1 = archive
+    enabled = datagouv_publication_enabled()
+    if enabled:
+        public_url = upload_to_s3(archive_path)
+        publish_on_data_gouv_with_retries(
+            area=area,
+            public_url=public_url,
+            archive_size=archive_size,
+            archive_sha1=archive_sha1,
+        )
     return enabled
 
 
+RUN_DIRECTORY_PREFIX = "datagouvfr_run_"
+# Each department archive moved in updates the directory mtime, and one department
+# export takes far less than this.
+RUN_DIRECTORY_MAX_IDLE_S = 24 * 3600
+
+
+def check_run_id(run_id: str) -> None:
+    """A run id is a uuid4 hex: its run directory is removed recursively, so a run id
+    holding "/.." would remove a directory outside the data directory."""
+    if not re.fullmatch(r"[0-9a-f]{32}", run_id):
+        raise ValueError(f"Invalid data.gouv run id: {run_id!r}")
+
+
+def run_directory(run_id: str) -> str:
+    check_run_id(run_id)
+    return os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}{run_id}")
+
+
+def remove_previous_run_directories() -> None:
+    """Remove the run directories (about 10 GB each) left by chains stopped before
+    or at their national file. A manual national can still be filling its own for
+    about 9 h, hence the idle delay."""
+    for path in glob.glob(os.path.join(WRITABLE_DATA_DIR, f"{RUN_DIRECTORY_PREFIX}*")):
+        try:
+            idle_s = time.time() - os.path.getmtime(path)
+        except FileNotFoundError:
+            # removed meanwhile by the national file of its run
+            continue
+        if idle_s > RUN_DIRECTORY_MAX_IDLE_S:
+            cleanup_directory(path)
+
+
+def department_archive_path(*, run_dir: str, dept: str) -> str:
+    return os.path.join(run_dir, f"RNB_{dept}.csv.zip")
+
+
+def build_department_archive(*, dept: str, run_dir: str) -> tuple[str, int, str]:
+    """Build the department archive and move it into the run directory.
+
+    The move comes after the export succeeded: a zip closed on a failed COPY is still
+    a valid, truncated archive, so a file of the run directory is always complete."""
+    directory_name = create_directory(dept)
+    try:
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, dept)
+        os.makedirs(run_dir, exist_ok=True)
+        kept_path = department_archive_path(run_dir=run_dir, dept=dept)
+        os.replace(archive_path, kept_path)
+    finally:
+        cleanup_directory(directory_name)
+    return kept_path, archive_size, archive_sha1
+
+
 def create_directory(area):
-    directory_name = (
-        f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    # mkdtemp: two runs of an area started within the same second (a manual national
+    # next to the chain's one) get their own directory, each removed by its own run.
+    return tempfile.mkdtemp(
+        prefix=f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_',
+        dir=WRITABLE_DATA_DIR,
     )
-    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
-    os.makedirs(directory_path, exist_ok=True)
-    return directory_path
 
 
 # Return the global path of a file WITHOUT the extension
@@ -59,22 +153,25 @@ def file_path(directory_name, code_area):
 
 
 def sql_query(code_area):
-    area_cte = ""
-    area_from = "batid_building bdg"
-    if code_area != "nat":
-        # The department's buildings are read once, through the spatial index.
-        # MATERIALIZED: the planner overestimates this join about 20 times; without
-        # the fence it walks the 45M buildings in id order to deduplicate them, or
-        # reads every building a second time by id. DISTINCT ON: a point lying on
-        # the edge of two subdivided polygons of the department must give one row.
-        area_cte = f"""WITH area_bdg AS MATERIALIZED (
-            SELECT area_bdg.*
-            FROM batid_department_subdivided dpt
-            JOIN batid_building area_bdg ON ST_Intersects(dpt.shape, area_bdg.point)
-            WHERE dpt.code = '{code_area}' AND area_bdg.is_active
-        )"""
-        area_from = "(SELECT DISTINCT ON (id) * FROM area_bdg) AS bdg"
+    # The department's buildings are read once, through the spatial index.
+    # MATERIALIZED: the planner overestimates this join about 20 times; without
+    # the fence it walks the 45M buildings in id order to deduplicate them, or
+    # reads every building a second time by id. DISTINCT ON: a point lying on
+    # the edge of two subdivided polygons of the department must give one row.
+    area_cte = f"""WITH area_bdg AS MATERIALIZED (
+        SELECT area_bdg.*
+        FROM batid_department_subdivided dpt
+        JOIN batid_building area_bdg ON ST_Intersects(dpt.shape, area_bdg.point)
+        WHERE dpt.code = '{code_area}' AND area_bdg.is_active
+    )"""
+    return export_sql(
+        area_cte=area_cte,
+        area_from="(SELECT DISTINCT ON (id) * FROM area_bdg) AS bdg",
+        header=True,
+    )
 
+
+def export_sql(*, area_cte: str, area_from: str, header: bool) -> str:
     # Addresses are aggregated per building in a subquery, not with a join and a
     # GROUP BY: the join let the planner hash the buildings on their address id,
     # and the buildings without address (NULL key) all fall in one hash batch that
@@ -136,7 +233,7 @@ def sql_query(code_area):
        ) AS validated_by
         FROM {area_from}
         WHERE bdg.is_active
-    )  TO STDOUT WITH CSV HEADER DELIMITER ';'
+    )  TO STDOUT WITH CSV {"HEADER " if header else ""}DELIMITER ';'
     """
 
     return sql
@@ -155,29 +252,40 @@ def sha1sum(filename):
 def create_archive(directory_name, code_area):
     archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
     sql = sql_query(code_area)
-    local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
 
     # Stream the COPY output straight into the zip entry: no intermediate CSV on disk.
-    # force_zip64: the entry size is unknown upfront and exceeds 4 GB for the national export.
-    # Explicit ZipInfo: opening by name would date the entry 1980-01-01; a ZipInfo defaults to ZIP_STORED.
-    # external_attr: without it the entry would be written with mode 0o600 and extract as rw-------.
-    entry_info = ZipInfo(
-        f"RNB_{code_area}.csv", date_time=datetime.now().timetuple()[:6]
-    )
-    entry_info.compress_type = ZIP_DEFLATED
-    entry_info.external_attr = 0o100644 << 16
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
-        with archive.open(entry_info, "w", force_zip64=True) as entry:
+        with open_zip_entry(
+            archive=archive, entry_name=f"RNB_{code_area}.csv"
+        ) as entry:
             with transaction.atomic():
                 with connection.cursor() as cursor:
-                    cursor.execute(
-                        "SET statement_timeout = %(statement_timeout)s;",
-                        {"statement_timeout": local_statement_timeout},
-                    )
+                    set_statement_timeout(cursor)
                     with cursor.copy(sql) as copy:
                         for data in copy:
                             entry.write(data)
 
+    return archive_summary(archive_path)
+
+
+def open_zip_entry(*, archive: ZipFile, entry_name: str) -> IO[bytes]:
+    # force_zip64: the entry size is unknown upfront and exceeds 4 GB for the national export.
+    # Explicit ZipInfo: opening by name would date the entry 1980-01-01; a ZipInfo defaults to ZIP_STORED.
+    # external_attr: without it the entry would be written with mode 0o600 and extract as rw-------.
+    entry_info = ZipInfo(entry_name, date_time=datetime.now().timetuple()[:6])
+    entry_info.compress_type = ZIP_DEFLATED
+    entry_info.external_attr = 0o100644 << 16
+    return archive.open(entry_info, "w", force_zip64=True)
+
+
+def set_statement_timeout(cursor) -> None:
+    cursor.execute(
+        "SET statement_timeout = %(statement_timeout)s;",
+        {"statement_timeout": settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT},
+    )
+
+
+def archive_summary(archive_path: str) -> tuple[str, int, str]:
     archive_size = os.path.getsize(archive_path)
 
     archive_sha1 = sha1sum(archive_path)
@@ -185,6 +293,254 @@ def create_archive(directory_name, code_area):
         f"zip archive for data.gouv.fr created: {archive_path} ({archive_size} bytes, sha1: {archive_sha1})"
     )
     return (archive_path, archive_size, archive_sha1)
+
+
+# A building edited after the oldest department export, or less than this before it,
+# is exported fresh by the national file. It covers a department export (its COPY snapshot is
+# taken before the archive mtime) and an edit transaction open across a department
+# snapshot (lower(sys_period) is the start of the edit transaction).
+NATIONAL_FRESH_MARGIN = timedelta(hours=24)
+
+NATIONAL_WRITE_BATCH_BYTES = 1024 * 1024
+
+# Buildings that cannot be taken from the department files: outside every
+# department or on a department border (in zero or several files), or edited since the
+# department files were written (stale or deactivated there). The per-building
+# subquery counts each building once, whatever the number of subdivided polygons.
+NATIONAL_FRESH_SQL = """
+CREATE TEMP TABLE national_fresh ON COMMIT DROP AS
+SELECT bdg.id, bdg.rnb_id, bdg.is_active
+FROM batid_building bdg
+WHERE bdg.is_active
+AND (
+    SELECT count(DISTINCT dpt.code)
+    FROM batid_department_subdivided dpt
+    WHERE ST_Intersects(dpt.shape, bdg.point)
+) <> 1
+UNION
+SELECT bdg.id, bdg.rnb_id, bdg.is_active
+FROM batid_building bdg
+WHERE lower(bdg.sys_period) >= %(since)s
+"""
+
+
+# Same value as rnb_id_digest: the first 8 bytes of the md5, as a signed big-endian
+# integer.
+ACTIVE_BUILDINGS_TALLY_SQL = """
+SELECT count(*), coalesce(sum(('x' || left(md5(rnb_id), 16))::bit(64)::bigint), 0)
+FROM batid_building
+WHERE is_active
+"""
+
+
+def rnb_id_digest(rnb_id: bytes) -> int:
+    digest = hashlib.md5(rnb_id, usedforsecurity=False).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
+@dataclass
+class RowTally:
+    """Row count and sum of the rnb_id digests of some national rows. Equal tallies
+    hold the same buildings the same number of times, barring a 64-bit collision:
+    a count alone misses a building written twice in place of a missing one."""
+
+    count: int = 0
+    digest: int = 0
+
+
+class NationalArchiveError(Exception):
+    """The national file cannot be assembled from the department archives."""
+
+
+def create_national_archive(*, directory: str, run_id: str) -> tuple[str, int, str]:
+    """Assemble the national archive from the department archives of the run.
+
+    Each active building appears once: one that is active in the snapshot and not
+    in national_fresh has one department and a version older than `since`, so it is
+    in that department file once and in no other; every other building comes only
+    from the fresh export, and only if active. The rnb_id check refuses the file
+    when this does not hold (an edit transaction open longer than
+    NATIONAL_FRESH_MARGIN across a department export).
+
+    The file is not one snapshot: a row copied from a department file holds the
+    addresses, plots and organization names of that department export, up to the
+    length of the chain (about 9 h) older than the fresh rows. Editing them leaves
+    the building version unchanged."""
+    run_dir = run_directory(run_id)
+    # A new chain removes the run directories idle for RUN_DIRECTORY_MAX_IDLE_S, and
+    # reading the archives leaves the mtime unchanged: the national file renews it
+    # before its reading (about 1 h), however late it starts after its departments.
+    os.makedirs(run_dir, exist_ok=True)
+    os.utime(run_dir)
+    department_archives = department_archives_of_run(run_dir)
+
+    oldest_export = min(os.path.getmtime(path) for path in department_archives)
+    since = (
+        datetime.fromtimestamp(oldest_export, tz=timezone.utc) - NATIONAL_FRESH_MARGIN
+    )
+    header = csv_header(department_archives[0])
+
+    archive_path = f"{file_path(directory, 'nat')}.csv.zip"
+    with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
+        with open_zip_entry(archive=archive, entry_name="RNB_nat.csv") as entry:
+            entry.write(header)
+            active, fresh, skip_ids = write_fresh_buildings(entry=entry, since=since)
+
+            started = time.monotonic()
+            department = RowTally()
+            for path in department_archives:
+                copy_department_records(
+                    archive_path=path,
+                    entry=entry,
+                    header=header,
+                    skip_ids=skip_ids,
+                    tally=department,
+                )
+            logging.info(
+                f"national file: {department.count} department rows copied in {time.monotonic() - started:.0f} s"
+            )
+
+    written = RowTally(
+        count=department.count + fresh.count, digest=department.digest + fresh.digest
+    )
+    if written != active:
+        raise NationalArchiveError(
+            f"National rows differ from the active buildings: {department.count} "
+            f"department rows + {fresh.count} fresh rows, {active.count} active buildings"
+        )
+    return archive_summary(archive_path)
+
+
+def department_archives_of_run(run_dir: str) -> list[str]:
+    """Paths of the department archives of the run, in dpts_list() order. A missing
+    one (failed department task, manual national launch) is built here."""
+    started = time.monotonic()
+    paths = []
+    for dept in dpts_list():
+        path = department_archive_path(run_dir=run_dir, dept=dept)
+        if not os.path.exists(path):
+            try:
+                build_department_archive(dept=dept, run_dir=run_dir)
+            except Exception as e:
+                raise NationalArchiveError(
+                    f"Department {dept} archive could not be built for the national file: {e}"
+                ) from e
+        paths.append(path)
+    logging.info(
+        f"national file: department archives ready in {time.monotonic() - started:.0f} s"
+    )
+    return paths
+
+
+def write_fresh_buildings(
+    *, entry: IO[bytes], since: datetime
+) -> tuple[RowTally, RowTally, set[bytes]]:
+    """Write the buildings that cannot come from the department files. Return the
+    tally of the active buildings, the tally of the rows written and the rnb_ids to
+    drop from the department files, all read from one snapshot."""
+    started = time.monotonic()
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            # Postgres only accepts it before the first query of the transaction.
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            set_statement_timeout(cursor)
+            cursor.execute(ACTIVE_BUILDINGS_TALLY_SQL)
+            active_count, active_digest = cursor.fetchone()
+            active = RowTally(count=active_count, digest=int(active_digest))
+            cursor.execute(NATIONAL_FRESH_SQL, {"since": since})
+            cursor.execute("SELECT rnb_id, is_active FROM national_fresh")
+            skip_ids = set()
+            fresh = RowTally()
+            for rnb_id, is_active in cursor:
+                skip_ids.add(rnb_id.encode())
+                if is_active:
+                    fresh.count += 1
+                    fresh.digest += rnb_id_digest(rnb_id.encode())
+            logging.info(
+                f"national file: {len(skip_ids)} buildings to export fresh, found in {time.monotonic() - started:.0f} s"
+            )
+
+            started = time.monotonic()
+            sql = export_sql(
+                area_cte="",
+                area_from="batid_building bdg JOIN national_fresh ON national_fresh.id = bdg.id",
+                header=False,
+            )
+            with cursor.copy(sql) as copy:
+                for data in copy:
+                    entry.write(data)
+    logging.info(
+        f"national file: {fresh.count} fresh rows exported in {time.monotonic() - started:.0f} s"
+    )
+    return active, fresh, skip_ids
+
+
+def csv_header(archive_path: str) -> bytes:
+    with ZipFile(archive_path) as archive:
+        (entry_name,) = archive.namelist()
+        with archive.open(entry_name) as entry:
+            return next(csv_records(entry))
+
+
+def copy_department_records(
+    *,
+    archive_path: str,
+    entry: IO[bytes],
+    header: bytes,
+    skip_ids: set[bytes],
+    tally: RowTally,
+) -> None:
+    """Copy the records of a department archive into the national entry, byte for
+    byte, without its header and without the skipped buildings, and add them to
+    the tally."""
+    batch: list[bytes] = []
+    batch_size = 0
+    with ZipFile(archive_path) as archive:
+        (entry_name,) = archive.namelist()
+        with archive.open(entry_name) as department_entry:
+            records = csv_records(department_entry)
+            if next(records, None) != header:
+                raise NationalArchiveError(
+                    f"{entry_name} header differs from the other department files"
+                )
+            for record in records:
+                # rnb_id is the first field, never quoted
+                rnb_id = record.partition(b";")[0]
+                if rnb_id in skip_ids:
+                    continue
+                batch.append(record)
+                batch_size += len(record)
+                tally.count += 1
+                tally.digest += rnb_id_digest(rnb_id)
+                if batch_size >= NATIONAL_WRITE_BATCH_BYTES:
+                    entry.write(b"".join(batch))
+                    batch = []
+                    batch_size = 0
+    entry.write(b"".join(batch))
+
+
+def csv_records(lines: Iterable[bytes]) -> Iterator[bytes]:
+    """Yield the raw records of a Postgres CSV export, end of line included.
+
+    Postgres quotes any field holding a newline and doubles the quotes inside it, so
+    a record ends at the first end of line after an even number of quotes."""
+    parts: list[bytes] = []
+    quotes = 0
+    for line in lines:
+        quotes += line.count(b'"')
+        if quotes % 2:
+            parts.append(line)
+            continue
+        if parts:
+            parts.append(line)
+            line = b"".join(parts)
+            parts = []
+        quotes = 0
+        if not line.endswith(b"\n"):
+            raise NationalArchiveError("CSV export truncated in the middle of a record")
+        yield line
+    if parts:
+        raise NationalArchiveError("CSV export truncated in the middle of a record")
 
 
 def upload_to_s3(archive_path):
@@ -444,7 +800,13 @@ def update_resource_metadata(
 
 
 def cleanup_directory(directory_name):
-    shutil.rmtree(directory_name)
+    """Remove a working directory once its area is sent or has failed. A removal
+    error must not replace that outcome (a published file reported as failed, an
+    export error hidden): it is logged, hence sent to Sentry."""
+    try:
+        shutil.rmtree(directory_name)
+    except OSError:
+        logging.exception(f"data.gouv.fr directory not removed: {directory_name}")
 
 
 def get_area_publish_task(area: str, *, run_id: str | None = None):

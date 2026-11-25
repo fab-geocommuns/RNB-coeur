@@ -3,8 +3,10 @@ import hashlib
 import io
 import json
 import os
+import shutil
+import tempfile
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 from zipfile import ZipFile
 
@@ -18,30 +20,48 @@ from batid.models import (
     Plot,
     UserProfile,
 )
+from batid.services import data_gouv_publication
 from batid.services.administrative_areas import dpts_list
 from batid.services.data_gouv_publication import (
     DATA_GOUV_TIMEOUT_S,
+    RUN_DIRECTORY_PREFIX,
     DataGouvAccessDenied,
+    NationalArchiveError,
+    build_department_archive,
     cleanup_directory,
     create_archive,
     create_directory,
+    create_national_archive,
+    csv_records,
     data_gouv_create_resource,
     data_gouv_resource_id,
+    department_archive_path,
     get_area_publish_task,
     publish,
     publish_on_data_gouv,
     publish_on_data_gouv_with_retries,
+    remove_previous_run_directories,
+    run_directory,
     update_resource_metadata,
     upload_to_s3,
 )
 from batid.services.tchap import Code, TchapLevel
-from batid.tasks import publish_datagouv_all
+from batid.tasks import publish_datagouv_all, publish_datagouv_national
 from batid.tests.factories.users import ContributorUserFactory
 from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase, override_settings
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import connection
+from django.test import TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from freezegun import freeze_time
 from moto import mock_aws
+
+from app.settings import WRITABLE_DATA_DIR
+
+# Read at import, before TestNationalArchive.setUp sets the margin to 0.
+REAL_NATIONAL_FRESH_MARGIN = data_gouv_publication.NATIONAL_FRESH_MARGIN
 
 
 # Polygone dans Paris
@@ -517,7 +537,15 @@ class TestDataGouvPublication(TestCase):
         },
     )
     def test_upload_to_s3(self):
-        # create the zip file to upload
+        """
+        Input: department 75 with one building, its archive built, an empty mocked
+        S3 bucket.
+        Expected: the archive holds the building and is uploaded under
+        files/<archive name> with the archive size.
+        """
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=get_department_75_geom()
+        )
         geom = get_geom_paris()
         Building.objects.create(
             rnb_id="BDG-CONSTR",
@@ -525,10 +553,11 @@ class TestDataGouvPublication(TestCase):
             point=geom.point_on_surface,
             ext_ids={"some_source": "1234"},
         )
-        area = "nat"
+        area = "75"
         directory_name = create_directory(area)
 
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
+        self.assertIn(b"BDG-CONSTR", map(record_id, zip_records(archive_path)))
 
         # create the mock s3 bucket
         conn = boto3.resource("s3")
@@ -985,10 +1014,10 @@ class TestDataGouvPublication(TestCase):
         self, create_directory_mock, cleanup_mock, create_archive_mock, upload_mock
     ):
         """
-        Input: publish("33") with ENABLE_DATAGOUV_PUBLICATION="false".
+        Input: publish(area="33") with ENABLE_DATAGOUV_PUBLICATION="false".
         Expected: False, nothing uploaded.
         """
-        self.assertFalse(publish("33"))
+        self.assertFalse(publish(area="33"))
         upload_mock.assert_not_called()
 
     @mock.patch(
@@ -1001,18 +1030,151 @@ class TestDataGouvPublication(TestCase):
         Expected: publish raises that OSError, not an UnboundLocalError from the cleanup.
         """
         with self.assertRaises(OSError) as ctx:
-            publish("33")
+            publish(area="33")
 
         self.assertEqual(ctx.exception.errno, 28)
 
+    def create_paris_building(self):
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=get_department_75_geom()
+        )
+        geom = get_geom_paris()
+        Building.objects.create(
+            rnb_id="BDG-RUN-75",
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+        )
 
-def fail_on_49(area):
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_department_of_a_run_keeps_its_archive(self):
+        """
+        Input: one Parisian building, publish(area="75", run_id=<run>), publication
+        disabled.
+        Expected: the run directory holds exactly RNB_75.csv.zip, whose RNB_75.csv
+        lists the building; no other entry is left in the data directory (the
+        working directory is removed).
+        """
+        self.create_paris_building()
+        run_id = uuid.uuid4().hex
+        run_dir = run_directory(run_id)
+        self.addCleanup(shutil.rmtree, run_dir, ignore_errors=True)
+        entries_before = data_dir_entries()
+
+        publish(area="75", run_id=run_id)
+
+        self.assertEqual(os.listdir(run_dir), ["RNB_75.csv.zip"])
+        self.assertEqual(
+            data_dir_entries() - entries_before, {os.path.basename(run_dir)}
+        )
+        with ZipFile(os.path.join(run_dir, "RNB_75.csv.zip")) as archive:
+            self.assertIn(b"BDG-RUN-75", archive.read("RNB_75.csv"))
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_department_without_run_keeps_nothing(self):
+        """
+        Input: one Parisian building, publish(area="75") without run id, publication
+        disabled.
+        Expected: no new entry is left in the data directory.
+        """
+        self.create_paris_building()
+        entries_before = data_dir_entries()
+
+        publish(area="75")
+
+        self.assertEqual(data_dir_entries(), entries_before)
+
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_archive",
+        side_effect=Exception("copy failed"),
+    )
+    def test_failed_department_export_keeps_nothing(self, create_archive_mock):
+        """
+        Input: publish(area="75", run_id=<run>), the archive build raising.
+        Expected: the error is raised, no RNB_75.csv.zip in the run directory and no
+        new entry left in the data directory.
+        """
+        run_id = uuid.uuid4().hex
+        run_dir = run_directory(run_id)
+        self.addCleanup(shutil.rmtree, run_dir, ignore_errors=True)
+        entries_before = data_dir_entries()
+
+        with self.assertRaisesRegex(Exception, "copy failed"):
+            publish(area="75", run_id=run_id)
+
+        self.assertFalse(
+            os.path.exists(department_archive_path(run_dir=run_dir, dept="75"))
+        )
+        self.assertEqual(data_dir_entries(), entries_before)
+
+    @mock.patch("batid.services.data_gouv_publication.send_archive", return_value=True)
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_national_archive",
+        return_value=("RNB_nat.csv.zip", 3, "sha1"),
+    )
+    def test_failed_run_directory_removal_keeps_the_national_outcome(
+        self, create_national_mock, send_mock
+    ):
+        """
+        Input: publish(area="nat", run_id=<run>) succeeding, with a run directory
+        whose removal raises PermissionError.
+        Expected: True, and the removal error logged with the run directory path.
+        """
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+        real_rmdir = os.rmdir
+
+        # shutil.rmtree removes every directory through os.rmdir
+        def rmdir_denied_on_runs(path, *args, **kwargs):
+            if os.path.basename(path).startswith(RUN_DIRECTORY_PREFIX):
+                raise PermissionError(f"cannot remove {path}")
+            return real_rmdir(path, *args, **kwargs)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            run_id = uuid.uuid4().hex
+            run_dir = run_directory(run_id)
+            os.makedirs(run_dir)
+            with mock.patch("os.rmdir", side_effect=rmdir_denied_on_runs):
+                with self.assertLogs(level="ERROR") as logs:
+                    self.assertTrue(publish(area="nat", run_id=run_id))
+
+        self.assertIn(run_dir, "\n".join(logs.output))
+
+    def test_working_directories_created_in_the_same_second_differ(self):
+        """
+        Input: create_directory("nat") called twice within one frozen second (a
+        manual national launched while the chain's one starts).
+        Expected: two distinct existing directories, so that the first run to finish
+        does not remove the directory of the other.
+        """
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            with freeze_time("2026-11-28 10:00:00"):
+                first = create_directory("nat")
+                second = create_directory("nat")
+
+        self.assertNotEqual(first, second)
+        self.assertTrue(os.path.isdir(first))
+        self.assertTrue(os.path.isdir(second))
+
+
+def data_dir_entries():
+    return set(os.listdir(WRITABLE_DATA_DIR))
+
+
+def fail_on_49(*, area, run_id=None):
     if area == "49":
         raise Exception("boom")
     return True
 
 
-def deny_on_49(area):
+def deny_on_49(*, area, run_id=None):
     if area == "49":
         raise DataGouvAccessDenied("Error while updating the resource url: HTTP 403")
     return True
@@ -1036,7 +1198,11 @@ class TestDataGouvPublishTasks(TestCase):
             ).apply()
 
         self.assertEqual(
-            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+            publish_mock.call_args_list,
+            [
+                mock.call(area="49", run_id=None),
+                mock.call(area="50", run_id=None),
+            ],
         )
         self.assertEqual(result.get(), "done")
         notify_tech_mock.assert_called_once()
@@ -1062,7 +1228,11 @@ class TestDataGouvPublishTasks(TestCase):
             chain(get_area_publish_task("49"), get_area_publish_task("50")).apply()
 
         self.assertEqual(
-            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+            publish_mock.call_args_list,
+            [
+                mock.call(area="49", run_id=None),
+                mock.call(area="50", run_id=None),
+            ],
         )
         self.assertEqual(len(logs.records), 2)
 
@@ -1077,7 +1247,9 @@ class TestDataGouvPublishTasks(TestCase):
         with self.assertRaises(DataGouvAccessDenied):
             chain(get_area_publish_task("49"), get_area_publish_task("50")).apply()
 
-        self.assertEqual(publish_mock.call_args_list, [mock.call("49")])
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call(area="49", run_id=None)]
+        )
         notify_tech_mock.assert_not_called()
 
     @mock.patch("batid.tasks.notify_tech_or_log")
@@ -1100,7 +1272,11 @@ class TestDataGouvPublishTasks(TestCase):
 
         self.assertEqual(
             publish_mock.call_args_list,
-            [mock.call("49"), mock.call("50"), mock.call("nat")],
+            [
+                mock.call(area="49", run_id=run_id),
+                mock.call(area="50", run_id=run_id),
+                mock.call(area="nat", run_id=run_id),
+            ],
         )
         summary_mock.assert_called_once_with(
             level=TchapLevel.ALERT,
@@ -1197,7 +1373,11 @@ class TestDataGouvPublishTasks(TestCase):
         chain(get_area_publish_task("50"), get_area_publish_task("nat")).apply()
 
         self.assertEqual(
-            publish_mock.call_args_list, [mock.call("50"), mock.call("nat")]
+            publish_mock.call_args_list,
+            [
+                mock.call(area="50", run_id=None),
+                mock.call(area="nat", run_id=None),
+            ],
         )
         summary_mock.assert_not_called()
 
@@ -1312,14 +1492,619 @@ class TestDataGouvPublicationFlag(TestCase):
     @mock.patch("batid.tasks.notify_tech")
     def test_enabled_flag_launches_the_chain(self, notify_tech_mock, chain_mock):
         """
-        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="true".
+        Input: publish_datagouv_all with ENABLE_DATAGOUV_PUBLICATION="true", an
+        empty data directory.
         Expected: the chain is queued once and the launch message is unchanged.
         """
-        publish_datagouv_all.run()
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            publish_datagouv_all.run()
 
         chain_mock.return_value.assert_called_once_with()
         notify_tech_mock.assert_called_once_with(
             level=TchapLevel.LAUNCH,
             title="Publication data.gouv lancée",
             details=[("Zones", "tous les départements et le fichier national")],
+        )
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_new_run_removes_previous_run_directories(
+        self, notify_tech_mock, chain_mock
+    ):
+        """
+        Input: a data directory holding the run directory of a chain stopped a week
+        ago before its national file (with a department archive in it), the run
+        directory of a national still running (modified just now), a department
+        working directory and a file; publish_datagouv_all launched.
+        Expected: the week-old run directory is removed before the chain is queued;
+        the running one, the working directory and the file are kept.
+        """
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+        old_run_dir = os.path.join(data_dir, "datagouvfr_run_stopped")
+        os.makedirs(old_run_dir)
+        with open(os.path.join(old_run_dir, "RNB_75.csv.zip"), "wb") as f:
+            f.write(b"zip")
+        week_ago = (datetime.now() - timedelta(days=7)).timestamp()
+        os.utime(old_run_dir, (week_ago, week_ago))
+        running_run_dir = os.path.join(data_dir, "datagouvfr_run_running")
+        os.makedirs(running_run_dir)
+        with open(os.path.join(running_run_dir, "RNB_75.csv.zip"), "wb") as f:
+            f.write(b"zip")
+        os.makedirs(os.path.join(data_dir, "datagouvfr_publication_75_2026-11-21"))
+        with open(os.path.join(data_dir, "other.csv"), "wb") as f:
+            f.write(b"csv")
+
+        def queue_chain(*tasks):
+            # the chain starts the new run: the old directory must be gone by then
+            self.assertFalse(os.path.exists(old_run_dir))
+            return mock.DEFAULT
+
+        chain_mock.side_effect = queue_chain
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            publish_datagouv_all.run()
+
+        chain_mock.return_value.assert_called_once_with()
+        self.assertEqual(
+            sorted(os.listdir(data_dir)),
+            [
+                "datagouvfr_publication_75_2026-11-21",
+                "datagouvfr_run_running",
+                "other.csv",
+            ],
+        )
+        self.assertEqual(os.listdir(running_run_dir), ["RNB_75.csv.zip"])
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.tasks.chain")
+    @mock.patch("batid.tasks.notify_tech")
+    def test_run_directory_removed_meanwhile_does_not_stop_the_chain(
+        self, notify_tech_mock, chain_mock
+    ):
+        """
+        Input: publish_datagouv_all with publication enabled, the run directory
+        listing returning a directory removed before its date is read (a national
+        file finishing at that moment).
+        Expected: the chain is queued and the launch message sent once.
+        """
+        data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, data_dir)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.glob.glob",
+            return_value=[os.path.join(data_dir, f"{RUN_DIRECTORY_PREFIX}finished")],
+        ):
+            publish_datagouv_all.run()
+
+        chain_mock.return_value.assert_called_once_with()
+        notify_tech_mock.assert_called_once()
+
+
+@mock.patch("batid.management.commands.publish_opendata.app.send_task")
+class TestPublishOpendataCommand(TestCase):
+    def test_national_relaunched_with_its_run_id(self, send_task_mock):
+        """
+        Input: publish_opendata --strate country --run-id <uuid hex>.
+        Expected: the national task is queued once with that run id.
+        """
+        run_id = uuid.uuid4().hex
+
+        call_command("publish_opendata", "--strate", "country", "--run-id", run_id)
+
+        send_task_mock.assert_called_once_with(
+            "batid.tasks.publish_datagouv_national", kwargs={"run_id": run_id}
+        )
+
+    def test_national_without_run_id(self, send_task_mock):
+        """
+        Input: publish_opendata --strate country.
+        Expected: the national task is queued once without run id.
+        """
+        call_command("publish_opendata", "--strate", "country")
+
+        send_task_mock.assert_called_once_with(
+            "batid.tasks.publish_datagouv_national", kwargs={"run_id": None}
+        )
+
+    def test_invalid_run_id_queues_nothing(self, send_task_mock):
+        """
+        Input: --run-id "../x" with strate country, then a valid run id with strate
+        department.
+        Expected: a CommandError each time and no task queued.
+        """
+        with self.assertRaisesRegex(CommandError, "'../x'"):
+            call_command("publish_opendata", "--strate", "country", "--run-id", "../x")
+        with self.assertRaisesRegex(CommandError, "--run-id"):
+            call_command("publish_opendata", "--run-id", uuid.uuid4().hex)
+
+        send_task_mock.assert_not_called()
+
+
+def zip_records(archive_path):
+    with ZipFile(archive_path) as archive:
+        (entry_name,) = archive.namelist()
+        with archive.open(entry_name) as entry:
+            return list(csv_records(entry))
+
+
+def record_id(record):
+    return record.partition(b";")[0]
+
+
+def point_building(*, rnb_id, wkt, **fields):
+    geom = GEOSGeometry(wkt, srid=4326)
+    return Building.objects.create(
+        rnb_id=rnb_id, shape=geom, point=geom, status="constructed", **fields
+    )
+
+
+class TestNationalArchive(TransactionTestCase):
+    """
+    The national file assembled from the department archives of a run.
+
+    TransactionTestCase: the national snapshot sets its isolation level, which
+    Postgres refuses inside the transaction wrapping a TestCase. Departments are
+    limited to 75 and 93, two adjacent squares sharing the edge x = 3.
+    NATIONAL_FRESH_MARGIN is 0 outside the test of the real margin: with the real 24 h
+    every building created by a test would be exported fresh and the department
+    files never read. The data directory
+    is a container directory: the bind-mounted one of the dev stack stores whole
+    seconds mtimes, which would date the department exports up to 1 s too early.
+    """
+
+    def setUp(self):
+        self.data_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.data_dir)
+        for patcher in (
+            mock.patch(
+                "batid.services.data_gouv_publication.WRITABLE_DATA_DIR",
+                self.data_dir,
+            ),
+            mock.patch(
+                "batid.services.data_gouv_publication.dpts_list",
+                return_value=["75", "93"],
+            ),
+            mock.patch(
+                "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+                timedelta(0),
+            ),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        self.run_id = uuid.uuid4().hex
+        self.run_dir = run_directory(self.run_id)
+
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((2 48, 3 48, 3 49, 2 49, 2 48))", srid=4326),
+        )
+        Department_subdivided.objects.create(
+            code="93",
+            name="Seine-Saint-Denis",
+            shape=GEOSGeometry("POLYGON((3 48, 4 48, 4 49, 3 49, 3 48))", srid=4326),
+        )
+        point_building(rnb_id="BDG-IN-75", wkt="POINT(2.5 48.5)")
+        point_building(rnb_id="BDG-IN-93", wkt="POINT(3.5 48.5)")
+
+    def export_department(self, dept):
+        """Build the department archive of the run, as its task does."""
+        path, _, _ = build_department_archive(dept=dept, run_dir=self.run_dir)
+        return zip_records(path)
+
+    def build_national(self):
+        directory = create_directory("nat")
+        archive_path, _, _ = create_national_archive(
+            directory=directory, run_id=self.run_id
+        )
+        return archive_path
+
+    def national_ids(self, archive_path):
+        records = zip_records(archive_path)
+        self.assertTrue(records[0].startswith(b"rnb_id;point;"))
+        return sorted(record_id(record) for record in records[1:])
+
+    def test_border_building_appears_once(self):
+        """
+        Input: a building on the edge shared by 75 and 93, both departments exported,
+        then the building marked demolished (on a border and edited: selected twice
+        to be exported fresh).
+        Expected: it is in both department files and once in the national file,
+        demolished, next to the two buildings inside the departments.
+        """
+        point_building(rnb_id="BDG-BORDER", wkt="POINT(3 48.5)")
+
+        self.assertIn(b"BDG-BORDER", map(record_id, self.export_department("75")))
+        self.assertIn(b"BDG-BORDER", map(record_id, self.export_department("93")))
+        Building.objects.filter(rnb_id="BDG-BORDER").update(status="demolished")
+
+        records = zip_records(self.build_national())
+
+        self.assertEqual(
+            sorted(map(record_id, records[1:])),
+            [b"BDG-BORDER", b"BDG-IN-75", b"BDG-IN-93"],
+        )
+        (border_record,) = [r for r in records if record_id(r) == b"BDG-BORDER"]
+        self.assertIn(b";demolished;", border_record)
+
+    def test_edit_during_a_long_department_export_is_exported_fresh(self):
+        """
+        Input: real NATIONAL_FRESH_MARGIN; both departments exported, then BDG-IN-75
+        marked demolished and the archives dated 1 h after that edit (an edit made
+        during a 1 h department COPY, absent from its file).
+        Expected: the national file holds BDG-IN-75 demolished, from the fresh export.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        Building.objects.filter(rnb_id="BDG-IN-75").update(status="demolished")
+        one_hour_later = (datetime.now() + timedelta(hours=1)).timestamp()
+        for dept in ("75", "93"):
+            path = department_archive_path(run_dir=self.run_dir, dept=dept)
+            os.utime(path, (one_hour_later, one_hour_later))
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+            REAL_NATIONAL_FRESH_MARGIN,
+        ):
+            records = zip_records(self.build_national())
+
+        (edited_record,) = [r for r in records if record_id(r) == b"BDG-IN-75"]
+        self.assertIn(b";demolished;", edited_record)
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch(
+        "batid.services.data_gouv_publication.publish_on_data_gouv_with_retries"
+    )
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_failed_national_keeps_its_run_directory_for_a_relaunch(
+        self, upload_mock, publish_mock
+    ):
+        """
+        Input: both departments exported; the national file published under the run
+        id with the upload raising, then published again under the same run id.
+        Expected: the failure raises and keeps both department archives; the relaunch
+        builds no department, uploads RNB_nat.csv.zip and removes the run directory.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        upload_mock.side_effect = [
+            Exception("S3 unavailable"),
+            "https://example.test/RNB_nat.csv.zip",
+        ]
+
+        with self.assertRaisesRegex(Exception, "S3 unavailable"):
+            publish(area="nat", run_id=self.run_id)
+
+        self.assertEqual(
+            sorted(os.listdir(self.run_dir)), ["RNB_75.csv.zip", "RNB_93.csv.zip"]
+        )
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.create_archive"
+        ) as create_archive_mock:
+            self.assertTrue(publish(area="nat", run_id=self.run_id))
+
+        create_archive_mock.assert_not_called()
+        self.assertEqual(
+            os.path.basename(upload_mock.call_args.args[0]), "RNB_nat.csv.zip"
+        )
+        self.assertFalse(os.path.exists(self.run_dir))
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_unpublished_national_removes_its_run_directory(self):
+        """
+        Input: both departments exported, the national file published under the run
+        id with the publication disabled (staging, sandbox).
+        Expected: False and the run directory removed: a disabled chain stops before
+        removing the idle run directories, so a kept one would never be removed.
+        """
+        self.export_department("75")
+        self.export_department("93")
+
+        self.assertFalse(publish(area="nat", run_id=self.run_id))
+
+        self.assertFalse(os.path.exists(self.run_dir))
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "false"})
+    def test_run_id_other_than_a_uuid_is_refused(self):
+        """
+        Input: publish(area="nat", run_id="/../..") with the data directory nested in
+        a directory holding another file.
+        Expected: ValueError naming the run id, before any file is written or
+        removed: the other file is kept.
+        """
+        data_dir = os.path.join(self.data_dir, "data")
+        os.makedirs(data_dir)
+        other_file = os.path.join(self.data_dir, "other.csv")
+        with open(other_file, "wb") as f:
+            f.write(b"csv")
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.WRITABLE_DATA_DIR", data_dir
+        ):
+            with self.assertRaisesRegex(ValueError, "'/../..'"):
+                publish(area="nat", run_id="/../..")
+
+        self.assertTrue(os.path.exists(other_file))
+        self.assertEqual(os.listdir(data_dir), [])
+
+    def test_building_outside_every_department_is_exported(self):
+        """
+        Input: a building in no department polygon, both departments exported.
+        Expected: it is in the national file.
+        """
+        point_building(rnb_id="BDG-OUTSIDE", wkt="POINT(5 48.5)")
+        self.export_department("75")
+        self.export_department("93")
+
+        self.assertEqual(
+            self.national_ids(self.build_national()),
+            [b"BDG-IN-75", b"BDG-IN-93", b"BDG-OUTSIDE"],
+        )
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.tasks.notify_tech_or_log")
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_department_failing_again_blocks_the_national_file(
+        self, upload_mock, notify_tech_mock, summary_mock
+    ):
+        """
+        Input: 75 exported, 93 missing and its rebuild raising.
+        Expected: create_national_archive raises naming 93; through the national task
+        with publication enabled, nothing is uploaded and one Tchap failure for zone
+        "nat" names 93.
+        """
+        self.export_department("75")
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.create_archive",
+            side_effect=Exception("copy failed"),
+        ):
+            with self.assertRaisesRegex(NationalArchiveError, "Department 93"):
+                self.build_national()
+
+            with self.assertLogs("batid.tasks", level="ERROR"):
+                publish_datagouv_national.apply(kwargs={"run_id": self.run_id})
+
+        upload_mock.assert_not_called()
+        notify_tech_mock.assert_called_once()
+        kwargs = notify_tech_mock.call_args.kwargs
+        self.assertEqual(kwargs["level"], TchapLevel.FAILURE)
+        self.assertEqual(kwargs["title"], "Échec de la publication data.gouv")
+        self.assertEqual(kwargs["details"], [("Zone", "nat")])
+        self.assertIn("Department 93", kwargs["error"])
+        self.assertIn("copy failed", kwargs["error"])
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch(
+        "batid.services.data_gouv_publication.publish_on_data_gouv_with_retries"
+    )
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_missing_department_is_rebuilt(self, upload_mock, publish_mock):
+        """
+        Input: 75 exported, 93 missing, national published under the run id.
+        Expected: 93 is rebuilt for the national file, which holds its building;
+        only RNB_nat.csv.zip is uploaded.
+        """
+        self.export_department("75")
+        uploaded = {}
+
+        def capture(archive_path):
+            uploaded[os.path.basename(archive_path)] = self.national_ids(archive_path)
+            return "https://example.test/RNB_nat.csv.zip"
+
+        upload_mock.side_effect = capture
+
+        self.assertTrue(publish(area="nat", run_id=self.run_id))
+
+        self.assertEqual(uploaded, {"RNB_nat.csv.zip": [b"BDG-IN-75", b"BDG-IN-93"]})
+
+    def test_building_edited_between_two_department_exports(self):
+        """
+        Input: 75 exported; then building A moves from 75 to 93 and building B of 75
+        is deactivated; then 93 exported (A is in both files, B in the 75 one).
+        Expected: the national file holds A once, with its new point, and not B.
+        """
+        point_building(rnb_id="BDG-GONE", wkt="POINT(2.6 48.5)")
+        self.export_department("75")
+        moved = GEOSGeometry("POINT(3.7 48.6)", srid=4326)
+        Building.objects.filter(rnb_id="BDG-IN-75").update(point=moved, shape=moved)
+        Building.objects.filter(rnb_id="BDG-GONE").update(is_active=False)
+        self.assertIn(b"BDG-IN-75", map(record_id, self.export_department("93")))
+
+        records = zip_records(self.build_national())
+
+        self.assertEqual(
+            sorted(map(record_id, records[1:])), [b"BDG-IN-75", b"BDG-IN-93"]
+        )
+        (moved_record,) = [r for r in records if record_id(r) == b"BDG-IN-75"]
+        self.assertIn(b"POINT(3.7 48.6)", moved_record)
+
+    def test_records_are_copied_byte_for_byte(self):
+        """
+        Input: in 75, a building whose status holds a newline and double quotes (a
+        CSV record over two lines) and whose address street holds them too (escaped
+        by JSON), and a building with an empty status (empty string) and no plot
+        (NULL plots); both departments exported.
+        Expected: their national records are byte-equal to their 75 records; the
+        national file parses with csv into one header and the 4 expected rows; a
+        single entry RNB_nat.csv with mode 0o100644.
+        """
+        address = Address.objects.create(
+            cle_interop="75105_0001_00001", street='rue "du"\nport'
+        )
+        point_building(
+            rnb_id="BDG-QUOTE",
+            wkt="POINT(2.4 48.5)",
+            addresses_internal_id=[address.internal_id],
+        )
+        Building.objects.filter(rnb_id="BDG-QUOTE").update(status='built "a"\nb')
+        point_building(rnb_id="BDG-EMPTY", wkt="POINT(2.3 48.5)")
+        Building.objects.filter(rnb_id="BDG-EMPTY").update(status="")
+        dept_75 = {record_id(r): r for r in self.export_department("75")}
+        self.export_department("93")
+
+        with self.assertLogs(level="INFO") as logs:
+            archive_path = self.build_national()
+
+        # every row comes from the department files, none from the fresh export
+        messages = "\n".join(logs.output)
+        self.assertIn("0 fresh rows exported", messages)
+        self.assertIn("4 department rows copied", messages)
+        national = {record_id(r): r for r in zip_records(archive_path)}
+        self.assertEqual(national[b"BDG-QUOTE"], dept_75[b"BDG-QUOTE"])
+        self.assertEqual(national[b"BDG-QUOTE"].count(b"\n"), 2)
+        self.assertEqual(national[b"BDG-EMPTY"], dept_75[b"BDG-EMPTY"])
+        self.assertIn(b';"";', national[b"BDG-EMPTY"])
+        self.assertTrue(national[b"BDG-EMPTY"].endswith(b";;[]\n"))
+        with ZipFile(archive_path) as archive:
+            self.assertEqual(archive.namelist(), ["RNB_nat.csv"])
+            self.assertEqual(
+                archive.getinfo("RNB_nat.csv").external_attr >> 16, 0o100644
+            )
+            with io.TextIOWrapper(
+                archive.open("RNB_nat.csv"), encoding="utf-8", newline=""
+            ) as f:
+                rows = list(csv.reader(f, delimiter=";"))
+        self.assertEqual(rows[0][0], "rnb_id")
+        self.assertEqual(
+            sorted(row[0] for row in rows[1:]),
+            ["BDG-EMPTY", "BDG-IN-75", "BDG-IN-93", "BDG-QUOTE"],
+        )
+        (quote_row,) = [row for row in rows if row[0] == "BDG-QUOTE"]
+        self.assertEqual(quote_row[3], 'built "a"\nb')
+        self.assertEqual(json.loads(quote_row[5])[0]["street"], 'rue "du"\nport')
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_row_count_mismatch_blocks_the_national_file(self, upload_mock):
+        """
+        Input: margin of minus one day (no building counts as edited), both
+        departments exported, then BDG-IN-75 deactivated.
+        Expected: the national publication raises a row count mismatch giving
+        2 department rows, 0 fresh rows and 1 active building; nothing uploaded.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        Building.objects.filter(rnb_id="BDG-IN-75").update(is_active=False)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+            timedelta(days=-1),
+        ):
+            with self.assertRaisesRegex(
+                NationalArchiveError,
+                "2 department rows \\+ 0 fresh rows, 1 active buildings",
+            ):
+                publish(area="nat", run_id=self.run_id)
+
+        upload_mock.assert_not_called()
+
+    def test_new_chain_during_the_national_keeps_its_run_directory(self):
+        """
+        Input: both departments exported, the run directory last modified two days
+        ago (a national started long after its departments); a new chain removes the
+        idle run directories while the national selects its fresh buildings.
+        Expected: the national file is built and holds the buildings of both
+        departments.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        two_days_ago = (datetime.now() - timedelta(days=2)).timestamp()
+        os.utime(self.run_dir, (two_days_ago, two_days_ago))
+        real_write_fresh_buildings = data_gouv_publication.write_fresh_buildings
+
+        def new_chain_starts(**kwargs):
+            remove_previous_run_directories()
+            return real_write_fresh_buildings(**kwargs)
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.write_fresh_buildings",
+            side_effect=new_chain_starts,
+        ):
+            archive_path = self.build_national()
+
+        self.assertEqual(self.national_ids(archive_path), [b"BDG-IN-75", b"BDG-IN-93"])
+
+    def test_swapped_buildings_block_the_national_file(self):
+        """
+        Input: margin of minus one day (no building counts as edited); 75 exported;
+        then BDG-IN-75 and BDG-IN-93 swap departments; 93 exported. Both files hold
+        BDG-IN-75, none BDG-IN-93: 2 rows for 2 active buildings.
+        Expected: the national file is refused despite the matching row count.
+        """
+        self.export_department("75")
+        in_75 = GEOSGeometry("POINT(2.5 48.5)", srid=4326)
+        in_93 = GEOSGeometry("POINT(3.5 48.5)", srid=4326)
+        Building.objects.filter(rnb_id="BDG-IN-75").update(point=in_93, shape=in_93)
+        Building.objects.filter(rnb_id="BDG-IN-93").update(point=in_75, shape=in_75)
+        self.assertEqual(
+            [record_id(r) for r in self.export_department("93")[1:]], [b"BDG-IN-75"]
+        )
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+            timedelta(days=-1),
+        ):
+            with self.assertRaisesRegex(
+                NationalArchiveError,
+                "2 department rows \\+ 0 fresh rows, 2 active buildings",
+            ):
+                self.build_national()
+
+    @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
+    @mock.patch(
+        "batid.services.data_gouv_publication.publish_on_data_gouv_with_retries"
+    )
+    @mock.patch("batid.services.data_gouv_publication.upload_to_s3")
+    def test_national_alone_builds_every_department(self, upload_mock, publish_mock):
+        """
+        Input: national published without run id (publish_opendata --strate
+        country), publication enabled.
+        Expected: both departments are built and only RNB_nat.csv.zip is uploaded,
+        holding their buildings; nothing is left in the data directory.
+        """
+        uploaded = {}
+
+        def capture(archive_path):
+            uploaded[os.path.basename(archive_path)] = self.national_ids(archive_path)
+            return "https://example.test/RNB_nat.csv.zip"
+
+        upload_mock.side_effect = capture
+
+        self.assertTrue(publish(area="nat"))
+
+        self.assertEqual(uploaded, {"RNB_nat.csv.zip": [b"BDG-IN-75", b"BDG-IN-93"]})
+        self.assertEqual(os.listdir(self.data_dir), [])
+
+    def test_snapshot_is_repeatable_read(self):
+        """
+        Input: both departments exported, national built while capturing queries.
+        Expected: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ comes right after
+        BEGIN (Postgres accepts it only before any other query of the transaction),
+        and national_fresh is created after it.
+        """
+        self.export_department("75")
+        self.export_department("93")
+
+        with CaptureQueriesContext(connection) as queries:
+            self.build_national()
+
+        sqls = [query["sql"] for query in queries.captured_queries]
+        self.assertEqual(
+            sqls[:2], ["BEGIN", "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"]
+        )
+        self.assertTrue(
+            any("CREATE TEMP TABLE national_fresh" in sql for sql in sqls[2:])
         )
