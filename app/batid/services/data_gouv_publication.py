@@ -359,7 +359,12 @@ def create_national_archive(*, directory: str, run_id: str) -> tuple[str, int, s
     in that department file once and in no other; every other building comes only
     from the fresh export, and only if active. The rnb_id check refuses the file
     when this does not hold (an edit transaction open longer than
-    NATIONAL_FRESH_MARGIN across a department export)."""
+    NATIONAL_FRESH_MARGIN across a department export).
+
+    The file is not one snapshot: a row copied from a department file holds the
+    addresses, plots and organization names of that department export, up to the
+    length of the chain (about 9 h) older than the fresh rows. Editing them leaves
+    the building version unchanged."""
     run_dir = run_directory(run_id)
     # A new chain removes the run directories idle for RUN_DIRECTORY_MAX_IDLE_S, and
     # reading the archives leaves the mtime unchanged: the national file renews it

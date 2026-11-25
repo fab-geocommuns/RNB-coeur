@@ -60,6 +60,9 @@ from moto import mock_aws
 
 from app.settings import WRITABLE_DATA_DIR
 
+# Read at import, before TestNationalArchive.setUp sets the margin to 0.
+REAL_NATIONAL_FRESH_MARGIN = data_gouv_publication.NATIONAL_FRESH_MARGIN
+
 
 # Polygone dans Paris
 def get_geom_paris():
@@ -1651,8 +1654,9 @@ class TestNationalArchive(TransactionTestCase):
     TransactionTestCase: the national snapshot sets its isolation level, which
     Postgres refuses inside the transaction wrapping a TestCase. Departments are
     limited to 75 and 93, two adjacent squares sharing the edge x = 3.
-    NATIONAL_FRESH_MARGIN is 0: with the real 24 h every building created by a test
-    would be exported fresh and the department files never read. The data directory
+    NATIONAL_FRESH_MARGIN is 0 outside the test of the real margin: with the real 24 h
+    every building created by a test would be exported fresh and the department
+    files never read. The data directory
     is a container directory: the bind-mounted one of the dev stack stores whole
     seconds mtimes, which would date the department exports up to 1 s too early.
     """
@@ -1712,19 +1716,50 @@ class TestNationalArchive(TransactionTestCase):
 
     def test_border_building_appears_once(self):
         """
-        Input: a building on the edge shared by 75 and 93, both departments exported.
+        Input: a building on the edge shared by 75 and 93, both departments exported,
+        then the building marked demolished (on a border and edited: selected twice
+        to be exported fresh).
         Expected: it is in both department files and once in the national file,
-        next to the two buildings inside the departments.
+        demolished, next to the two buildings inside the departments.
         """
         point_building(rnb_id="BDG-BORDER", wkt="POINT(3 48.5)")
 
         self.assertIn(b"BDG-BORDER", map(record_id, self.export_department("75")))
         self.assertIn(b"BDG-BORDER", map(record_id, self.export_department("93")))
+        Building.objects.filter(rnb_id="BDG-BORDER").update(status="demolished")
+
+        records = zip_records(self.build_national())
 
         self.assertEqual(
-            self.national_ids(self.build_national()),
+            sorted(map(record_id, records[1:])),
             [b"BDG-BORDER", b"BDG-IN-75", b"BDG-IN-93"],
         )
+        (border_record,) = [r for r in records if record_id(r) == b"BDG-BORDER"]
+        self.assertIn(b";demolished;", border_record)
+
+    def test_edit_during_a_long_department_export_is_exported_fresh(self):
+        """
+        Input: real NATIONAL_FRESH_MARGIN; both departments exported, then BDG-IN-75
+        marked demolished and the archives dated 1 h after that edit (an edit made
+        during a 1 h department COPY, absent from its file).
+        Expected: the national file holds BDG-IN-75 demolished, from the fresh export.
+        """
+        self.export_department("75")
+        self.export_department("93")
+        Building.objects.filter(rnb_id="BDG-IN-75").update(status="demolished")
+        one_hour_later = (datetime.now() + timedelta(hours=1)).timestamp()
+        for dept in ("75", "93"):
+            path = department_archive_path(run_dir=self.run_dir, dept=dept)
+            os.utime(path, (one_hour_later, one_hour_later))
+
+        with mock.patch(
+            "batid.services.data_gouv_publication.NATIONAL_FRESH_MARGIN",
+            REAL_NATIONAL_FRESH_MARGIN,
+        ):
+            records = zip_records(self.build_national())
+
+        (edited_record,) = [r for r in records if record_id(r) == b"BDG-IN-75"]
+        self.assertIn(b";demolished;", edited_record)
 
     @mock.patch.dict(os.environ, {"ENABLE_DATAGOUV_PUBLICATION": "true"})
     @mock.patch(
