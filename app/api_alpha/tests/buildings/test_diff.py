@@ -1031,6 +1031,66 @@ class DiffTest(TransactionTestCase):
             "the export connection was not closed",
         )
 
+    @patch("api_alpha.endpoints.buildings.get_diff.SLICE_MAX_ROWS", 2)
+    def test_diff_spanning_several_slices(self):
+        """
+        Input: five buildings created one after the other after the 'since'
+        threshold, with slices shrunk to two rows, so the export takes three slices.
+        Expected: the CSV has a single header line, then each building exactly once,
+        in creation order.
+        """
+        Building.objects.create(rnb_id="B0", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B0").sys_period.lower
+        created = [f"B{i}" for i in range(1, 6)]
+        for rnb_id in created:
+            Building.objects.create(rnb_id=rnb_id, event_type="creation")
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+        lines = get_content_from_streaming_response(r).splitlines()
+        self.assertTrue(lines[0].startswith("action,rnb_id,"))
+        rows = list(csv.DictReader(lines))
+        self.assertEqual([row["rnb_id"] for row in rows], created)
+
+    @patch("api_alpha.endpoints.buildings.get_diff.SLICE_MAX_ROWS", 2)
+    def test_diff_timestamp_shared_by_more_rows_than_a_slice(self):
+        """
+        Input: five buildings inserted in a single transaction, hence sharing the
+        same modification timestamp, then one more building, with slices shrunk to
+        two rows.
+        Expected: the rows sharing a timestamp are not split across slices: each of
+        the six buildings appears exactly once, after a single header line.
+        """
+        Building.objects.create(rnb_id="B0", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B0").sys_period.lower
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO batid_building "
+                "(rnb_id, created_at, updated_at, sys_period, status, is_active, event_type) "
+                "SELECT 'T' || g, now(), now(), tstzrange(now(), NULL), "
+                "'constructed', true, 'creation' FROM generate_series(1, 5) g"
+            )
+        Building.objects.create(rnb_id="B6", event_type="creation")
+        tied = ["T1", "T2", "T3", "T4", "T5"]
+        self.assertEqual(
+            Building.objects.filter(rnb_id__in=tied)
+            .values("sys_period")
+            .distinct()
+            .count(),
+            1,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+        lines = get_content_from_streaming_response(r).splitlines()
+        self.assertEqual(sum(line.startswith("action,") for line in lines), 1)
+        rows = list(csv.DictReader(lines))
+        self.assertEqual([row["rnb_id"] for row in rows], tied + ["B6"])
+
 
 class DiffInseeCodeTest(TransactionTestCase):
     def setUp(self):

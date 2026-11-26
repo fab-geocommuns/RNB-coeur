@@ -29,6 +29,15 @@ QUEUE_MAX_CHUNKS = 16
 QUEUE_TIMEOUT_SECONDS = 0.2
 # How long the response waits for the export thread to wind down at the end.
 THREAD_JOIN_TIMEOUT_SECONDS = 10
+# Approximate number of rows exported by each COPY. Each slice is read and
+# sorted in full before its first row is sent, and the proxy in front of the
+# API closes a response that stays silent for 60 s. Slicing by row count
+# rather than by duration keeps that silence short even on a day of mass
+# updates (2.3 M rows over two days after the BAN addresses data fix). Rows
+# not in the database cache are read at ~1,000 rows/s: 50,000-row slices were
+# measured silent for up to 70 s, hence this count. A slice can exceed it by
+# the rows sharing its last timestamp.
+SLICE_MAX_ROWS = 10_000
 
 
 # Oldest point in time a diff can start from, in sliding days.
@@ -193,6 +202,26 @@ def _build_copy_query(
     return sql.SQL(raw_sql).format(**format_args)
 
 
+def _slice_end(cursor, start_ts: datetime, end_limit: datetime) -> datetime:
+    """
+    Return the end (inclusive) of the slice starting after start_ts: the
+    timestamp of the SLICE_MAX_ROWS-th modification, or end_limit when fewer
+    modifications are left. Every row sharing that timestamp falls in the
+    slice, so a timestamp is never split across two slices.
+    """
+    cursor.execute(
+        """
+        SELECT lower(sys_period) FROM batid_building_with_history
+        WHERE lower(sys_period) > %(start)s AND lower(sys_period) <= %(end)s
+        ORDER BY lower(sys_period)
+        OFFSET %(offset)s LIMIT 1
+        """,
+        {"start": start_ts, "end": end_limit, "offset": SLICE_MAX_ROWS - 1},
+    )
+    row = cursor.fetchone()
+    return row[0] if row else end_limit
+
+
 def _stream_diff(
     since: datetime,
     most_recent_modification: datetime,
@@ -223,7 +252,7 @@ def _stream_diff(
                 start_ts = since
                 first_slice = True
                 while start_ts < most_recent_modification:
-                    end_ts = start_ts + timedelta(days=1)
+                    end_ts = _slice_end(cursor, start_ts, most_recent_modification)
                     with cursor.copy(
                         _build_copy_query(
                             start_ts, end_ts, city_shape_wkt, with_header=first_slice
