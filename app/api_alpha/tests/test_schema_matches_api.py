@@ -73,15 +73,21 @@ def _undocumented_keys(instance, schema: dict, root: dict, location: str) -> lis
         declaring = [s for s in schemas if "properties" in s]
         if not declaring:
             return []
-        properties: dict = {}
+        # a key declared by several branches keeps the sub-schema of each of them
+        properties: dict[str, list] = {}
         for sub_schema in declaring:
-            properties.update(sub_schema["properties"])
+            for key, key_schema in sub_schema["properties"].items():
+                properties.setdefault(key, []).append(key_schema)
         for key, value in instance.items():
             if key not in properties:
                 missing.append(f"{location}.{key}")
             else:
+                key_schemas = properties[key]
+                key_schema = (
+                    key_schemas[0] if len(key_schemas) == 1 else {"allOf": key_schemas}
+                )
                 missing += _undocumented_keys(
-                    value, properties[key], root, f"{location}.{key}"
+                    value, key_schema, root, f"{location}.{key}"
                 )
     elif isinstance(instance, list):
         items = next((s["items"] for s in schemas if "items" in s), None)
@@ -372,6 +378,24 @@ class SchemaMatchesAPITest(APITestCase):
                     _undocumented_keys(instance, schema, root, "X"),
                     ["X.geometry", "X.undocumented_field"],
                 )
+
+    def test_undocumented_keys_merges_a_property_declared_by_several_branches(self):
+        """
+        Input: an allOf whose two branches both declare "payload", one with the
+        sub-field "a", the other with "b", and a response holding a, b and c.
+        Expected: only "c" is reported: the sub-fields declared by each branch count.
+        """
+        root = {"components": self.schema["components"]}
+        schema = {
+            "allOf": [
+                {"properties": {"payload": {"properties": {"a": {}}}}},
+                {"properties": {"payload": {"properties": {"b": {}}}}},
+            ]
+        }
+        instance = {"payload": {"a": 1, "b": 2, "c": 3}}
+        self.assertEqual(
+            _undocumented_keys(instance, schema, root, "X"), ["X.payload.c"]
+        )
 
     def test_ogc_item_matches_documented_response(self):
         """
