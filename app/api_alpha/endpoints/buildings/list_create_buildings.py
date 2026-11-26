@@ -233,6 +233,9 @@ NB : l'URL se termine nécessairement par un slash (/).
                         "example": "2.424525,48.839201,2.434158,48.845782",
                     },
                     {
+                        # The refusal of boxes with negative coordinates comes from
+                        # validate_bb comparing them as text: fixing #1112 changes
+                        # this description.
                         "name": "bb",
                         "in": "query",
                         "description": (
@@ -241,6 +244,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est `nw_lat,nw_lon,se_lat,se_lon`. "
                             "Pour une boîte dans cet ordre (coin Nord-Ouest au nord-ouest du coin Sud-Est), (se_lon - nw_lon) * (nw_lat - se_lat) ne doit pas dépasser 4. "
+                            "Une boîte dans cet ordre peut être refusée à tort (erreur 400), notamment avec des coordonnées négatives (ouest du méridien de Greenwich, hémisphère Sud) : utilisez plutôt `bbox`. "
                             "Ne peut pas être combiné avec `bbox`."
                         ),
                         "required": False,

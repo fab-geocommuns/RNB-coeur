@@ -518,6 +518,132 @@ class ListingDocTest(APITestCase):
         )
         self.assertEqual(r.status_code, 400)
 
+    def test_status_all_and_unknown_values_are_documented_400(self):
+        """
+        Input: the bbox example with "all" combined with another status, then with
+        an unknown status, alone and next to a known one.
+        Expected: 400 for each, with the error naming the rule broken, as the
+        status documentation states.
+        """
+        description = self.params["status"]["description"]
+        self.assertIn(
+            "La valeur `all` renvoie tous les statuts et ne se combine pas avec "
+            "d'autres valeurs",
+            description,
+        )
+        self.assertIn("Une valeur inconnue renvoie une erreur 400", description)
+        for status, error in (
+            ("all,constructed", "ne se combine pas"),
+            ("unknown", "inconnu"),
+            ("constructed,unknown", "inconnu"),
+        ):
+            with self.subTest(status=status):
+                r = self.client.get(
+                    LIST_PATH,
+                    {"bbox": self.params["bbox"]["example"], "status": status},
+                )
+                self.assertEqual(r.status_code, 400)
+                self.assertIn(error, r.json()["status"][0])
+
+    def test_geojson_format_doc_matches_the_response(self):
+        """
+        Input: the bbox example with format=geojson.
+        Expected: a FeatureCollection at the root of the response, paginated through
+        "links", without "results", "next" or "previous", as the format
+        documentation states (and not the former "attribut `results`" sentence).
+        """
+        description = self.params["format"]["description"]
+        self.assertIn(
+            "la réponse est directement un objet de type FeatureCollection",
+            description,
+        )
+        self.assertIn(
+            "La pagination se fait alors par l'attribut `links` (liens `next` et "
+            "`prev`), et non par les attributs `next` et `previous`",
+            description,
+        )
+        self.assertNotIn("l'attribut `results`", description)
+
+        r = self.client.get(
+            LIST_PATH, {"bbox": self.params["bbox"]["example"], "format": "geojson"}
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["type"], "FeatureCollection")
+        self.assertIn("links", data)
+        for key in ("results", "next", "previous"):
+            self.assertNotIn(key, data)
+
+    def test_geojson_second_page_matches_documentation(self):
+        """
+        Input: the bbox example in geojson, one building per page, then the page its
+        "next" link leads to.
+        Expected: the second page carries the self, next and prev links, and
+        validates against the documented schema (the enum of "rel" included).
+        """
+        for rnb_id in ("DOCEXAMPLE02", "DOCEXAMPLE03"):
+            Building.objects.create(
+                rnb_id=rnb_id,
+                shape=POLYGON,
+                point=POLYGON.point_on_surface,
+                status="constructed",
+            )
+        r = self.client.get(
+            LIST_PATH,
+            {
+                "bbox": self.params["bbox"]["example"],
+                "format": "geojson",
+                "limit": 1,
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        next_url = next(
+            link["href"] for link in r.json()["links"] if link["rel"] == "next"
+        )
+
+        r = self.client.get(next_url[next_url.index(LIST_PATH) :])
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            {link["rel"] for link in r.json()["links"]}, {"self", "next", "prev"}
+        )
+        self._validate_response(r, self.list_doc)
+
+    def test_documented_page_links_keep_the_bbox_example(self):
+        """
+        Input: the documented next and previous example URLs.
+        Expected: both keep the documented bbox example as filter, like the real
+        links of that bbox (the cursors are checked by
+        test_documented_page_links_are_consecutive_pages).
+        """
+        properties = self.list_doc["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ]["oneOf"][0]["properties"]
+        for link in ("next", "previous"):
+            with self.subTest(link=link):
+                query = parse_qs(urlparse(properties[link]["example"]).query)
+                self.assertEqual(query["bbox"], [self.params["bbox"]["example"]])
+
+    def test_bb_in_documented_order_with_negative_coordinates_is_documented_400(
+        self,
+    ):
+        """
+        Input: a small bb in the documented order around Brest (negative
+        longitudes), then the same area as bbox.
+        Expected: 400 for bb, 200 for bbox, as the bb documentation warns.
+        """
+        # Documents a defect: validate_bb compares the coordinates as text. Fixing
+        # #1112 changes this 400 and the documentation.
+        self.assertIn(
+            "Une boîte dans cet ordre peut être refusée à tort (erreur 400), "
+            "notamment avec des coordonnées négatives (ouest du méridien de "
+            "Greenwich, hémisphère Sud) : utilisez plutôt `bbox`.",
+            self.params["bb"]["description"],
+        )
+        r = self.client.get(LIST_PATH, {"bb": "48.40,-4.50,48.38,-4.48"})
+        self.assertEqual(r.status_code, 400)
+        r = self.client.get(LIST_PATH, {"bbox": "-4.50,48.38,-4.48,48.40"})
+        self.assertEqual(r.status_code, 200, r.content)
+
     def test_lookup_doc_compares_statuses_with_listing_default(self):
         """
         Input: a demolished building in the bbox example, listed without status,
