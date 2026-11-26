@@ -1,7 +1,7 @@
 from typing import Iterable, TypeVar
 from uuid import UUID
 
-from batid.models import Building, BuildingAddressesInternalIdReadOnly, City
+from batid.models import Address, Building, BuildingAddressesInternalIdReadOnly, City
 from batid.services.bdg_status import BuildingStatus
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Polygon
@@ -21,9 +21,7 @@ def filter_bdgs_by_address(
     Keep the buildings linked to the address matching all the given criteria.
 
     `cle_interop` is compared case-insensitively, through the
-    address_cle_interop_upper_idx index. Since `abc` and `ABC` can both exist in
-    batid_address, the filter is a subquery rather than a join: a building linked
-    to both must come out only once.
+    address_cle_interop_upper_idx index.
 
     A `ban_id` which is not a UUID matches no address. Callers exposing it publicly
     are expected to refuse it beforehand, this only guards against a database error.
@@ -31,18 +29,32 @@ def filter_bdgs_by_address(
     if not cle_interop and not ban_id:
         return qs
 
-    links = BuildingAddressesInternalIdReadOnly.objects.all()
+    addresses = Address.objects.all()
 
     if cle_interop:
-        links = links.filter(address__cle_interop__iexact=cle_interop)
+        addresses = addresses.filter(cle_interop__iexact=cle_interop)
 
     if ban_id:
         try:
             ban_uuid = UUID(str(ban_id))
         except ValueError:
             return qs.none()
-        links = links.filter(address__ban_id=ban_uuid)
+        addresses = addresses.filter(ban_id=ban_uuid)
 
+    return filter_bdgs_by_addresses(qs, addresses)
+
+
+def filter_bdgs_by_addresses(
+    qs: BuildingsQuerySet, addresses: QuerySet
+) -> BuildingsQuerySet:
+    """
+    Keep the buildings linked to at least one of the given addresses.
+
+    The filter is a subquery rather than a join: a building linked to several of
+    these addresses (e.g. `abc` and `ABC`, which can both exist in batid_address)
+    must come out only once.
+    """
+    links = BuildingAddressesInternalIdReadOnly.objects.filter(address__in=addresses)
     return qs.filter(pk__in=links.values("building_id"))
 
 

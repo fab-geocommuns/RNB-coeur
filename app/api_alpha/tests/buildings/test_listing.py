@@ -1270,16 +1270,31 @@ class ListingAddressFilterTest(APITestCase):
 
     def test_filter_can_use_upper_index(self):
         """
-        Input: helper called with a cle_interop, sequential scans disabled.
-        Expected: the query plan uses address_cle_interop_upper_idx.
+        Input: helper called with a cle_interop; then the same lookup on
+        batid_address alone, sequential scans disabled.
+        Expected: the helper filters on UPPER(cle_interop), and that expression is
+        served by address_cle_interop_upper_idx.
         """
+        # The plan of the helper's own query is not asserted: on a few rows,
+        # reaching the addresses through their primary key from the link table is
+        # as cheap as the upper index, and the tie depends on the table statistics.
+        # The table alias differs: "U1" in the helper's subquery
+        upper_expr = r'UPPER\("\w+"\."cle_interop"::text\)'
         qs = filter_bdgs_by_address(
             Building.objects.all(), cle_interop="2a004_abcd_00001"
         )
+        self.assertRegex(str(qs.query), upper_expr)
+
+        # On a single table with no ordering, an index without a matching condition
+        # is never considered: the only alternative left is the disabled seq scan.
+        addresses = Address.objects.filter(
+            cle_interop__iexact="2a004_abcd_00001"
+        ).order_by()
+        self.assertRegex(str(addresses.query), upper_expr)
         with connection.cursor() as cursor:
             cursor.execute("SET LOCAL enable_seqscan = off")
 
-        self.assertIn("address_cle_interop_upper_idx", qs.explain())
+        self.assertIn("address_cle_interop_upper_idx", addresses.explain())
 
     def test_helper_without_criterion(self):
         """

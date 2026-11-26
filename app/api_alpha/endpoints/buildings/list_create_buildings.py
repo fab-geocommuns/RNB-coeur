@@ -79,7 +79,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "ban_id",
                         "in": "query",
-                        "description": "Filtre les bâtiments associés à l'adresse ayant cet identifiant BAN. La valeur doit être un UUID valide, sinon la requête est refusée (erreur 400). Ne peut pas être combiné avec `cle_interop_ban`.",
+                        "description": "Filtre les bâtiments associés à l'adresse ayant cet identifiant BAN. Ne peut pas être combiné avec `cle_interop_ban`.",
                         "required": False,
                         "schema": {"type": "string", "format": "uuid"},
                         "example": "fd9736e8-9970-4127-84eb-f2886043c122",

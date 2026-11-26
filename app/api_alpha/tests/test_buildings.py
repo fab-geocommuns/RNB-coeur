@@ -590,3 +590,342 @@ class BuildingAddressViewTest(APITestCase):
 
         r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
         self.assertEqual(r.status_code, 503)
+
+    URL = "/api/alpha/buildings/address/"
+    BAN_ID = "fd9736e8-9970-4127-84eb-f2886043c122"
+    OTHER_BAN_ID = "207eecbf-689c-4d90-a755-cb193ad537cb"
+
+    def _set_ban_id(self, address, ban_id):
+        Address.objects.filter(pk=address.pk).update(ban_id=ban_id)
+
+    def _building_at(self, rnb_id, cle_interops, status="constructed", is_active=True):
+        """Create a building linked to already existing addresses."""
+        point = GEOSGeometry("POINT(2.35 48.85)", srid=4326)
+        return Building.objects.create(
+            rnb_id=rnb_id,
+            shape=point,
+            point=point,
+            status=status,
+            is_active=is_active,
+            addresses_internal_id=list(
+                Address.objects.filter(cle_interop__in=cle_interops).values_list(
+                    "internal_id", flat=True
+                )
+            ),
+        )
+
+    def _geocode(self, get_mock, cle_interop, ban_id=None, score=0.9, **params):
+        """Make the mocked geocoder answer one housenumber, then call the endpoint
+        with q and the extra params."""
+        properties = {"id": cle_interop, "type": "housenumber", "score": score}
+        if ban_id is not None:
+            properties["banId"] = ban_id
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "features": [{"type": "Feature", "properties": properties}]
+        }
+        return self.client.get(self.URL, {"q": "8 Boulevard du Port", **params})
+
+    def _rnb_ids(self, response):
+        return [b["rnb_id"] for b in response.json()["results"]]
+
+    def test_search_params_are_exclusive(self):
+        """
+        Input: no search parameter, or several among q, cle_interop_ban and ban_id.
+        Expected: 400 for each combination.
+        """
+        key = self.cle_interop_ban_1
+        for params in (
+            {},
+            {"q": "a", "ban_id": self.BAN_ID},
+            {"cle_interop_ban": key, "ban_id": self.BAN_ID},
+            {"q": "a", "cle_interop_ban": key},
+            {"q": "a", "cle_interop_ban": key, "ban_id": self.BAN_ID},
+        ):
+            with self.subTest(params=params):
+                r = self.client.get(self.URL, params)
+                self.assertEqual(r.status_code, 400, r.content)
+                self.assertIn("non_field_errors", r.json())
+
+    def test_min_score_without_q_is_refused(self):
+        """
+        Input: ban_id or cle_interop_ban with min_score, including the falsy value 0.
+        Expected: 400 for each combination.
+        """
+        for search in (
+            {"ban_id": self.BAN_ID},
+            {"cle_interop_ban": self.cle_interop_ban_1},
+        ):
+            for min_score in ("0", "0.5", "1"):
+                with self.subTest(search=search, min_score=min_score):
+                    r = self.client.get(self.URL, {**search, "min_score": min_score})
+                    self.assertEqual(r.status_code, 400, r.content)
+
+    def test_invalid_ban_id_is_refused(self):
+        """
+        Input: ban_id values which are not UUIDs.
+        Expected: 400 on the ban_id field, never a 500.
+        """
+        for ban_id in ("nope", self.BAN_ID[:-1], "\x00"):
+            with self.subTest(ban_id=ban_id):
+                r = self.client.get(self.URL, {"ban_id": ban_id})
+                self.assertEqual(r.status_code, 400, r.content)
+                self.assertIn("ban_id", r.json())
+
+    def test_by_ban_id(self):
+        """
+        Input: ban_id of an address linked to 2 buildings, in lower then upper case.
+        Expected: the 2 buildings, ban_id returned as a lowercase string,
+        cle_interop_ban and score_ban null.
+        """
+        self._set_ban_id(self.address_1, self.BAN_ID)
+
+        for value in (self.BAN_ID, self.BAN_ID.upper()):
+            with self.subTest(value=value):
+                r = self.client.get(self.URL, {"ban_id": value})
+                self.assertEqual(r.status_code, 200)
+                data = r.json()
+                self.assertEqual(data["ban_id"], self.BAN_ID)
+                self.assertIsNone(data["cle_interop_ban"])
+                self.assertIsNone(data["score_ban"])
+                self.assertEqual(data["status"], "ok")
+                self.assertEqual(
+                    self._rnb_ids(r),
+                    [self.building_1.rnb_id, self.building_2.rnb_id],
+                )
+
+    def test_by_unknown_ban_id(self):
+        """
+        Input: valid UUID held by no address.
+        Expected: 200, status ok, no building, the ban_id echoed.
+        """
+        r = self.client.get(self.URL, {"ban_id": self.BAN_ID})
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["ban_id"], self.BAN_ID)
+        self.assertEqual(data["results"], [])
+
+    def test_by_ban_id_ignores_inactive_buildings_only(self):
+        """
+        Input: ban_id of an address linked to an inactive and a demolished building.
+        Expected: only the demolished one: the status is not filtered here.
+        """
+        self._set_ban_id(self.address_3, self.BAN_ID)
+        self._building_at("INACTIVEINAC", [self.cle_interop_ban_3], is_active=False)
+        demolished = self._building_at(
+            "DEMOLISHEDDE", [self.cle_interop_ban_3], status="demolished"
+        )
+
+        r = self.client.get(self.URL, {"ban_id": self.BAN_ID})
+        self.assertEqual(self._rnb_ids(r), [demolished.rnb_id])
+
+    def test_cle_interop_is_case_insensitive_without_duplicate(self):
+        """
+        Input: cle_interop_ban in another case; a building linked to both spellings.
+        Expected: the building comes out once, the received value is returned and
+        ban_id is null.
+        """
+        Address.objects.create(cle_interop="2a004_abcd_00001")
+        Address.objects.create(cle_interop="2A004_ABCD_00001")
+        both = self._building_at(
+            "BOTHBOTHBOTH", ["2a004_abcd_00001", "2A004_ABCD_00001"]
+        )
+
+        r = self.client.get(self.URL, {"cle_interop_ban": "2A004_aBcD_00001"})
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(self._rnb_ids(r), [both.rnb_id])
+        self.assertEqual(data["cle_interop_ban"], "2A004_aBcD_00001")
+        self.assertIsNone(data["ban_id"])
+
+    def test_cle_interop_still_matches_address_with_ban_id(self):
+        """
+        Input: cle_interop_ban param on an address holding a BAN ID.
+        Expected: the buildings are found (the NULL restriction only applies to q)
+        and ban_id is null since the filter used the key.
+        """
+        self._set_ban_id(self.address_2, self.BAN_ID)
+
+        r = self.client.get(self.URL, {"cle_interop_ban": self.cle_interop_ban_2})
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertIsNone(r.json()["ban_id"])
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_filters_on_ban_id_when_held_locally(self, get_mock):
+        """
+        Input: geocoder returns a key and a banId; the banId is held by a local
+        address having a different key.
+        Expected: filter on ban_id (buildings of that address), ban_id returned,
+        cle_interop_ban keeps the geocoded value.
+        """
+        self._set_ban_id(self.address_2, self.BAN_ID)
+
+        r = self._geocode(get_mock, self.cle_interop_ban_1, ban_id=self.BAN_ID)
+
+        data = r.json()
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertEqual(data["ban_id"], self.BAN_ID)
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "ok")
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_falls_back_on_key_when_ban_id_unknown(self, get_mock):
+        """
+        Input: geocoded banId held by no local address; the local address with the
+        geocoded key has a NULL ban_id.
+        Expected: filter on the key, and ban_id null since it was not used.
+        """
+        r = self._geocode(get_mock, self.cle_interop_ban_1, ban_id=self.BAN_ID)
+
+        data = r.json()
+        self.assertEqual(
+            self._rnb_ids(r), [self.building_1.rnb_id, self.building_2.rnb_id]
+        )
+        self.assertIsNone(data["ban_id"])
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_does_not_match_reassigned_key(self, get_mock):
+        """
+        Input: geocoded banId held by no local address; the local address with the
+        geocoded key holds another BAN ID (the key has been reassigned).
+        Expected: status ok, no building, ban_id null.
+        """
+        self._set_ban_id(self.address_1, self.OTHER_BAN_ID)
+
+        r = self._geocode(get_mock, self.cle_interop_ban_1, ban_id=self.BAN_ID)
+
+        data = r.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["results"], [])
+        self.assertIsNone(data["ban_id"])
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_without_ban_id_matches_key_whatever_local_ban_id(self, get_mock):
+        """
+        Input: geocoder returns no banId, first for a local address with a NULL
+        ban_id, then for a local address holding a BAN ID.
+        Expected: the building is found in both cases, with ban_id null in the
+        response since the filter used the key.
+        """
+        r = self._geocode(get_mock, self.cle_interop_ban_2)
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertIsNone(r.json()["ban_id"])
+
+        self._set_ban_id(self.address_2, self.BAN_ID)
+        r = self._geocode(get_mock, self.cle_interop_ban_2)
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertIsNone(r.json()["ban_id"])
+
+    @mock.patch("api_alpha.views.sentry_sdk.capture_exception")
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_with_malformed_ban_id_is_a_ban_error(self, get_mock, capture_mock):
+        """
+        Input: geocoder returns a banId which is not a UUID.
+        Expected: 503 with a message naming the invalid BAN ID; the error is
+        reported to Sentry.
+        """
+        r = self._geocode(get_mock, self.cle_interop_ban_2, ban_id="not-a-uuid")
+
+        self.assertEqual(r.status_code, 503, r.content)
+        self.assertIn("identifiant BAN invalide", r.json()["detail"])
+        capture_mock.assert_called_once()
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_with_empty_ban_id_falls_back_on_key(self, get_mock):
+        """
+        Input: geocoder returns an empty or blank banId (an address with no BAN ID).
+        Expected: 200, the buildings of the key are found, ban_id is null.
+        """
+        for empty in ("", "  "):
+            with self.subTest(ban_id=empty):
+                r = self._geocode(get_mock, self.cle_interop_ban_2, ban_id=empty)
+
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+                self.assertIsNone(r.json()["ban_id"])
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_with_empty_min_score_uses_default(self, get_mock):
+        """
+        Input: q with an empty min_score, geocoder score 0.7 then 0.9.
+        Expected: the default 0.8 threshold applies: geocoding_score_is_too_low
+        for 0.7, ok for 0.9 (no 500).
+        """
+        r = self._geocode(get_mock, self.cle_interop_ban_2, score=0.7, min_score="")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["status"], "geocoding_score_is_too_low")
+
+        r = self._geocode(get_mock, self.cle_interop_ban_2, score=0.9, min_score="")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["status"], "ok")
+
+    def test_cle_interop_ban_is_trimmed(self):
+        """
+        Input: cle_interop_ban surrounded by spaces.
+        Expected: the buildings of the key are found, and the trimmed key is
+        returned.
+        """
+        r = self.client.get(
+            self.URL, {"cle_interop_ban": f"  {self.cle_interop_ban_2} "}
+        )
+
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertEqual(r.json()["cle_interop_ban"], self.cle_interop_ban_2)
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_fallback_ignores_case_and_skips_reassigned_spelling(self, get_mock):
+        """
+        Input: geocoded key in lowercase; local addresses abc (NULL ban_id) and ABC
+        (another BAN ID), each with its building.
+        Expected: only the building of the NULL address.
+        """
+        Address.objects.create(cle_interop="2a004_abcd_00001")
+        Address.objects.create(cle_interop="2A004_ABCD_00001", ban_id=self.OTHER_BAN_ID)
+        lower = self._building_at("LOWERLOWERLO", ["2a004_abcd_00001"])
+        self._building_at("UPPERUPPERUP", ["2A004_ABCD_00001"])
+
+        r = self._geocode(get_mock, "2a004_abcd_00001", ban_id=self.BAN_ID)
+
+        self.assertEqual(self._rnb_ids(r), [lower.rnb_id])
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_ban_id_is_null_on_geocoding_failures(self, get_mock):
+        """
+        Input: geocoding with no result, then with a score below min_score while a
+        local address holds the geocoded banId.
+        Expected: the matching status, no results and ban_id null in both cases.
+        """
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {"features": []}
+        data = self.client.get(self.URL, {"q": "lkjlkj"}).json()
+        self.assertEqual(data["status"], "geocoding_no_result")
+        self.assertIsNone(data["ban_id"])
+        self.assertIsNone(data["results"])
+
+        self._set_ban_id(self.address_1, self.BAN_ID)
+        data = self._geocode(
+            get_mock, self.cle_interop_ban_1, ban_id=self.BAN_ID, score=0.5
+        ).json()
+        self.assertEqual(data["status"], "geocoding_score_is_too_low")
+        self.assertIsNone(data["ban_id"])
+        self.assertIsNone(data["results"])
+
+    def test_pagination_keeps_ban_id(self):
+        """
+        Input: ban_id of an address with 2 buildings, limit=1.
+        Expected: two pages of one building each, in id order, with ban_id on both.
+        """
+        self._set_ban_id(self.address_1, self.BAN_ID)
+
+        first = self.client.get(self.URL, {"ban_id": self.BAN_ID, "limit": 1}).json()
+        self.assertEqual(
+            [b["rnb_id"] for b in first["results"]], [self.building_1.rnb_id]
+        )
+        second = self.client.get(first["next"]).json()
+        self.assertEqual(
+            [b["rnb_id"] for b in second["results"]], [self.building_2.rnb_id]
+        )
+        self.assertEqual(second["ban_id"], self.BAN_ID)
+        self.assertIsNone(second["next"])

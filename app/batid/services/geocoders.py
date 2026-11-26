@@ -1,8 +1,9 @@
 import csv
 from io import StringIO
+from uuid import UUID
 
 import requests
-from batid.exceptions import BANAPIDown
+from batid.exceptions import BANAPIDown, BANInvalidBanId
 from requests import Response
 
 
@@ -36,10 +37,26 @@ class BanGeocoder:
             if best["properties"]["type"] == "housenumber":
                 return {
                     "cle_interop_ban": best["properties"]["id"],
+                    # banId is not provided for every address
+                    "ban_id": self._parse_ban_id(best["properties"].get("banId")),
                     "score": best["properties"]["score"],
                 }
 
-        return {"cle_interop_ban": None, "score": None}
+        return {"cle_interop_ban": None, "ban_id": None, "score": None}
+
+    @staticmethod
+    def _parse_ban_id(ban_id) -> UUID | None:
+        """
+        Convert the banId sent by the BAN. Some addresses have no BAN ID: no value,
+        or an empty one, means absent. Any other value which is not a UUID is a
+        BAN error: it is raised, not silently treated as absent.
+        """
+        if ban_id is None or (isinstance(ban_id, str) and not ban_id.strip()):
+            return None
+        try:
+            return UUID(str(ban_id))
+        except ValueError as error:
+            raise BANInvalidBanId(f"banId {ban_id!r} is not a UUID") from error
 
 
 class BanBatchGeocoder:

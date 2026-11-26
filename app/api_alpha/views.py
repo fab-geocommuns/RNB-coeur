@@ -52,9 +52,11 @@ from api_alpha.utils.sandbox_client import (
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
+    BANInvalidBanId,
     BANUnknownCleInterop,
     InvalidOperation,
 )
+from batid.list_bdg import filter_bdgs_by_addresses
 from batid.models import (
     ADS,
     Address,
@@ -63,6 +65,7 @@ from batid.models import (
     DiffusionDatabase,
     Organization,
 )
+from batid.services.ban_address import BanAddressMatch, resolve_ban_address
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -214,13 +217,13 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Identification de bâtiments par leur adresse",
-                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. Il faut fournir soit `q`, soit `cle_interop_ban`, mais pas les deux. `min_score` ne s'utilise qu'avec `q`. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. Renseignez un et un seul des paramètres `q`, `cle_interop_ban` et `ban_id`, sinon la requête est refusée (erreur 400). `min_score` ne s'utilise qu'avec `q`. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "address",
                 "parameters": [
                     {
                         "name": "q",
                         "in": "query",
-                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**. Requis si `cle_interop_ban` est absent, interdit sinon.",
+                        "description": "Adresse texte non structurée, recherchée dans la BAN. Si la BAN renvoie un identifiant BAN porté par une adresse du RNB, les bâtiments sont filtrés par cet identifiant. Les adresses sont filtrées grâce à leur identifiant BAN ou leur clé d'interopérabilité, par ordre de priorité. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**. Requis si `cle_interop_ban` et `ban_id` sont absents, interdit sinon.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -234,9 +237,17 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         "example": "0.9",
                     },
                     {
+                        "name": "ban_id",
+                        "in": "query",
+                        "description": "Identifiant BAN de l'adresse. Si vous êtes en possession d'un identifiant BAN, il est plus efficace de faire une recherche grâce à lui que via une adresse textuelle. Requis si `q` et `cle_interop_ban` sont absents, interdit sinon.",
+                        "required": False,
+                        "schema": {"type": "string", "format": "uuid"},
+                        "example": "207eecbf-689c-4d90-a755-cb193ad537cb",
+                    },
+                    {
                         "name": "cle_interop_ban",
                         "in": "query",
-                        "description": "Clé d'interopérabilité BAN. Si vous êtes en possession d'une clé d'interoperabilité, il est plus efficace de faire une recherche grâce à elle que via une adresse textuelle. Requis si `q` est absent, interdit sinon.",
+                        "description": "Clé d'interopérabilité BAN, comparée sans tenir compte de la casse. Si vous êtes en possession d'une clé d'interoperabilité, il est plus efficace de faire une recherche grâce à elle que via une adresse textuelle. Si vous avez accès à une clé d'interoperabilité et à un identifiant BAN, nous vous suggérons d'utiliser l'identifiant BAN. Requis si `q` et `ban_id` sont absents, interdit sinon.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75105_8884_00004",
@@ -261,7 +272,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         },
                                         "cle_interop_ban": {
                                             "type": ["string", "null"],
-                                            "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
+                                            "description": "Clé d'interopérabilité BAN reçue ou issue du géocodage. `null` pour une recherche par `ban_id`, ou si le géocodage ne renvoie pas de résultat (**geocoding_no_result**).",
+                                        },
+                                        "ban_id": {
+                                            "type": ["string", "null"],
+                                            "format": "uuid",
+                                            "description": "Identifiant BAN reçu ou issu du géocodage, s'il a servi à lister les bâtiments. `null` pour une recherche par `cle_interop_ban`, si le géocodage n'a pas abouti (**geocoding_no_result**, **geocoding_score_is_too_low**), ou si les bâtiments ont été trouvés par leur clé d'interopérabilité.",
                                         },
                                         "status": {
                                             "type": "string",
@@ -288,7 +304,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         },
                     },
                     "503": {
-                        "description": "La BAN a répondu en erreur (recherche par `q` uniquement) : service indisponible, ou `q` refusé par la BAN, par exemple s'il fait moins de 3 caractères."
+                        "description": "La BAN a répondu en erreur (recherche par `q` uniquement) : service indisponible, `q` refusé par la BAN (par exemple s'il fait moins de 3 caractères), ou identifiant BAN invalide renvoyé par la BAN."
                     },
                 },
             }
@@ -298,22 +314,33 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         query_serializer = BuildingAddressQuerySerializer(data=request.query_params)
         infos: dict[str, Any] = {
             "cle_interop_ban": None,
+            "ban_id": None,
             "score_ban": None,
             "status": None,
         }
 
         if query_serializer.is_valid():
-            q = request.query_params.get("q")
+            # Validated values: trimmed, typed, and empty ones treated as absent
+            params = query_serializer.validated_data
+            q = params.get("q")
+            ban_id = params.get("ban_id")
             paginator = BuildingAddressCursorPagination()
 
+            # 1. Find the addresses matching what we received
             if q:
                 # 0.8 is the default value
-                min_score = float(request.query_params.get("min_score", 0.8))
+                min_score = params.get("min_score", 0.8)
                 geocoder = BanGeocoder()
                 try:
                     best_result = geocoder.cle_interop_ban_best_result({"q": q})
                 except BANAPIDown:
                     raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANInvalidBanId as error:
+                    # A BAN data error: reported to us, and explained to the user
+                    sentry_sdk.capture_exception(error)
+                    raise ServiceUnavailable(
+                        detail="La BAN a renvoyé un identifiant BAN invalide pour cette adresse."
+                    )
                 cle_interop_ban = best_result["cle_interop_ban"]
                 score = best_result["score"]
 
@@ -326,14 +353,38 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 if score is not None and score < min_score:
                     infos["status"] = "geocoding_score_is_too_low"
                     return paginator.get_paginated_response(None, infos)
+
+                # q and ban_id are exclusive: ban_id now holds the geocoded one
+                ban_id = best_result["ban_id"]
+                addresses_match = resolve_ban_address(cle_interop_ban, ban_id)
+            elif ban_id:
+                addresses_match = BanAddressMatch(
+                    addresses=Address.objects.filter(ban_id=ban_id),
+                    found_with="ban_id",
+                )
             else:
-                cle_interop_ban = request.query_params.get("cle_interop_ban")
+                cle_interop_ban = params.get("cle_interop_ban")
                 infos["cle_interop_ban"] = cle_interop_ban
+                addresses_match = BanAddressMatch(
+                    addresses=Address.objects.filter(
+                        cle_interop__iexact=cle_interop_ban
+                    ),
+                    found_with="cle_interop",
+                )
+
+            # 2. Find their buildings
+            buildings = filter_bdgs_by_addresses(
+                Building.objects.filter(is_active=True), addresses_match.addresses
+            )
+            # The response only gives the BAN ID if it was used to find them
+            if addresses_match.found_with == "ban_id":
+                infos["ban_id"] = str(ban_id)
 
             infos["status"] = "ok"
             buildings = (
-                Building.objects.filter(is_active=True)
-                .filter(addresses_internal_read_only__cle_interop=cle_interop_ban)
+                # The offset pagination needs a total order. The address filter is a
+                # subquery, which no longer gives the rows in any incidental order.
+                buildings.order_by("id")
                 .prefetch_related("addresses_internal_read_only")
                 .prefetch_related(
                     Prefetch(

@@ -9,6 +9,10 @@ class BANAPIDown(Exception):
     """looks like the BAN API is down"""
 
 
+class BANInvalidBanId(Exception):
+    """BAN API returns a banId which is not a UUID"""
+
+
 class BANBadRequest(Exception):
     """BAN API returns a 400 error code"""
 
