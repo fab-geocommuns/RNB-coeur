@@ -614,8 +614,9 @@ class BuildingAddressViewTest(APITestCase):
             ),
         )
 
-    def _geocode(self, get_mock, cle_interop, ban_id=None, score=0.9):
-        """Make the mocked geocoder answer one housenumber, then call the endpoint."""
+    def _geocode(self, get_mock, cle_interop, ban_id=None, score=0.9, **params):
+        """Make the mocked geocoder answer one housenumber, then call the endpoint
+        with q and the extra params."""
         properties = {"id": cle_interop, "type": "housenumber", "score": score}
         if ban_id is not None:
             properties["banId"] = ban_id
@@ -623,7 +624,7 @@ class BuildingAddressViewTest(APITestCase):
         get_mock.return_value.json.return_value = {
             "features": [{"type": "Feature", "properties": properties}]
         }
-        return self.client.get(self.URL, {"q": "8 Boulevard du Port"})
+        return self.client.get(self.URL, {"q": "8 Boulevard du Port", **params})
 
     def _rnb_ids(self, response):
         return [b["rnb_id"] for b in response.json()["results"]]
@@ -830,6 +831,48 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(r.status_code, 503, r.content)
         self.assertIn("identifiant BAN invalide", r.json()["detail"])
         capture_mock.assert_called_once()
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_with_empty_ban_id_falls_back_on_key(self, get_mock):
+        """
+        Input: geocoder returns an empty or blank banId (an address with no BAN ID).
+        Expected: 200, the buildings of the key are found, ban_id is null.
+        """
+        for empty in ("", "  "):
+            with self.subTest(ban_id=empty):
+                r = self._geocode(get_mock, self.cle_interop_ban_2, ban_id=empty)
+
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+                self.assertIsNone(r.json()["ban_id"])
+
+    @mock.patch("batid.services.geocoders.requests.get")
+    def test_q_with_empty_min_score_uses_default(self, get_mock):
+        """
+        Input: q with an empty min_score, geocoder score 0.7 then 0.9.
+        Expected: the default 0.8 threshold applies: geocoding_score_is_too_low
+        for 0.7, ok for 0.9 (no 500).
+        """
+        r = self._geocode(get_mock, self.cle_interop_ban_2, score=0.7, min_score="")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["status"], "geocoding_score_is_too_low")
+
+        r = self._geocode(get_mock, self.cle_interop_ban_2, score=0.9, min_score="")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["status"], "ok")
+
+    def test_cle_interop_ban_is_trimmed(self):
+        """
+        Input: cle_interop_ban surrounded by spaces.
+        Expected: the buildings of the key are found, and the trimmed key is
+        returned.
+        """
+        r = self.client.get(
+            self.URL, {"cle_interop_ban": f"  {self.cle_interop_ban_2} "}
+        )
+
+        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
+        self.assertEqual(r.json()["cle_interop_ban"], self.cle_interop_ban_2)
 
     @mock.patch("batid.services.geocoders.requests.get")
     def test_q_fallback_ignores_case_and_skips_reassigned_spelling(self, get_mock):

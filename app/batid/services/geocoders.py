@@ -47,10 +47,11 @@ class BanGeocoder:
     @staticmethod
     def _parse_ban_id(ban_id) -> UUID | None:
         """
-        Convert the banId sent by the BAN. A value which is not a UUID is a BAN
-        error: it is raised, not silently treated as absent.
+        Convert the banId sent by the BAN. Some addresses have no BAN ID: no value,
+        or an empty one, means absent. Any other value which is not a UUID is a
+        BAN error: it is raised, not silently treated as absent.
         """
-        if ban_id is None:
+        if ban_id is None or (isinstance(ban_id, str) and not ban_id.strip()):
             return None
         try:
             return UUID(str(ban_id))

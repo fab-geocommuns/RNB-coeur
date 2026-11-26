@@ -320,14 +320,16 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         }
 
         if query_serializer.is_valid():
-            q = request.query_params.get("q")
-            ban_id = query_serializer.validated_data.get("ban_id")
+            # Validated values: trimmed, typed, and empty ones treated as absent
+            params = query_serializer.validated_data
+            q = params.get("q")
+            ban_id = params.get("ban_id")
             paginator = BuildingAddressCursorPagination()
 
             # 1. Find the addresses matching what we received
             if q:
                 # 0.8 is the default value
-                min_score = float(request.query_params.get("min_score", 0.8))
+                min_score = params.get("min_score", 0.8)
                 geocoder = BanGeocoder()
                 try:
                     best_result = geocoder.cle_interop_ban_best_result({"q": q})
@@ -361,7 +363,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     found_with="ban_id",
                 )
             else:
-                cle_interop_ban = request.query_params.get("cle_interop_ban")
+                cle_interop_ban = params.get("cle_interop_ban")
                 infos["cle_interop_ban"] = cle_interop_ban
                 addresses_match = BanAddressMatch(
                     addresses=Address.objects.filter(
