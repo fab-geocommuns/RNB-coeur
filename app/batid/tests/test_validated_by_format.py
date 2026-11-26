@@ -5,7 +5,7 @@ from datetime import timedelta
 from zipfile import ZipFile
 
 from api_alpha.serializers.public_user import PublicUserSerializer
-from batid.models import Building, Organization, UserProfile
+from batid.models import Building, Department_subdivided, Organization, UserProfile
 from batid.services.bdg_history import get_bdg_history
 from batid.services.data_gouv_publication import (
     cleanup_directory,
@@ -116,11 +116,16 @@ class ValidatedByFormatContractTest(TransactionTestCase):
         return sorted((dict(o) for o in data), key=lambda o: o["id"])
 
     def _export_validated_by(self):
-        directory_name = create_directory("nat")
+        Department_subdivided.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry("POLYGON((2 48, 3 48, 3 49, 2 49, 2 48))", srid=4326),
+        )
+        directory_name = create_directory("75")
         try:
-            archive_path, _, _ = create_archive(directory_name, "nat")
+            archive_path, _, _ = create_archive(directory_name, "75")
             with ZipFile(archive_path) as archive, io.TextIOWrapper(
-                archive.open("RNB_nat.csv"), encoding="utf-8", newline=""
+                archive.open("RNB_75.csv"), encoding="utf-8", newline=""
             ) as f:
                 reader = csv.DictReader(f, delimiter=";")
                 row = next(r for r in reader if r["rnb_id"] == "BDG-CONTRACT")

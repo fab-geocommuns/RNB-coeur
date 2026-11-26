@@ -24,6 +24,7 @@ from batid.services.data_gouv_publication import (
     datagouv_publication_enabled,
     get_area_publish_task,
     publish,
+    remove_previous_run_directories,
 )
 from batid.services.imports.import_bal import (
     create_all_bal_links_tasks,
@@ -356,7 +357,7 @@ def publish_area_or_report(*, area: str, run_id: str | None = None) -> str:
     Tchap room.
     """
     try:
-        published = publish(area)
+        published = publish(area=area, run_id=run_id)
     except DataGouvAccessDenied:
         raise
     except Exception as e:
@@ -418,6 +419,8 @@ def publish_datagouv_all():
             ],
         )
         return "Publication disabled"
+
+    remove_previous_run_directories()
 
     notify_tech(
         level=TchapLevel.LAUNCH,
