@@ -3,8 +3,7 @@ from io import StringIO
 from uuid import UUID
 
 import requests
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANInvalidResponse
+from batid.exceptions import BANAPIDown, BANInvalidResponse
 from requests import Response
 
 
