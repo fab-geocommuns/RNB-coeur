@@ -11,6 +11,7 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import (
+    ALL_STATUS_MD,
     EDITION_AUTH_RESPONSES,
     get_shape_rules,
     get_status_list,
@@ -189,7 +190,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": f"Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Il renvoie les bâtiments de statut {ALL_STATUS_MD}, qu'ils soient actifs ou désactivés (`is_active` à `false`), alors que la liste des bâtiments n'affiche jamais les désactivés et, par défaut, que les statuts `constructed` et `notUsable`. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -221,16 +222,44 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                     "200": {
                         "description": "Détails du bâtiment",
                         "content": {
+                            # Both formats are sent as application/json: "required"
+                            # tells them apart in the oneOf
                             "application/json": {
                                 "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    "oneOf": [
+                                        {
+                                            "title": "Building (format=json)",
+                                            "description": "Réponse par défaut, ou avec le paramètre `format=json`",
+                                            "required": ["rnb_id"],
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/Building"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/BuildingWPlots"
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            "title": "BuildingFeature (format=geojson)",
+                                            "description": "Réponse avec le paramètre `format=geojson`",
+                                            "required": ["type", "geometry"],
+                                            # allOf rather than a $ref with siblings,
+                                            # which tools following OpenAPI 3.0 ignore
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/BuildingGeoJSON"
+                                                }
+                                            ],
+                                        },
                                     ]
                                 }
-                            }
+                            },
                         },
-                    }
+                    },
+                    "404": {
+                        "description": f"Aucun bâtiment de statut {ALL_STATUS_MD} ne correspond à cet identifiant RNB."
+                    },
                 },
             }
         },

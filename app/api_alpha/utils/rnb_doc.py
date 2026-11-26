@@ -221,6 +221,14 @@ def get_status_list():
     return [status["key"] for status in BuildingStatus.TYPES]
 
 
+# Statuses served by the building lookup, as markdown:
+# `constructed`, `notUsable` ou `demolished`
+ALL_STATUS_MD = (
+    ", ".join(f"`{s}`" for s in BuildingStatus.ALL_TYPES_KEYS[:-1])
+    + f" ou `{BuildingStatus.ALL_TYPES_KEYS[-1]}`"
+)
+
+
 def _get_components() -> dict:
     return {
         "securitySchemes": {
