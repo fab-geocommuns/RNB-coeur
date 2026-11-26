@@ -113,8 +113,8 @@ _RANKED_CITY = {
 
 _USERS_DESCRIPTION = (
     "Contributeurs, les plus actifs d'abord. Les comptes désactivés ne sont pas "
-    "listés ; leurs contributions restent comptées dans les totaux et pour leur "
-    "organisation."
+    "listés (au plus tard à la mise à jour suivante des données) ; leurs "
+    "contributions restent comptées dans les totaux et pour leur organisation."
 )
 
 
@@ -175,7 +175,8 @@ SUMMARY_SCHEMA = {
                         f"Jusqu'à {NEWCOMERS_LIMIT} contributeurs dont la toute "
                         "première contribution tombe dans la période, les "
                         "derniers arrivés d'abord. Les comptes désactivés ne "
-                        "sont pas listés."
+                        "sont pas listés (au plus tard à la mise à jour "
+                        "suivante des données)."
                     ),
                     "items": {
                         "type": "object",

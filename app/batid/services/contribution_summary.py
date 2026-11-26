@@ -305,8 +305,11 @@ def _ranked(
 def _listed(users: list[dict]) -> list[dict]:
     """
     The contributors that may be published by name: a deactivated account
-    (spam, departure, request of the person) is never listed, but its
-    contributions still count for the totals and for its organization
+    (spam, departure, request of the person) is left out from the next
+    computation (the cached one keeps it until then, up to an hour, a day if
+    the refresh fails), but its contributions still count for the totals and
+    for its organization. A contribution without user (is_active NULL) is
+    never listed either.
     """
     return [u for u in users if u["is_active"]]
 

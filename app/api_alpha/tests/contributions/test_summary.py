@@ -681,9 +681,11 @@ class ContributionSummaryTest(TestCase):
     def test_deactivated_accounts_are_not_listed(self):
         """
         Input: alice (active) and dave (deactivated), both of the Talence town
-        hall, contribute for the first time in the window, dave twice.
-        Expected: dave is in no published list (rankings, top, newcomers); his
-        contributions still count in contributions.total and for Talence.
+        hall, contribute for the first time in the window, dave twice, and a
+        contribution without user.
+        Expected: neither dave nor the contribution without user is in a
+        published list (rankings, top, newcomers); their contributions still
+        count in contributions.total, dave's for Talence.
         """
         dave = member_of(ContributorUserFactory(username="dave"), self.mairie)
         dave.is_active = False
@@ -691,6 +693,7 @@ class ContributionSummaryTest(TestCase):
         contribution(self.alice, IN_WINDOW)
         contribution(dave, IN_WINDOW)
         contribution(dave, IN_WINDOW)
+        contribution(None, IN_WINDOW)
 
         summary = compute_all_summaries(now=NOW)["30"]
 
@@ -700,7 +703,7 @@ class ContributionSummaryTest(TestCase):
         )
         self.assertEqual(summary["top"]["users"], summary["rankings"]["users"])
         self.assertEqual(summary["newcomers"]["users"], [{"username": "alice"}])
-        self.assertEqual(summary["contributions"], {"total": 3})
+        self.assertEqual(summary["contributions"], {"total": 4})
         self.assertEqual(
             summary["rankings"]["organizations"], [{"name": "Talence", "count": 3}]
         )
