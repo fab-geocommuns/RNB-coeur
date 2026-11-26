@@ -52,10 +52,11 @@ from api_alpha.utils.sandbox_client import (
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
+    BANInvalidResponse,
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import filter_bdgs_by_address, filter_bdgs_by_geocoded_address
+from batid.list_bdg import filter_bdgs_by_address, filter_bdgs_by_addresses
 from batid.models import (
     ADS,
     Address,
@@ -64,6 +65,7 @@ from batid.models import (
     DiffusionDatabase,
     Organization,
 )
+from batid.services.ban_address import resolve_ban_address
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -302,7 +304,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         },
                     },
                     "503": {
-                        "description": "La BAN a répondu en erreur (recherche par `q` uniquement) : service indisponible, ou `q` refusé par la BAN, par exemple s'il fait moins de 3 caractères."
+                        "description": "La BAN a répondu en erreur (recherche par `q` uniquement) : service indisponible, `q` refusé par la BAN (par exemple s'il fait moins de 3 caractères), ou identifiant BAN invalide renvoyé par la BAN."
                     },
                 },
             }
@@ -331,6 +333,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     best_result = geocoder.cle_interop_ban_best_result({"q": q})
                 except BANAPIDown:
                     raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANInvalidResponse as error:
+                    # A BAN data error: reported to us, and explained to the user
+                    sentry_sdk.capture_exception(error)
+                    raise ServiceUnavailable(
+                        detail="La BAN a renvoyé un identifiant BAN invalide pour cette adresse."
+                    )
                 cle_interop_ban = best_result["cle_interop_ban"]
                 score = best_result["score"]
 
@@ -344,10 +352,13 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     infos["status"] = "geocoding_score_is_too_low"
                     return paginator.get_paginated_response(None, infos)
 
-                buildings, used_ban_id = filter_bdgs_by_geocoded_address(
-                    buildings, cle_interop_ban, best_result["ban_id"]
+                geocoded_ban_id = best_result["ban_id"]
+                ban_address = resolve_ban_address(cle_interop_ban, geocoded_ban_id)
+                buildings = filter_bdgs_by_addresses(buildings, ban_address.addresses)
+                # The response only gives the BAN ID if it was used to find them
+                infos["ban_id"] = (
+                    str(geocoded_ban_id) if ban_address.found_with == "ban_id" else None
                 )
-                infos["ban_id"] = str(used_ban_id) if used_ban_id else None
             elif ban_id:
                 buildings = filter_bdgs_by_address(buildings, ban_id=ban_id)
                 infos["ban_id"] = str(ban_id)

@@ -646,17 +646,19 @@ class BuildingAddressViewTest(APITestCase):
                 self.assertEqual(r.status_code, 400, r.content)
                 self.assertIn("non_field_errors", r.json())
 
-    def test_ban_id_with_min_score_is_refused(self):
+    def test_min_score_without_q_is_refused(self):
         """
-        Input: ban_id with min_score, including the falsy value 0.
-        Expected: 400.
+        Input: ban_id or cle_interop_ban with min_score, including the falsy value 0.
+        Expected: 400 for each combination.
         """
-        for min_score in ("0", "0.5", "1"):
-            with self.subTest(min_score=min_score):
-                r = self.client.get(
-                    self.URL, {"ban_id": self.BAN_ID, "min_score": min_score}
-                )
-                self.assertEqual(r.status_code, 400, r.content)
+        for search in (
+            {"ban_id": self.BAN_ID},
+            {"cle_interop_ban": self.cle_interop_ban_1},
+        ):
+            for min_score in ("0", "0.5", "1"):
+                with self.subTest(search=search, min_score=min_score):
+                    r = self.client.get(self.URL, {**search, "min_score": min_score})
+                    self.assertEqual(r.status_code, 400, r.content)
 
     def test_invalid_ban_id_is_refused(self):
         """
@@ -815,25 +817,19 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
         self.assertIsNone(r.json()["ban_id"])
 
+    @mock.patch("api_alpha.views.sentry_sdk.capture_exception")
     @mock.patch("batid.services.geocoders.requests.get")
-    def test_q_with_malformed_ban_id_falls_back_on_key(self, get_mock):
+    def test_q_with_malformed_ban_id_is_a_ban_error(self, get_mock, capture_mock):
         """
-        Input: geocoder returns a banId which is not a UUID, first for a local
-        address with a NULL ban_id, then for a local address holding a BAN ID.
-        Expected: no error, the building is found in both cases, ban_id null.
+        Input: geocoder returns a banId which is not a UUID.
+        Expected: 503 with a message naming the invalid BAN ID; the error is
+        reported to Sentry.
         """
         r = self._geocode(get_mock, self.cle_interop_ban_2, ban_id="not-a-uuid")
 
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
-        self.assertIsNone(r.json()["ban_id"])
-
-        self._set_ban_id(self.address_2, self.BAN_ID)
-        r = self._geocode(get_mock, self.cle_interop_ban_2, ban_id="not-a-uuid")
-
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(self._rnb_ids(r), [self.building_1.rnb_id])
-        self.assertIsNone(r.json()["ban_id"])
+        self.assertEqual(r.status_code, 503, r.content)
+        self.assertIn("identifiant BAN invalide", r.json()["detail"])
+        capture_mock.assert_called_once()
 
     @mock.patch("batid.services.geocoders.requests.get")
     def test_q_fallback_ignores_case_and_skips_reassigned_spelling(self, get_mock):

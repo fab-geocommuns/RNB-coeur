@@ -21,9 +21,7 @@ def filter_bdgs_by_address(
     Keep the buildings linked to the address matching all the given criteria.
 
     `cle_interop` is compared case-insensitively, through the
-    address_cle_interop_upper_idx index. Since `abc` and `ABC` can both exist in
-    batid_address, the filter is a subquery rather than a join: a building linked
-    to both must come out only once.
+    address_cle_interop_upper_idx index.
 
     A `ban_id` which is not a UUID matches no address. Callers exposing it publicly
     are expected to refuse it beforehand, this only guards against a database error.
@@ -31,56 +29,33 @@ def filter_bdgs_by_address(
     if not cle_interop and not ban_id:
         return qs
 
-    links = BuildingAddressesInternalIdReadOnly.objects.all()
+    addresses = Address.objects.all()
 
     if cle_interop:
-        links = links.filter(address__cle_interop__iexact=cle_interop)
+        addresses = addresses.filter(cle_interop__iexact=cle_interop)
 
     if ban_id:
         try:
             ban_uuid = UUID(str(ban_id))
         except ValueError:
             return qs.none()
-        links = links.filter(address__ban_id=ban_uuid)
+        addresses = addresses.filter(ban_id=ban_uuid)
 
+    return filter_bdgs_by_addresses(qs, addresses)
+
+
+def filter_bdgs_by_addresses(
+    qs: BuildingsQuerySet, addresses: QuerySet
+) -> BuildingsQuerySet:
+    """
+    Keep the buildings linked to at least one of the given addresses.
+
+    The filter is a subquery rather than a join: a building linked to several of
+    these addresses (e.g. `abc` and `ABC`, which can both exist in batid_address)
+    must come out only once.
+    """
+    links = BuildingAddressesInternalIdReadOnly.objects.filter(address__in=addresses)
     return qs.filter(pk__in=links.values("building_id"))
-
-
-def filter_bdgs_by_geocoded_address(
-    qs: QuerySet, cle_interop: str, ban_id: str | None
-) -> tuple[QuerySet, UUID | None]:
-    """
-    Keep the buildings linked to an address returned by the geocoder, and return
-    them with the BAN ID really used to filter (None if the filter used the key).
-
-    `Address.ban_id` is only filled for the cities with reliable BAN IDs:
-    - if a local address holds the geocoded BAN ID, filter on it;
-    - if no local address holds it, fall back on `cle_interop`, restricted to the
-      local addresses with no BAN ID. A local address with the same key but another
-      BAN ID is another address (the key has been reassigned) and must not match;
-    - if the geocoder gives no valid BAN ID, nothing shows the key has been
-      reassigned: fall back on `cle_interop`, whether the local address holds a BAN
-      ID or not.
-    """
-    ban_uuid = None
-    if ban_id:
-        try:
-            ban_uuid = UUID(str(ban_id))
-        except ValueError:
-            # The geocoder is an external source: treat a malformed id as absent
-            ban_uuid = None
-
-    if ban_uuid and Address.objects.filter(ban_id=ban_uuid).exists():
-        return filter_bdgs_by_address(qs, ban_id=ban_uuid), ban_uuid
-
-    if ban_uuid is None:
-        return filter_bdgs_by_address(qs, cle_interop=cle_interop), None
-
-    # Same subquery as filter_bdgs_by_address, see why there
-    links = BuildingAddressesInternalIdReadOnly.objects.filter(
-        address__cle_interop__iexact=cle_interop, address__ban_id__isnull=True
-    )
-    return qs.filter(pk__in=links.values("building_id")), None
 
 
 def list_bdgs(params, only_active=True) -> QuerySet:

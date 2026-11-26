@@ -428,10 +428,8 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
                 "Vous devez définir un et un seul paramètre parmi 'q', 'cle_interop_ban' et 'ban_id'."
             )
 
-        # "in" for ban_id: min_score=0 is falsy but must be refused too
-        if (data.get("cle_interop_ban") and data.get("min_score")) or (
-            "ban_id" in data and "min_score" in data
-        ):
+        # "in" rather than a truthiness test: min_score=0 must be refused too
+        if "min_score" in data and data.get("q") is None:
             raise serializers.ValidationError(
                 "'min_score' n'est pertinent qu'avec une adresse textuelle"
             )
