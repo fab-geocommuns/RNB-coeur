@@ -8,8 +8,8 @@ from django.db.models import QuerySet
 
 @dataclass(frozen=True)
 class BanAddressMatch:
-    """The local addresses matching an address of the BAN, and the identifier of
-    this address they were found with."""
+    """The local addresses matching a BAN address identifier (given by the user or
+    by the BAN geocoder), and the identifier they were found with."""
 
     addresses: QuerySet
     found_with: Literal["ban_id", "cle_interop"]
