@@ -3,16 +3,20 @@ import json
 import os
 import threading
 import time
+import uuid
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import sentry_sdk
+from api_alpha.tests.test_schema_matches_api import _undocumented_keys
+from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.models import (
     KPI,
     Building,
     City,
+    Contribution,
     Department,
     Organization,
     SummerChallenge,
@@ -37,6 +41,7 @@ from django.core.cache import cache
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from openapi_schema_validator import OAS31Validator, validate
 from rest_framework.test import APITestCase
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.transport import Transport
@@ -47,6 +52,7 @@ PARIS = ZoneInfo("Europe/Paris")
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=PARIS)
 SUMMARIES_CACHE_KEY = summaries_cache_key()
 SUMMARIES_URL = "/api/alpha/contributions/summaries/"
+RANKINGS_URL = "/api/alpha/contributions/rankings/"
 IN_WINDOW = datetime(2026, 10, 5, tzinfo=PARIS)
 BEFORE_WINDOW = datetime(2026, 9, 1, tzinfo=PARIS)
 
@@ -67,13 +73,26 @@ def _square() -> Polygon:
     )
 
 
+def contribution(user, created_at):
+    """
+    Writes the Contribution row of an edition request, as the edition
+    endpoints do, dated `created_at` (auto_now_add sets it on insert)
+    """
+    row = Contribution.objects.create(user=user)
+    Contribution.objects.filter(pk=row.pk).update(created_at=created_at)
+    return row
+
+
 def edition(user, created_at, city=None, department=None, origin=CONTRIBUTION):
     """
     Creates a building with Building.create_new, which records the event in the
     building history and writes its SummerChallenge row, then dates the row and
     sets its city and department (created_at is auto_now_add, the areas are
-    resolved from shapes the tests don't have).
+    resolved from shapes the tests don't have). A contribution also writes its
+    Contribution row, as the edition endpoints do; an import does not.
     """
+    if origin["source"] == "contribution":
+        contribution(user, created_at)
     building = Building.create_new(
         user=user,
         event_origin=origin,
@@ -120,7 +139,7 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["cities"], {"total": 0, "new": 0})
         self.assertEqual(data["organizations"], {"total": 0, "new": 0})
-        self.assertEqual(data["building_changes"], {"total": 0, "contributions": 0})
+        self.assertEqual(data["contributions"], {"total": 0})
         self.assertEqual(data["top"], {"users": [], "organizations": [], "cities": []})
         self.assertEqual(data["newcomers"], {"users": []})
         self.assertEqual(data["window_days"], 30)
@@ -244,14 +263,14 @@ class ContributionSummaryTest(TestCase):
             [("alice", 1), ("bob", 1)],
         )
 
-    def test_whole_period_starts_at_the_edition_opening(self):
+    def test_whole_period_has_no_start(self):
         """
         Input: bob contributes in Verrens-Arvey during the 2024 summer game,
         alice in Talence in June 2025, bob in Mérignac in the window.
-        Expected: with days=None, the period starts on 1 April 2025: alice and
-        bob are ranked with 1 contribution each, Talence and Mérignac are the
-        cities of the period, both new; alice is the only newcomer, bob
-        contributed before.
+        Expected: with days=None, every contribution is counted, as in
+        Metabase: since is null, bob is ranked with 2 contributions and alice
+        with 1, the 3 cities are counted and new; both are newcomers, the
+        latest arrived first.
         """
         edition(self.bob, datetime(2024, 7, 1, tzinfo=PARIS), self.verrens)
         edition(self.alice, datetime(2025, 6, 1, tzinfo=PARIS), self.talence)
@@ -260,17 +279,19 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW, days=None)
 
         self.assertIsNone(data["window_days"])
-        self.assertEqual(data["since"], "2025-04-01T00:00:00+02:00")
+        self.assertIsNone(data["since"])
         self.assertEqual(
             sorted((u["username"], u["count"]) for u in data["top"]["users"]),
-            [("alice", 1), ("bob", 1)],
+            [("alice", 1), ("bob", 2)],
         )
         self.assertEqual(
             sorted(c["name"] for c in data["top"]["cities"]),
-            ["Mérignac", "Talence"],
+            ["Mérignac", "Talence", "Verrens-Arvey"],
         )
-        self.assertEqual(data["cities"], {"total": 2, "new": 2})
-        self.assertEqual(data["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(data["cities"], {"total": 3, "new": 3})
+        self.assertEqual(
+            data["newcomers"]["users"], [{"username": "alice"}, {"username": "bob"}]
+        )
 
     def test_periods_computed_together_are_nested(self):
         """
@@ -296,7 +317,7 @@ class ContributionSummaryTest(TestCase):
             {
                 "7": {"total": 1, "new": 0},
                 "30": {"total": 2, "new": 0},
-                "all": {"total": 3, "new": 2},
+                "all": {"total": 3, "new": 3},
             },
         )
         self.assertEqual(
@@ -311,8 +332,9 @@ class ContributionSummaryTest(TestCase):
 
     def test_an_event_counts_once(self):
         """
-        Input: one contribution writing 2 SummerChallenge rows (same event_id).
-        Expected: 1 contribution in the rankings.
+        Input: one contribution (one Contribution row) writing 2 SummerChallenge
+        rows with the same event_id, in Talence.
+        Expected: 1 contribution for alice and for Talence in the rankings.
         """
         building = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
         row = SummerChallenge.objects.get(event_id=building.event_id)
@@ -325,6 +347,92 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(data["top"]["users"][0]["count"], 1)
+        self.assertEqual(data["top"]["cities"][0]["count"], 1)
+
+    def test_editions_before_summer_challenge_rows_are_counted(self):
+        """
+        Input: in June 2025, before SummerChallenge rows were written, alice
+        (Commune de Talence) makes an edition that only left its Contribution
+        row; bob contributes in the window.
+        Expected: over the whole period, Talence's town hall counts as an
+        organization and alice is ranked and a newcomer, as on the internal
+        dashboard; the edition counts in the contributions.
+        """
+        contribution(self.alice, datetime(2025, 6, 1, tzinfo=PARIS))
+        edition(self.bob, IN_WINDOW, self.merignac, self.gironde)
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertEqual(data["organizations"], {"total": 1, "new": 1})
+        self.assertEqual(
+            sorted((u["username"], u["count"]) for u in data["top"]["users"]),
+            [("alice", 1), ("bob", 1)],
+        )
+        self.assertIn({"username": "alice"}, data["newcomers"]["users"])
+        self.assertEqual(data["contributions"]["total"], 2)
+
+    def test_a_merge_counts_once(self):
+        """
+        Input: alice creates 2 buildings, then merges them in one request
+        (one Contribution row, 3 history rows).
+        Expected: 3 contributions for alice (2 creations and the merge), not 5.
+        """
+        first = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        second = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        # a merge needs contiguous shapes: put the second square against the
+        # first, as a new version (the history needs a new event_id)
+        x, y = first.shape.coords[0][0]
+        Building.objects.filter(pk=second.pk).update(
+            event_id=uuid.uuid4(),
+            shape=Polygon(
+                (
+                    (x + 0.0002, y),
+                    (x + 0.0002, y + 0.0002),
+                    (x + 0.0004, y + 0.0002),
+                    (x + 0.0004, y),
+                    (x + 0.0002, y),
+                ),
+                srid=4326,
+            ),
+        )
+        contribution(self.alice, IN_WINDOW)
+        Building.merge(
+            [Building.objects.get(pk=first.pk), Building.objects.get(pk=second.pk)],
+            user=self.alice,
+            event_origin=CONTRIBUTION,
+            status="constructed",
+            addresses_cle_interop=[],
+        )
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["top"]["users"][0]["count"], 3)
+        self.assertEqual(data["contributions"]["total"], 3)
+
+    def test_a_reactivation_counts_but_not_for_its_city(self):
+        """
+        Input: alice creates and deactivates a building in Talence before the
+        window, then reactivates it in the window (one Contribution row, no
+        SummerChallenge row: Building.reactivate writes none).
+        Expected: the reactivation is a contribution of the window, but Talence
+        is not edited in it, as the documentation of cities says.
+        """
+        building = edition(self.alice, BEFORE_WINDOW, self.talence, self.gironde)
+        contribution(self.alice, BEFORE_WINDOW)
+        building.deactivate(self.alice, CONTRIBUTION)
+        SummerChallenge.objects.update(
+            created_at=BEFORE_WINDOW, city=self.talence, department=self.gironde
+        )
+        contribution(self.alice, IN_WINDOW)
+        rows_before = SummerChallenge.objects.count()
+        building.reactivate(self.alice, CONTRIBUTION)
+        self.assertEqual(SummerChallenge.objects.count(), rows_before)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["contributions"]["total"], 1)
+        self.assertEqual(data["top"]["users"][0]["count"], 1)
+        self.assertEqual(data["cities"], {"total": 0, "new": 0})
 
     def test_organizations_have_no_department(self):
         """
@@ -348,7 +456,7 @@ class ContributionSummaryTest(TestCase):
         """
         Input: alice creates a building; a data fix (eg. the replacement of
         obsolete BAN addresses) run by paul updates it, then alice updates it
-        as a contribution.
+        as a contribution (with its Contribution row, as the endpoint writes).
         Expected: paul writes no SummerChallenge row and is neither ranked nor
         a newcomer; alice's update is still scored.
         """
@@ -360,6 +468,7 @@ class ContributionSummaryTest(TestCase):
             status="demolished",
             addresses_cle_interop=None,
         )
+        contribution(self.alice, IN_WINDOW)
         building.update(
             user=self.alice,
             event_origin=CONTRIBUTION,
@@ -373,7 +482,7 @@ class ContributionSummaryTest(TestCase):
                 user=self.alice, action="update_status"
             ).exists()
         )
-        data = compute_contribution_summary()
+        data = compute_contribution_summary(now=NOW)
         self.assertEqual([u["username"] for u in data["top"]["users"]], ["alice"])
         self.assertNotIn("paul", [u["username"] for u in data["newcomers"]["users"]])
 
@@ -402,70 +511,244 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["top"]["users"][0]["username"], "l.martin")
 
-    def test_building_changes_sum_the_last_30_complete_days(self):
+    def test_contributions_are_not_read_from_the_kpis(self):
         """
-        Input: daily KPIs on 14 October (yesterday), 15 September (30 days ago)
-        and 14 September (31 days ago), and today.
-        Expected: only yesterday and 30 days ago are summed; contributions apart.
+        Input: a daily KPI of contribution changes on 14 October (yesterday),
+        and 2 contributions in the window.
+        Expected: contributions.total is 2: the Contribution rows are counted,
+        the KPI is not read.
         """
-        for day, bdtopo, bal, contributions in [
-            (date(2026, 10, 14), 100, 10, 5),
-            (date(2026, 9, 15), 50, 0, 2),
-            (date(2026, 9, 14), 999, 999, 999),
-            (date(2026, 10, 15), 999, 999, 999),
-        ]:
-            for name, value in [
-                (KPI_BUILDING_CHANGES_IMPORT_BDTOPO, bdtopo),
-                (KPI_BUILDING_CHANGES_IMPORT_BAL, bal),
-                (KPI_BUILDING_CHANGES_CONTRIBUTIONS, contributions),
-            ]:
-                KPI.objects.create(name=name, value_date=day, value=value)
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+            value_date=date(2026, 10, 14),
+            value=999,
+        )
+        contribution(self.alice, IN_WINDOW)
+        contribution(self.bob, IN_WINDOW)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["building_changes"], {"total": 167, "contributions": 7})
+        self.assertEqual(data["contributions"], {"total": 2})
 
-    def test_building_changes_end_on_the_latest_computed_day(self):
+    def test_rankings_list_every_contributor_and_organization(self):
         """
-        Input: at 2 am in Paris on 15 October, the KPIs of 14 October are not
-        computed yet (the cron runs at 3 am UTC); KPIs on 13 October and on
-        14 and 13 September.
-        Expected: the 30 days end on 13 October: 13 October and 14 September
-        are summed, 13 September is not.
+        Input: 6 contributors in the window, each in their own organization,
+        user0 with 1 contribution up to user5 with 6.
+        Expected: the long rankings list the 6 contributors and the 6
+        organizations, the most active first; the top of the summary is
+        their 5 first rows.
         """
-        for day, value in [
-            (date(2026, 10, 13), 10),
-            (date(2026, 9, 14), 5),
-            (date(2026, 9, 13), 999),
-        ]:
-            KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
-            )
+        for i in range(6):
+            org = Organization.objects.create(name=f"Org {i}")
+            user = member_of(ContributorUserFactory(username=f"user{i}"), org)
+            for _ in range(i + 1):
+                contribution(user, IN_WINDOW)
 
-        data = compute_contribution_summary(
-            now=datetime(2026, 10, 15, 2, 0, tzinfo=PARIS)
+        summary = compute_all_summaries(now=NOW)["30"]
+
+        users = summary["rankings"]["users"]
+        self.assertEqual(
+            [(u["username"], u["count"]) for u in users],
+            [(f"user{i}", i + 1) for i in reversed(range(6))],
         )
+        self.assertEqual(
+            [o["name"] for o in summary["rankings"]["organizations"]],
+            [f"Org {i}" for i in reversed(range(6))],
+        )
+        for name in ["users", "organizations", "cities"]:
+            self.assertEqual(summary["top"][name], summary["rankings"][name][:5])
 
-        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+    def test_ranked_cities_are_capped(self):
+        """
+        Input: RANKED_CITIES_LIMIT set to 2, contributions in Talence (3),
+        Mérignac (2) and Verrens-Arvey (1) in the window.
+        Expected: the long ranking of the cities stops at Talence and
+        Mérignac; the 3 cities are still counted.
+        """
+        for city, n in [(self.talence, 3), (self.merignac, 2), (self.verrens, 1)]:
+            for _ in range(n):
+                edition(self.alice, IN_WINDOW, city)
 
-    def test_building_changes_of_the_whole_period(self):
+        with patch.object(contribution_summary, "RANKED_CITIES_LIMIT", 2):
+            summary = compute_all_summaries(now=NOW)["30"]
+
+        self.assertEqual(
+            [c["name"] for c in summary["rankings"]["cities"]],
+            ["Talence", "Mérignac"],
+        )
+        self.assertEqual(summary["cities"]["total"], 3)
+
+    def test_summary_has_no_long_rankings(self):
         """
-        Input: daily KPIs on 31 March 2025, 1 April 2025 and 14 October 2026
-        (yesterday).
-        Expected: with days=None, the KPIs from 1 April 2025 are summed.
+        Input: one contribution.
+        Expected: compute_contribution_summary leaves the long rankings out,
+        as the summary endpoints do.
         """
-        for day, value in [
-            (date(2025, 3, 31), 999),
-            (date(2025, 4, 1), 10),
-            (date(2026, 10, 14), 5),
-        ]:
-            KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
-            )
+        contribution(self.alice, IN_WINDOW)
+
+        self.assertNotIn("rankings", compute_contribution_summary(now=NOW))
+
+    def test_contributions_of_the_whole_period(self):
+        """
+        Input: contributions on 31 March 2025 and 1 April 2025.
+        Expected: with days=None, both are counted: the whole period has no
+        start, as in Metabase.
+        """
+        contribution(self.alice, datetime(2025, 3, 31, 12, tzinfo=PARIS))
+        contribution(self.alice, datetime(2025, 4, 1, 12, tzinfo=PARIS))
 
         data = compute_contribution_summary(now=NOW, days=None)
 
-        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+        self.assertEqual(data["contributions"], {"total": 2})
+
+    def test_contributions_leave_the_imports_out(self):
+        """
+        Input: import KPIs (BD TOPO and BAL) on 14 October, a building created
+        by an import in the window, and 2 contributions in the window.
+        Expected: contributions.total is 2, whatever the imports.
+        """
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+            value_date=date(2026, 10, 14),
+            value=100,
+        )
+        KPI.objects.create(
+            name=KPI_BUILDING_CHANGES_IMPORT_BAL,
+            value_date=date(2026, 10, 14),
+            value=10,
+        )
+        edition(self.alice, IN_WINDOW, origin=IMPORT)
+        edition(self.alice, IN_WINDOW)
+        edition(self.bob, IN_WINDOW)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["contributions"], {"total": 2})
+
+    def test_technical_account_contribution_rows_are_left_out(self):
+        """
+        Input: in the window, one Contribution row of the technical RNB account
+        and one of alice.
+        Expected: only alice is ranked, and contributions.total is 1, over
+        30 days and over the whole period.
+        """
+        contribution(UserFactory(username="RNB"), IN_WINDOW)
+        contribution(self.alice, IN_WINDOW)
+
+        summaries = compute_all_summaries(now=NOW)
+
+        for key in ("30", "all"):
+            with self.subTest(period=key):
+                data = summaries[key]
+                self.assertEqual(
+                    [u["username"] for u in data["rankings"]["users"]], ["alice"]
+                )
+                self.assertEqual(data["contributions"], {"total": 1})
+
+    def test_overseas_city_has_a_3_character_department(self):
+        """
+        Input: alice edits in Saint-Denis (97411), in La Réunion (974), while a
+        department 97 does not exist.
+        Expected: the city is ranked with the department 974, La Réunion.
+        """
+        reunion = Department.objects.create(code="974", name="La Réunion")
+        saint_denis = City.objects.create(code_insee="97411", name="Saint-Denis")
+        edition(self.alice, IN_WINDOW, saint_denis, reunion)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["top"]["cities"][0]["department"],
+            {"code": "974", "name": "La Réunion"},
+        )
+
+    def test_organization_first_contribution_is_its_earliest_member(self):
+        """
+        Input: an organization whose member "old" contributed on 1 June 2025
+        and member "recent" in the window; the contributors are read in both
+        orders.
+        Expected: the organization is active but not new: its first
+        contribution is the earliest of its members, whatever their order.
+        """
+        org = Organization.objects.create(name="Org")
+        contribution(
+            member_of(ContributorUserFactory(username="old"), org),
+            datetime(2025, 6, 1, tzinfo=PARIS),
+        )
+        contribution(
+            member_of(ContributorUserFactory(username="recent"), org), IN_WINDOW
+        )
+        user_stats = contribution_summary._user_stats
+
+        for name, order in (("as read", list), ("reversed", reversed)):
+            with self.subTest(order=name), patch.object(
+                contribution_summary,
+                "_user_stats",
+                side_effect=lambda *args, order=order: list(order(user_stats(*args))),
+            ):
+                data = compute_contribution_summary(now=NOW)
+
+                self.assertEqual(data["organizations"], {"total": 1, "new": 0})
+
+    def test_contributions_after_now_are_left_out(self):
+        """
+        Input: alice contributes in the window and on 20 October 2026, after
+        "now" (15 October 2026).
+        Expected: over the whole period, only the first one is counted.
+        """
+        contribution(self.alice, IN_WINDOW)
+        contribution(self.alice, datetime(2026, 10, 20, tzinfo=PARIS))
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertEqual(data["contributions"], {"total": 1})
+
+    def test_deactivated_accounts_are_not_listed(self):
+        """
+        Input: alice (active) and dave (deactivated), both of the Talence town
+        hall, contribute for the first time in the window, dave twice, and a
+        contribution without user.
+        Expected: neither dave nor the contribution without user is in a
+        published list (rankings, top, newcomers); their contributions still
+        count in contributions.total, dave's for Talence.
+        """
+        dave = member_of(ContributorUserFactory(username="dave"), self.mairie)
+        dave.is_active = False
+        dave.save()
+        contribution(self.alice, IN_WINDOW)
+        contribution(dave, IN_WINDOW)
+        contribution(dave, IN_WINDOW)
+        contribution(None, IN_WINDOW)
+
+        summary = compute_all_summaries(now=NOW)["30"]
+
+        self.assertEqual(
+            summary["rankings"]["users"],
+            [{"username": "alice", "organization": "Talence", "count": 1}],
+        )
+        self.assertEqual(summary["top"]["users"], summary["rankings"]["users"])
+        self.assertEqual(summary["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(summary["contributions"], {"total": 4})
+        self.assertEqual(
+            summary["rankings"]["organizations"], [{"name": "Talence", "count": 3}]
+        )
+
+    def test_first_contribution_at_the_start_of_the_period_is_new(self):
+        """
+        Input: alice's first contribution is exactly at the start of the 7-day
+        period (now - 7 days), bob's one microsecond before.
+        Expected: over 7 days, alice's contribution is counted and she is new
+        (newcomer, new organization); bob's is not counted.
+        """
+        start = NOW - timedelta(days=7)
+        contribution(self.alice, start)
+        contribution(self.bob, start - timedelta(microseconds=1))
+
+        summary = compute_all_summaries(now=NOW)["7"]
+
+        self.assertEqual(summary["contributions"], {"total": 1})
+        self.assertEqual(summary["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(summary["organizations"], {"total": 1, "new": 1})
 
 
 # a cache of its own, so that the tests never touch the Redis one
@@ -478,6 +761,10 @@ class ContributionSummaryApiTest(APITestCase):
 
     def setUp(self):
         cache.clear()
+        # the test runner shares one LocMemCache between all the tests: an
+        # entry left here would be served to the next ones (KeyError in
+        # test_schema_matches_api)
+        self.addCleanup(cache.clear)
 
     def test_returns_the_summary(self):
         """
@@ -560,21 +847,22 @@ class ContributionSummaryApiTest(APITestCase):
     def test_periods_are_computed_together(self):
         """
         Input: a call with days=7, then with days=30 and days=all.
-        Expected: the first call computes the 3 periods, the next ones compute
-        nothing.
+        Expected: the first call computes the 3 periods in a single
+        computation, the next ones compute nothing.
         """
         with patch.object(
             contribution_summary,
-            "compute_contribution_summary",
-            wraps=contribution_summary.compute_contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
         ) as compute:
             self.client.get(f"{self.URL}?days=7")
-            self.assertEqual(compute.call_count, 3)
+            self.assertEqual(compute.call_count, 1)
+            self.assertEqual(set(compute.call_args.args[1]), set(PERIOD_KEYS))
 
             for days in ["30", "all"]:
                 self.client.get(f"{self.URL}?days={days}")
 
-        self.assertEqual(compute.call_count, 3)
+        self.assertEqual(compute.call_count, 1)
 
     def test_shorter_period_never_counts_more_cities(self):
         """
@@ -766,6 +1054,25 @@ class ContributionSummaryApiTest(APITestCase):
         self.assertEqual(response.json()["window_days"], 30)
         self.assertEqual(cache.get_many(list(old_entries)), old_entries)
 
+    def test_entry_of_the_previous_format_is_not_read(self):
+        """
+        Input: a fresh entry under the key of the previous response format
+        (no contributions field), as right after the deploy.
+        Expected: the summary is computed and has its contributions field; the
+        previous entry is left to the previous code.
+        """
+        old_key = f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+        old = {
+            "data": {key: {"from_previous_code": True} for key in PERIOD_KEYS},
+            "fresh_until": time.time() + 600,
+        }
+        cache.set(old_key, old, 600)
+
+        response = self.client.get(f"{self.URL}?days=30")
+
+        self.assertEqual(response.json()["contributions"], {"total": 0})
+        self.assertEqual(cache.get(old_key), old)
+
     def test_entry_without_a_new_period_is_not_read(self):
         """
         Input: a fresh entry holding the 7, 30 and all periods, then a 90-day
@@ -871,23 +1178,58 @@ class ContributionSummaryApiTest(APITestCase):
             },
         )
 
+    def test_rankings_return_every_period_shortest_first(self):
+        """
+        Input: a contribution, then calls to the rankings and the summaries
+        endpoints.
+        Expected: 200 with the long rankings of the 7-day, 30-day and whole
+        periods, in that order, from the same computation as the summaries
+        (same updated_at, and top is their start); the summaries carry no long
+        rankings.
+        """
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+
+        with patch.object(
+            contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
+        ) as compute:
+            response = self.client.get(RANKINGS_URL)
+            summaries = self.client.get(SUMMARIES_URL).json()["summaries"]
+
+        self.assertEqual(response.status_code, 200)
+        rankings = response.json()["rankings"]
+        self.assertEqual([r["window_days"] for r in rankings], [7, 30, None])
+        self.assertEqual(compute.call_count, 1)
+        for ranking, summary in zip(rankings, summaries):
+            self.assertNotIn("rankings", summary)
+            self.assertEqual(ranking["updated_at"], summary["updated_at"])
+            self.assertEqual(ranking["since"], summary["since"])
+            self.assertEqual(
+                ranking["users"],
+                [{"username": "alice", "organization": None, "count": 1}],
+            )
+            for name in ["users", "organizations", "cities"]:
+                self.assertEqual(summary["top"][name], ranking[name][:5])
+
     def test_summaries_and_summary_share_the_cache(self):
         """
         Input: a call to the all-periods endpoint, then one per period.
-        Expected: the 3 periods are computed once in all, and each period
-        endpoint returns the matching summary of the first response.
+        Expected: the 3 periods are computed once in all, in a single
+        computation, and each period endpoint returns the matching summary of
+        the first response.
         """
         with patch.object(
             contribution_summary,
-            "compute_contribution_summary",
-            wraps=contribution_summary.compute_contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
         ) as compute:
             summaries = self.client.get(SUMMARIES_URL).json()["summaries"]
             for days, summary in zip(["7", "30", "all"], summaries):
                 response = self.client.get(f"{self.URL}?days={days}")
                 self.assertEqual(response.json(), summary)
 
-        self.assertEqual(compute.call_count, 3)
+        self.assertEqual(compute.call_count, 1)
 
     def test_summaries_come_from_one_entry_while_refreshing(self):
         """
@@ -1049,3 +1391,72 @@ class ContributionSummaryConcurrencyTest(SimpleTestCase):
             responses,
             [[{"fresh": True}] * 3, [{"stale": True}] * 3, [{"stale": True}] * 3],
         )
+
+
+class ContributionSummaryDocTest(SimpleTestCase):
+    def test_paths_without_parameters_document_no_400(self):
+        """
+        Input: the schema of the summaries and rankings endpoints, which read no
+        parameter and never answer 400.
+        Expected: no 400 response is documented for them; the single-period
+        summary, which checks its days parameter, keeps its 400.
+        """
+        paths = build_schema_all_endpoints()["paths"]
+        for path in [SUMMARIES_URL, RANKINGS_URL]:
+            with self.subTest(path=path):
+                self.assertNotIn("400", paths[path]["get"]["responses"])
+        self.assertIn(
+            "400", paths["/api/alpha/contributions/summary/"]["get"]["responses"]
+        )
+
+
+@override_settings(
+    MAX_BUILDING_AREA=float("inf"),
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+class ContributionResponseSchemaTest(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def test_responses_match_the_documented_schemas(self):
+        """
+        Input: alice (member of an organization with a short name) edits a city
+        with a department, bob (no organization) a city without one, now.
+        Expected: the responses of the summary (days=7 and all), summaries and
+        rankings endpoints validate against their documented 200 schemas, null
+        values included (since, window_days, department, organization), and
+        return no field missing from the documentation.
+        """
+        gironde = Department.objects.create(code="33", name="Gironde")
+        talence = City.objects.create(code_insee="33522", name="Talence")
+        wallis = City.objects.create(code_insee="98611", name="Alo")
+        mairie = Organization.objects.create(
+            name="Commune de Talence", short_name="Talence"
+        )
+        alice = member_of(ContributorUserFactory(username="alice"), mairie)
+        bob = ContributorUserFactory(username="bob@mairie.fr")
+        edition(alice, timezone.now(), talence, gironde)
+        edition(bob, timezone.now(), wallis)
+
+        schema = build_schema_all_endpoints()
+        root = {"components": schema["components"]}
+        for url in [
+            "/api/alpha/contributions/summary/?days=7",
+            "/api/alpha/contributions/summary/?days=all",
+            SUMMARIES_URL,
+            RANKINGS_URL,
+        ]:
+            with self.subTest(url=url):
+                path = url.split("?")[0]
+                response_schema = schema["paths"][path]["get"]["responses"]["200"][
+                    "content"
+                ]["application/json"]["schema"]
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+
+                validate(data, {**response_schema, **root}, cls=OAS31Validator)
+                self.assertEqual(
+                    _undocumented_keys(data, response_schema, root, path), []
+                )
