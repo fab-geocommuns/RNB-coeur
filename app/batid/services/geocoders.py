@@ -3,7 +3,7 @@ from io import StringIO
 from uuid import UUID
 
 import requests
-from batid.exceptions import BANAPIDown, BANInvalidResponse
+from batid.exceptions import BANAPIDown, BANInvalidBanId
 from requests import Response
 
 
@@ -55,7 +55,7 @@ class BanGeocoder:
         try:
             return UUID(str(ban_id))
         except ValueError as error:
-            raise BANInvalidResponse(f"banId {ban_id!r} is not a UUID") from error
+            raise BANInvalidBanId(f"banId {ban_id!r} is not a UUID") from error
 
 
 class BanBatchGeocoder:

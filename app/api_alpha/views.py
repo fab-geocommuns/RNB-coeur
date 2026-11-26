@@ -52,11 +52,11 @@ from api_alpha.utils.sandbox_client import (
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
-    BANInvalidResponse,
+    BANInvalidBanId,
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.list_bdg import filter_bdgs_by_address, filter_bdgs_by_addresses
+from batid.list_bdg import filter_bdgs_by_addresses
 from batid.models import (
     ADS,
     Address,
@@ -65,7 +65,7 @@ from batid.models import (
     DiffusionDatabase,
     Organization,
 )
-from batid.services.ban_address import resolve_ban_address
+from batid.services.ban_address import BanAddressMatch, resolve_ban_address
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -272,12 +272,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         },
                                         "cle_interop_ban": {
                                             "type": ["string", "null"],
-                                            "description": "Clé d'interopérabilité BAN reçue ou issue du géocodage. `null` pour une recherche par `ban_id` ou si le géocodage ne renvoie pas de résultat.",
+                                            "description": "Clé d'interopérabilité BAN reçue ou issue du géocodage. `null` pour une recherche par `ban_id`, ou si le géocodage ne renvoie pas de résultat (**geocoding_no_result**).",
                                         },
                                         "ban_id": {
                                             "type": ["string", "null"],
                                             "format": "uuid",
-                                            "description": "Identifiant BAN utilisé pour lister les bâtiments. `null` si les bâtiments ont été filtrés par clé d'interopérabilité ou si le géocodage n'a pas abouti (**geocoding_no_result**, **geocoding_score_is_too_low**).",
+                                            "description": "Identifiant BAN reçu ou issu du géocodage, s'il a servi à lister les bâtiments. `null` pour une recherche par `cle_interop_ban`, si le géocodage n'a pas abouti (**geocoding_no_result**, **geocoding_score_is_too_low**), ou si les bâtiments ont été trouvés par leur clé d'interopérabilité.",
                                         },
                                         "status": {
                                             "type": "string",
@@ -323,8 +323,8 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             q = request.query_params.get("q")
             ban_id = query_serializer.validated_data.get("ban_id")
             paginator = BuildingAddressCursorPagination()
-            buildings = Building.objects.filter(is_active=True)
 
+            # 1. Find the addresses matching what we received
             if q:
                 # 0.8 is the default value
                 min_score = float(request.query_params.get("min_score", 0.8))
@@ -333,7 +333,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     best_result = geocoder.cle_interop_ban_best_result({"q": q})
                 except BANAPIDown:
                     raise ServiceUnavailable(detail="BAN API is currently down")
-                except BANInvalidResponse as error:
+                except BANInvalidBanId as error:
                     # A BAN data error: reported to us, and explained to the user
                     sentry_sdk.capture_exception(error)
                     raise ServiceUnavailable(
@@ -352,22 +352,31 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     infos["status"] = "geocoding_score_is_too_low"
                     return paginator.get_paginated_response(None, infos)
 
-                geocoded_ban_id = best_result["ban_id"]
-                ban_address = resolve_ban_address(cle_interop_ban, geocoded_ban_id)
-                buildings = filter_bdgs_by_addresses(buildings, ban_address.addresses)
-                # The response only gives the BAN ID if it was used to find them
-                infos["ban_id"] = (
-                    str(geocoded_ban_id) if ban_address.found_with == "ban_id" else None
-                )
+                # q and ban_id are exclusive: ban_id now holds the geocoded one
+                ban_id = best_result["ban_id"]
+                addresses_match = resolve_ban_address(cle_interop_ban, ban_id)
             elif ban_id:
-                buildings = filter_bdgs_by_address(buildings, ban_id=ban_id)
-                infos["ban_id"] = str(ban_id)
+                addresses_match = BanAddressMatch(
+                    addresses=Address.objects.filter(ban_id=ban_id),
+                    found_with="ban_id",
+                )
             else:
                 cle_interop_ban = request.query_params.get("cle_interop_ban")
                 infos["cle_interop_ban"] = cle_interop_ban
-                buildings = filter_bdgs_by_address(
-                    buildings, cle_interop=cle_interop_ban
+                addresses_match = BanAddressMatch(
+                    addresses=Address.objects.filter(
+                        cle_interop__iexact=cle_interop_ban
+                    ),
+                    found_with="cle_interop",
                 )
+
+            # 2. Find their buildings
+            buildings = filter_bdgs_by_addresses(
+                Building.objects.filter(is_active=True), addresses_match.addresses
+            )
+            # The response only gives the BAN ID if it was used to find them
+            if addresses_match.found_with == "ban_id":
+                infos["ban_id"] = str(ban_id)
 
             infos["status"] = "ok"
             buildings = (
