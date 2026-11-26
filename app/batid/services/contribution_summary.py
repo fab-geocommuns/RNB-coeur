@@ -149,10 +149,11 @@ def _user_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[di
     Query 1/3, one pass over the Contribution rows for every period at once.
     Per contributor (user_id None for a contribution without user): the date
     of their very first contribution ("first_at"), their number of
-    contributions since each start ("n_<period key>"), their username and
-    their current organization. The RNB team members count as any other
-    contributor; the technical RNB account is left out: it runs the imports and
-    data fixes, which write no Contribution row anyway.
+    contributions since each start ("n_<period key>"), their username, whether
+    their account is active, and their current organization. The RNB team
+    members count as any other contributor; the technical RNB account is left
+    out: it runs the imports and data fixes, which write no Contribution row
+    anyway.
     In SQL: grouped first, in parallel, then joined to the names of the ~500
     contributors. The ORM can only look the names up with subqueries in the
     SELECT, which forbid the parallel grouping (twice slower).
@@ -180,7 +181,7 @@ def _user_stats(now: datetime, starts: dict[str, Optional[datetime]]) -> list[di
               )
             GROUP BY user_id
         )
-        SELECT stats.*, u.username, p.organization_id,
+        SELECT stats.*, u.username, u.is_active, p.organization_id,
             o.name AS organization_name, o.short_name AS organization_short_name
         FROM stats
         LEFT JOIN auth_user u ON u.id = stats.user_id
@@ -301,6 +302,15 @@ def _ranked(
     return sorted(active, key=lambda s: (-s[f"n_{key}"], s[id_field]))[:limit]
 
 
+def _listed(users: list[dict]) -> list[dict]:
+    """
+    The contributors that may be published by name: a deactivated account
+    (spam, departure, request of the person) is never listed, but its
+    contributions still count for the totals and for its organization
+    """
+    return [u for u in users if u["is_active"]]
+
+
 def _ranked_lists(
     users: list[dict],
     organizations: list[dict],
@@ -326,7 +336,7 @@ def _ranked_lists(
                 ),
                 "count": u[f"n_{key}"],
             }
-            for u in _ranked(users, key, "user_id")
+            for u in _ranked(_listed(users), key, "user_id")
         ],
         # by the contributions of their current members. No department: a
         # national organization contributes everywhere
@@ -348,17 +358,11 @@ def _ranked_lists(
 
 def _newcomers(users: list[dict], key: str, since: Optional[datetime]) -> list[dict]:
     """
-    Contributors whose very first contribution is in the period, the latest
-    first
+    Listed contributors whose very first contribution is in the period, the
+    latest first
     """
     return sorted(
-        (
-            u
-            for u in users
-            if u[f"n_{key}"]
-            and u["user_id"] is not None
-            and _is_in(u["first_at"], since)
-        ),
+        (u for u in _listed(users) if u[f"n_{key}"] and _is_in(u["first_at"], since)),
         key=lambda u: (u["first_at"], u["user_id"]),
         reverse=True,
     )[:NEWCOMERS_LIMIT]

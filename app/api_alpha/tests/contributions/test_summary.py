@@ -5,7 +5,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -675,6 +675,50 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW, days=None)
 
         self.assertEqual(data["contributions"], {"total": 1})
+
+    def test_deactivated_accounts_are_not_listed(self):
+        """
+        Input: alice (active) and dave (deactivated), both of the Talence town
+        hall, contribute for the first time in the window, dave twice.
+        Expected: dave is in no published list (rankings, top, newcomers); his
+        contributions still count in contributions.total and for Talence.
+        """
+        dave = member_of(ContributorUserFactory(username="dave"), self.mairie)
+        dave.is_active = False
+        dave.save()
+        contribution(self.alice, IN_WINDOW)
+        contribution(dave, IN_WINDOW)
+        contribution(dave, IN_WINDOW)
+
+        summary = compute_all_summaries(now=NOW)["30"]
+
+        self.assertEqual(
+            summary["rankings"]["users"],
+            [{"username": "alice", "organization": "Talence", "count": 1}],
+        )
+        self.assertEqual(summary["top"]["users"], summary["rankings"]["users"])
+        self.assertEqual(summary["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(summary["contributions"], {"total": 3})
+        self.assertEqual(
+            summary["rankings"]["organizations"], [{"name": "Talence", "count": 3}]
+        )
+
+    def test_first_contribution_at_the_start_of_the_period_is_new(self):
+        """
+        Input: alice's first contribution is exactly at the start of the 7-day
+        period (now - 7 days), bob's one microsecond before.
+        Expected: over 7 days, alice's contribution is counted and she is new
+        (newcomer, new organization); bob's is not counted.
+        """
+        start = NOW - timedelta(days=7)
+        contribution(self.alice, start)
+        contribution(self.bob, start - timedelta(microseconds=1))
+
+        summary = compute_all_summaries(now=NOW)["7"]
+
+        self.assertEqual(summary["contributions"], {"total": 1})
+        self.assertEqual(summary["newcomers"]["users"], [{"username": "alice"}])
+        self.assertEqual(summary["organizations"], {"total": 1, "new": 1})
 
 
 # a cache of its own, so that the tests never touch the Redis one
