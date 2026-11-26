@@ -101,7 +101,10 @@ def city_contributions() -> QuerySet:
     city of the edited building. They only exist since 7 July 2025: the cities
     of the editions made before are not counted. Only contributions write rows
     (Building.update and deactivate() check the event origin), except the
-    imports run by the technical RNB account, which is left out.
+    imports run by the technical RNB account, which is left out. Not every
+    contribution writes one: a reactivation (Building.reactivate) writes none,
+    nor does an update that changes nothing (Building.update only scores real
+    changes), so they count as contributions but not for their city.
     """
     return SummerChallenge.objects.exclude(user_id__in=_technical_user())
 

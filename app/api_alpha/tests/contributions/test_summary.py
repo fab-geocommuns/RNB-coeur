@@ -409,6 +409,31 @@ class ContributionSummaryTest(TestCase):
         self.assertEqual(data["top"]["users"][0]["count"], 3)
         self.assertEqual(data["contributions"]["total"], 3)
 
+    def test_a_reactivation_counts_but_not_for_its_city(self):
+        """
+        Input: alice creates and deactivates a building in Talence before the
+        window, then reactivates it in the window (one Contribution row, no
+        SummerChallenge row: Building.reactivate writes none).
+        Expected: the reactivation is a contribution of the window, but Talence
+        is not edited in it, as the documentation of cities says.
+        """
+        building = edition(self.alice, BEFORE_WINDOW, self.talence, self.gironde)
+        contribution(self.alice, BEFORE_WINDOW)
+        building.deactivate(self.alice, CONTRIBUTION)
+        SummerChallenge.objects.update(
+            created_at=BEFORE_WINDOW, city=self.talence, department=self.gironde
+        )
+        contribution(self.alice, IN_WINDOW)
+        rows_before = SummerChallenge.objects.count()
+        building.reactivate(self.alice, CONTRIBUTION)
+        self.assertEqual(SummerChallenge.objects.count(), rows_before)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["contributions"]["total"], 1)
+        self.assertEqual(data["top"]["users"][0]["count"], 1)
+        self.assertEqual(data["cities"], {"total": 0, "new": 0})
+
     def test_organizations_have_no_department(self):
         """
         Input: alice (Commune de Talence) contributes twice in Gironde and once

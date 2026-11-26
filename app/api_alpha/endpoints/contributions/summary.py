@@ -38,18 +38,20 @@ _PERIOD_PROPERTIES = {
     },
 }
 
+_COUNT_PROPERTIES = {
+    "total": {
+        "type": "integer",
+        "description": "Nombre ayant contribué sur la période.",
+    },
+    "new": {
+        "type": "integer",
+        "description": "Nombre dont la toute première contribution tombe dans la période.",
+    },
+}
+
 _COUNTS = {
     "type": "object",
-    "properties": {
-        "total": {
-            "type": "integer",
-            "description": "Nombre ayant contribué sur la période.",
-        },
-        "new": {
-            "type": "integer",
-            "description": "Nombre dont la toute première contribution tombe dans la période.",
-        },
-    },
+    "properties": _COUNT_PROPERTIES,
     "required": ["total", "new"],
 }
 
@@ -96,7 +98,7 @@ _RANKED_CITY = {
         "name": {"type": "string", "example": "Talence"},
         "department": {
             "type": ["object", "null"],
-            "description": "Département de la commune, null s'il n'est pas connu (collectivités d'outre-mer du Pacifique).",
+            "description": "Département de la commune, null pour les communes sans département (codes INSEE commençant par 98 : Polynésie française, Nouvelle-Calédonie, Wallis-et-Futuna, Terres australes et antarctiques françaises, Clipperton).",
             "properties": {
                 "code": {"type": "string", "example": "33"},
                 "name": {"type": "string", "example": "Gironde"},
@@ -144,7 +146,14 @@ SUMMARY_SCHEMA = {
         **_PERIOD_PROPERTIES,
         "cities": {
             **_COUNTS,
-            "description": "Communes éditées sur la période (éditions faites depuis le 7 juillet 2025).",
+            "description": "Communes éditées sur la période (éditions faites depuis le 7 juillet 2025, hors réactivations de bâtiments et modifications sans changement effectif).",
+            "properties": {
+                **_COUNT_PROPERTIES,
+                "new": {
+                    "type": "integer",
+                    "description": "Nombre dont la première édition depuis le 7 juillet 2025 tombe dans la période.",
+                },
+            },
         },
         "organizations": {
             **_COUNTS,
@@ -240,7 +249,8 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                     "actuelle de son auteur, pas pour celle du moment où elle "
                     "a été faite. "
                     "Pour les communes, seules les éditions faites depuis le 7 "
-                    "juillet 2025 sont comptées : une commune est nouvelle si "
+                    "juillet 2025 sont comptées, hors réactivations de "
+                    "bâtiments et modifications sans changement effectif : une commune est nouvelle si "
                     "sa première édition depuis cette date tombe dans la "
                     "période. Sur toute la période (days=all), new vaut donc "
                     "total, pour les communes comme pour les organisations. "
@@ -263,7 +273,8 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                             "contributions depuis toujours (since vaut alors "
                             "null, et new vaut total ; pour les communes, seules "
                             "les éditions faites depuis le 7 juillet 2025 sont "
-                            "comptées)."
+                            "comptées, hors réactivations de bâtiments et "
+                            "modifications sans changement effectif)."
                         ),
                         "required": False,
                         "schema": {
@@ -374,7 +385,8 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                     "corrigés comptent aussi comme contributions, à la date du "
                     "signalement et pour la personne qui les a traités. "
                     "Pour les communes, seules les éditions faites depuis le 7 "
-                    "juillet 2025 sont comptées. Les données sont mises à jour "
+                    "juillet 2025 sont comptées, hors réactivations de "
+                    "bâtiments et modifications sans changement effectif. Les données sont mises à jour "
                     "environ toutes les heures."
                 ),
                 "operationId": "getContributionRankings",
