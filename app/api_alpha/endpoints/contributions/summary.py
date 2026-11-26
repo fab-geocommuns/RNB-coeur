@@ -16,6 +16,196 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+# Response schemas, shared by the three endpoints
+
+_PERIOD_PROPERTIES = {
+    "updated_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Moment du calcul, le même pour toutes les périodes d'une réponse.",
+        "example": "2026-11-20T10:00:00+01:00",
+    },
+    "window_days": {
+        "type": ["integer", "null"],
+        "description": "Nombre de jours de la période, null pour toute la période (days=all).",
+        "example": 30,
+    },
+    "since": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "description": "Début de la période, null pour toute la période (days=all), qui n'a pas de début.",
+        "example": "2026-10-21T10:00:00+02:00",
+    },
+}
+
+_COUNTS = {
+    "type": "object",
+    "properties": {
+        "total": {
+            "type": "integer",
+            "description": "Nombre ayant contribué sur la période.",
+        },
+        "new": {
+            "type": "integer",
+            "description": "Nombre dont la toute première contribution tombe dans la période.",
+        },
+    },
+    "required": ["total", "new"],
+}
+
+_USERNAME = {
+    "type": "string",
+    "description": "Nom d'utilisateur ; pour une adresse e-mail, seule la partie avant @ est publiée.",
+}
+
+_RANKED_USER = {
+    "type": "object",
+    "properties": {
+        "username": _USERNAME,
+        "organization": {
+            "type": ["string", "null"],
+            "description": "Nom court, sinon nom complet, de l'organisation actuelle du contributeur ; null s'il n'en a pas.",
+        },
+        "count": {
+            "type": "integer",
+            "description": "Nombre de contributions sur la période.",
+        },
+    },
+    "required": ["username", "organization", "count"],
+}
+
+_RANKED_ORGANIZATION = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Nom court, sinon nom complet, de l'organisation.",
+        },
+        "count": {
+            "type": "integer",
+            "description": "Nombre de contributions de ses membres actuels sur la période.",
+        },
+    },
+    "required": ["name", "count"],
+}
+
+_RANKED_CITY = {
+    "type": "object",
+    "properties": {
+        "insee_code": {"type": "string", "example": "33522"},
+        "name": {"type": "string", "example": "Talence"},
+        "department": {
+            "type": ["object", "null"],
+            "description": "Département de la commune, null s'il n'est pas connu (collectivités d'outre-mer du Pacifique).",
+            "properties": {
+                "code": {"type": "string", "example": "33"},
+                "name": {"type": "string", "example": "Gironde"},
+            },
+            "required": ["code", "name"],
+        },
+        "count": {
+            "type": "integer",
+            "description": "Nombre de contributions sur la commune sur la période.",
+        },
+    },
+    "required": ["insee_code", "name", "department", "count"],
+}
+
+_USERS_DESCRIPTION = (
+    "Contributeurs, les plus actifs d'abord. Les comptes désactivés ne sont pas "
+    "listés ; leurs contributions restent comptées dans les totaux et pour leur "
+    "organisation."
+)
+
+
+def _ranked_lists_properties(users_description: str) -> dict:
+    return {
+        "users": {
+            "type": "array",
+            "description": users_description,
+            "items": _RANKED_USER,
+        },
+        "organizations": {
+            "type": "array",
+            "description": "Organisations, les plus actives d'abord.",
+            "items": _RANKED_ORGANIZATION,
+        },
+        "cities": {
+            "type": "array",
+            "description": "Communes, les plus éditées d'abord.",
+            "items": _RANKED_CITY,
+        },
+    }
+
+
+SUMMARY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        **_PERIOD_PROPERTIES,
+        "cities": {
+            **_COUNTS,
+            "description": "Communes éditées sur la période (éditions faites depuis le 7 juillet 2025).",
+        },
+        "organizations": {
+            **_COUNTS,
+            "description": "Organisations ayant contribué sur la période, selon l'organisation actuelle de leurs membres.",
+        },
+        "contributions": {
+            "type": "object",
+            "properties": {
+                "total": {
+                    "type": "integer",
+                    "description": "Nombre de contributions (demandes d'édition) de la période, imports exclus.",
+                }
+            },
+            "required": ["total"],
+        },
+        "top": {
+            "type": "object",
+            "description": f"Les {TOP_LIMIT} plus actifs de la période.",
+            "properties": _ranked_lists_properties(_USERS_DESCRIPTION),
+            "required": ["users", "organizations", "cities"],
+        },
+        "newcomers": {
+            "type": "object",
+            "properties": {
+                "users": {
+                    "type": "array",
+                    "description": (
+                        f"Jusqu'à {NEWCOMERS_LIMIT} contributeurs dont la toute "
+                        "première contribution tombe dans la période, les "
+                        "derniers arrivés d'abord. Les comptes désactivés ne "
+                        "sont pas listés."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {"username": _USERNAME},
+                        "required": ["username"],
+                    },
+                }
+            },
+            "required": ["users"],
+        },
+    },
+    "required": [
+        *_PERIOD_PROPERTIES,
+        "cities",
+        "organizations",
+        "contributions",
+        "top",
+        "newcomers",
+    ],
+}
+
+RANKINGS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        **_PERIOD_PROPERTIES,
+        **_ranked_lists_properties(_USERS_DESCRIPTION),
+    },
+    "required": [*_PERIOD_PROPERTIES, "users", "organizations", "cities"],
+}
+
 
 class ContributionSummaryView(RNBLoggingMixin, APIView):
     """
@@ -82,6 +272,12 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                         },
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "La synthèse de la période.",
+                        "content": {"application/json": {"schema": SUMMARY_SCHEMA}},
+                    }
+                },
             }
         }
     )
@@ -126,6 +322,20 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
                             "Les synthèses, de la période la plus courte à la "
                             "plus longue."
                         ),
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "summaries": {
+                                            "type": "array",
+                                            "items": SUMMARY_SCHEMA,
+                                        }
+                                    },
+                                    "required": ["summaries"],
+                                }
+                            }
+                        },
                     }
                 },
             }
@@ -149,7 +359,8 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                 "description": (
                     "Retourne, pour chaque période ("
                     + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
-                    + ", puis depuis toujours) : tous les contributeurs et "
+                    + ", puis depuis toujours) : tous les contributeurs (hors "
+                    "comptes désactivés) et "
                     "toutes les organisations (selon l'organisation actuelle "
                     "de leurs membres), et les "
                     f"{RANKED_CITIES_LIMIT} communes les plus éditées, les plus "
@@ -172,6 +383,20 @@ class ContributionRankingsView(RNBLoggingMixin, APIView):
                             "Les classements, de la période la plus courte à "
                             "la plus longue."
                         ),
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "rankings": {
+                                            "type": "array",
+                                            "items": RANKINGS_SCHEMA,
+                                        }
+                                    },
+                                    "required": ["rankings"],
+                                }
+                            }
+                        },
                     }
                 },
             }

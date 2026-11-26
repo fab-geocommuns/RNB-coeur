@@ -10,6 +10,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import sentry_sdk
+from api_alpha.tests.test_schema_matches_api import _undocumented_keys
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from batid.models import (
     KPI,
@@ -40,6 +41,7 @@ from django.core.cache import cache
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from openapi_schema_validator import OAS31Validator, validate
 from rest_framework.test import APITestCase
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.transport import Transport
@@ -1378,3 +1380,55 @@ class ContributionSummaryDocTest(SimpleTestCase):
         self.assertIn(
             "400", paths["/api/alpha/contributions/summary/"]["get"]["responses"]
         )
+
+
+@override_settings(
+    MAX_BUILDING_AREA=float("inf"),
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+class ContributionResponseSchemaTest(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def test_responses_match_the_documented_schemas(self):
+        """
+        Input: alice (member of an organization with a short name) edits a city
+        with a department, bob (no organization) a city without one, now.
+        Expected: the responses of the summary (days=7 and all), summaries and
+        rankings endpoints validate against their documented 200 schemas, null
+        values included (since, window_days, department, organization), and
+        return no field missing from the documentation.
+        """
+        gironde = Department.objects.create(code="33", name="Gironde")
+        talence = City.objects.create(code_insee="33522", name="Talence")
+        wallis = City.objects.create(code_insee="98611", name="Alo")
+        mairie = Organization.objects.create(
+            name="Commune de Talence", short_name="Talence"
+        )
+        alice = member_of(ContributorUserFactory(username="alice"), mairie)
+        bob = ContributorUserFactory(username="bob@mairie.fr")
+        edition(alice, timezone.now(), talence, gironde)
+        edition(bob, timezone.now(), wallis)
+
+        schema = build_schema_all_endpoints()
+        root = {"components": schema["components"]}
+        for url in [
+            "/api/alpha/contributions/summary/?days=7",
+            "/api/alpha/contributions/summary/?days=all",
+            SUMMARIES_URL,
+            RANKINGS_URL,
+        ]:
+            with self.subTest(url=url):
+                path = url.split("?")[0]
+                response_schema = schema["paths"][path]["get"]["responses"]["200"][
+                    "content"
+                ]["application/json"]["schema"]
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+
+                validate(data, {**response_schema, **root}, cls=OAS31Validator)
+                self.assertEqual(
+                    _undocumented_keys(data, response_schema, root, path), []
+                )
